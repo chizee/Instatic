@@ -1,0 +1,51 @@
+/**
+ * base.video - default editor styles.
+ * User class styles override these defaults through the generated mc-* classes.
+ */
+
+.video {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  aspect-ratio: 16 / 9;
+  border: 0;
+  border-radius: 0;
+  overflow: hidden;
+  background-color: #000;
+}
+
+.inner {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.placeholder {
+  width: 100%;
+  height: 100%;
+  min-height: 160px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #94a3b8;
+  background: #0f172a;
+  font-size: 13px;
+}
+
+.playIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 42px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 6px;
+  color: #e2e8f0;
+  background: #1e293b;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}

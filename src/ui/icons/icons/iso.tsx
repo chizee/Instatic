@@ -1,0 +1,18 @@
+import React from 'react';
+import type { IconProps } from '../types';
+
+export function IsoIcon({ size = 24, color = 'currentColor', className, style }: IconProps): React.ReactElement {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+      style={style}
+    >
+      <path d="M7 19H5V17H7V19ZM21 18H13V16H21V18ZM9 17H7V15H9V17ZM11 15H9V13H11V15ZM13 13H11V11H13V13ZM8 6H11V8H8V11H6V8H3V6H6V3H8V6ZM15 11H13V9H15V11ZM17 9H15V7H17V9ZM19 7H17V5H19V7Z" fill={color}/>
+    </svg>
+  );
+}

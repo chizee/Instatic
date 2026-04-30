@@ -1,0 +1,71 @@
+/* Shared form field primitive. */
+
+.input {
+    width: 100%;
+    box-sizing: border-box;
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
+    border-radius: var(--input-radius);
+    color: var(--editor-text);
+    font-family: var(--font-sans);
+    outline: none;
+}
+
+.input:focus,
+.input:focus-within {
+    background: var(--input-bg-focus);
+    border-color: var(--input-border-focus);
+}
+
+.input:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.input::placeholder {
+    color: var(--editor-text-subtle);
+}
+
+.input[data-emphasis="strong"] {
+    font-weight: 700;
+}
+
+.monospace {
+    font-family: var(--font-mono, monospace);
+    letter-spacing: 0;
+}
+
+.size-xs {
+    min-height: 24px;
+    padding: 2px 6px;
+    font-size: 11px;
+}
+
+.size-sm {
+    min-height: 28px;
+    padding: 5px 8px;
+    font-size: 11px;
+}
+
+.size-md {
+    min-height: 32px;
+    padding: 6px 9px;
+    font-size: 12px;
+}
+
+.textarea {
+    resize: vertical;
+    line-height: 1.5;
+}
+
+.textarea[data-resize="none"] {
+    resize: none;
+}
+
+.textarea[data-resize="both"] {
+    resize: both;
+}
+
+.invalid {
+    border-color: var(--editor-danger);
+}

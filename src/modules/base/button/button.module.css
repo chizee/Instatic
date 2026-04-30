@@ -1,0 +1,27 @@
+/**
+ * base.button — default editor styles.
+ * These defaults are overridden by user-applied mc-{id} CSS classes (cascade order wins).
+ */
+
+.button {
+  display: inline-block;
+  width: auto;
+  text-align: center;
+  padding: 10px 20px; /* md size default */
+  font-size: 15px;    /* md size default */
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: opacity 0.15s;
+  opacity: 1;
+  border: 2px solid transparent;
+  box-sizing: border-box;
+  background: #6366f1;  /* primary variant default */
+  color: #ffffff;
+}
+
+.button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}

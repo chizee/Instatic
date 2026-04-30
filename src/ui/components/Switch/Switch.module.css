@@ -1,0 +1,99 @@
+/* Extracted from ToggleControl and Settings PreferencesSection switch styles. */
+
+.switch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.switch[data-hit-area="true"] {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.switch:disabled {
+  cursor: not-allowed;
+}
+
+.track {
+  position: relative;
+  display: block;
+  width: 38px;
+  height: 22px;
+  border: 1px solid var(--panel-border);
+  border-radius: 999px;
+  flex-shrink: 0;
+  transition: background-color 150ms ease;
+}
+
+.trackOn {
+  background: rgba(255, 255, 255, 0.88);
+}
+
+.trackOff {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.switch[data-hit-area="true"] .track {
+  width: 32px;
+  height: 16px;
+  padding: 2px;
+  box-sizing: content-box;
+  border: 0;
+  border-radius: 10px;
+}
+
+.switch[data-hit-area="true"] .trackOn {
+  background: var(--editor-accent);
+}
+
+.switch[data-hit-area="true"] .trackOff {
+  background: var(--editor-border-med);
+}
+
+.thumb {
+  position: absolute;
+  top: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  transition: left 150ms ease;
+}
+
+.thumbOn {
+  left: 18px;
+  background: var(--editor-bg);
+}
+
+.thumbOff {
+  left: 3px;
+  background: var(--editor-text);
+}
+
+.switch[data-size="sm"] .track {
+  width: 28px;
+  height: 16px;
+}
+
+.switch[data-size="sm"] .thumb {
+  top: 2px;
+  width: 10px;
+  height: 10px;
+}
+
+.switch[data-size="sm"] .thumbOn {
+  left: 15px;
+}
+
+.switch[data-size="sm"] .thumbOff {
+  left: 3px;
+}
+
+.switch[data-hit-area="true"] .thumbOff {
+  left: 2px;
+}

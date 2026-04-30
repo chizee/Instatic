@@ -1,0 +1,371 @@
+/**
+ * useCanvas — gesture handling hook for the infinite canvas.
+ *
+ * Performance architecture (Contribution #312):
+ * ─────────────────────────────────────────────
+ * Pan/zoom state is kept in a REF during active interaction.
+ * DOM writes are batched into requestAnimationFrame (one write/frame).
+ * Zustand is updated with a 100ms debounce at interaction end.
+ * This avoids React re-renders at 60fps during pan/zoom.
+ *
+ * Input support:
+ * - Ctrl/Cmd + wheel → zoom towards cursor
+ * - Plain wheel → pan vertically (and horizontally with shift)
+ * - Middle mouse drag → pan
+ * - Space + left-drag → pan
+ * - Pinch (touch) → zoom+pan
+ * - +/- keys → zoom in/out (committed immediately)
+ * - Ctrl/Cmd+0 → reset to 100% zoom
+ * - Shift+1 → fit-to-screen (1:1 zoom, centered)
+ */
+
+import { useRef, useEffect, useCallback } from 'react'
+import { useGesture } from '@use-gesture/react'
+import { useEditorStore } from '@core/editor-store/store'
+import {
+  applyZoom,
+  applyPan,
+  zoomFromWheelDelta,
+  clampZoom,
+  incrementalScaleFromPinchMovement,
+} from '../components/Canvas/math'
+
+interface Transform {
+  zoom: number
+  panX: number
+  panY: number
+}
+
+interface UseCanvasOptions {
+  /** Ref to the gesture capture root */
+  canvasRootRef: React.RefObject<HTMLElement | null>
+  /** Ref to the div that gets the CSS transform applied to it */
+  transformLayerRef: React.RefObject<HTMLElement | null>
+}
+
+export function useCanvas({ canvasRootRef, transformLayerRef }: UseCanvasOptions) {
+  // Ref-based transform — not React state — avoids re-renders during interaction
+  const transformRef = useRef<Transform>({ zoom: 1, panX: 0, panY: 0 })
+  const rafRef = useRef<number | null>(null)
+  const commitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const spaceActiveRef = useRef(false)
+  const isDraggingRef = useRef(false)
+  const lastPinchMovementRef = useRef(1)
+
+  // Actions — Zustand actions are stable references, subscribing to them is fine.
+  const setZoom = useEditorStore((s) => s.setZoom)
+  const setPan = useEditorStore((s) => s.setPan)
+  const zoomIn = useEditorStore((s) => s.zoomIn)
+  const zoomOut = useEditorStore((s) => s.zoomOut)
+  const resetView = useEditorStore((s) => s.resetView)
+
+  // ─── DOM write helper ─────────────────────────────────────────────────────
+
+  const applyTransformToDOM = useCallback((t: Transform) => {
+    if (!transformLayerRef.current) return
+    transformLayerRef.current.style.transform =
+      `translate(${t.panX}px, ${t.panY}px) scale(${t.zoom})`
+  }, [transformLayerRef])
+
+  // Sync from store on mount (restore saved pan/zoom).
+  // PERF FIX (Contribution #495): read initial values via getState() — NOT via
+  // useEditorStore subscriptions. Live subscriptions on s.zoom/s.panX/s.panY
+  // would cause CanvasRoot to re-render on every debounced pan commit (100ms
+  // cadence during active pan). getState() reads once on mount, no subscription.
+  useEffect(() => {
+    const { zoom, panX, panY } = useEditorStore.getState()
+    transformRef.current = { zoom, panX, panY }
+    applyTransformToDOM(transformRef.current)
+  }, [applyTransformToDOM])
+
+  /**
+   * Schedule a DOM write for the next animation frame.
+   * Coalesces multiple updates within the same frame into a single DOM write.
+   */
+  const scheduleTransformWrite = useCallback((t: Transform) => {
+    transformRef.current = t
+    if (rafRef.current !== null) return // already scheduled
+    rafRef.current = requestAnimationFrame(() => {
+      rafRef.current = null
+      applyTransformToDOM(transformRef.current)
+    })
+  }, [applyTransformToDOM])
+
+  /**
+   * Debounced Zustand commit — fires 100ms after the last interaction event.
+   * Keeps the store consistent without updating on every frame.
+   */
+  const scheduleStoreCommit = useCallback((t: Transform) => {
+    if (commitTimerRef.current) clearTimeout(commitTimerRef.current)
+    commitTimerRef.current = setTimeout(() => {
+      setZoom(t.zoom)
+      setPan(t.panX, t.panY)
+    }, 100)
+  }, [setZoom, setPan])
+
+  const updateTransform = useCallback((t: Transform) => {
+    scheduleTransformWrite(t)
+    scheduleStoreCommit(t)
+  }, [scheduleTransformWrite, scheduleStoreCommit])
+
+  const resetCanvasView = useCallback(() => {
+    resetView()
+    transformRef.current = { zoom: 1, panX: 0, panY: 0 }
+    applyTransformToDOM(transformRef.current)
+  }, [resetView, applyTransformToDOM])
+
+  // ─── Prevent browser pinch-zoom on Mac trackpad ──────────────────────────
+  //
+  // @use-gesture/react bind() (without `target`) routes all gesture handlers
+  // through React's synthetic event system, which registers every listener as
+  // passive.  Passive listeners CANNOT call event.preventDefault(), so the
+  // browser applies its native Ctrl+scroll viewport zoom in addition to our
+  // canvas zoom — causing panels, toolbars, and everything else to scale.
+  //
+  // Two separate event families must be blocked:
+  //
+  //  1. WheelEvent with ctrlKey=true — macOS trackpad pinch in Chrome/Firefox.
+  //     Prevented at document level with { passive: false } so preventDefault()
+  //     is honoured.
+  //
+  //  2. GestureEvent (gesturestart / gesturechange) — Safari's proprietary
+  //     gesture API.  Safari routes trackpad pinch through these events before
+  //     (or instead of) WheelEvent.  Without this listener, Safari ignores the
+  //     wheel prevention and applies its native viewport zoom.
+  //
+  // Must be at document scope (not the canvas element) so the listener fires
+  // before the browser claims the gesture, regardless of where the pointer is.
+  // Same pattern used by Figma, Excalidraw, and Miro.
+  useEffect(() => {
+    const preventWheelZoom = (e: WheelEvent) => {
+      if (e.ctrlKey || e.metaKey) e.preventDefault()
+    }
+    // Safari proprietary GestureEvent — always prevent when it fires inside
+    // the page; the canvas gesture handler (onPinch) provides the replacement.
+    const preventGestureZoom = (e: Event) => e.preventDefault()
+
+    // { passive: false } required — passive listeners cannot call preventDefault.
+    document.addEventListener('wheel', preventWheelZoom, { passive: false })
+    document.addEventListener('gesturestart', preventGestureZoom, { passive: false } as AddEventListenerOptions)
+    document.addEventListener('gesturechange', preventGestureZoom, { passive: false } as AddEventListenerOptions)
+    return () => {
+      document.removeEventListener('wheel', preventWheelZoom)
+      document.removeEventListener('gesturestart', preventGestureZoom)
+      document.removeEventListener('gesturechange', preventGestureZoom)
+    }
+  }, [])
+
+  // ─── Spacebar tracking (for Space+drag pan) ───────────────────────────────
+
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.code === 'Space' && !e.repeat) {
+        const target = e.target as HTMLElement
+        // Don't intercept space in inputs/textareas
+        if (
+          target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.isContentEditable
+        ) return
+        e.preventDefault()
+        spaceActiveRef.current = true
+      }
+    }
+    function onKeyUp(e: KeyboardEvent) {
+      if (e.code === 'Space') {
+        spaceActiveRef.current = false
+      }
+    }
+    document.addEventListener('keydown', onKeyDown)
+    document.addEventListener('keyup', onKeyUp)
+    return () => {
+      document.removeEventListener('keydown', onKeyDown)
+      document.removeEventListener('keyup', onKeyUp)
+    }
+  }, [])
+
+  // ─── Browser-style reset shortcut ─────────────────────────────────────────
+
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (!(e.metaKey || e.ctrlKey) || e.key !== '0') return
+
+      const target = e.target as HTMLElement
+      if (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.isContentEditable
+      ) return
+
+      e.preventDefault()
+      resetCanvasView()
+    }
+
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [resetCanvasView])
+
+  // ─── Keyboard shortcuts ───────────────────────────────────────────────────
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      // Zoom in/out with +/- keys
+      if (e.key === '=' || e.key === '+') {
+        e.preventDefault()
+        zoomIn()
+      } else if (e.key === '-') {
+        e.preventDefault()
+        zoomOut()
+      } else if ((e.metaKey || e.ctrlKey) && e.key === '0') {
+        e.preventDefault()
+        resetCanvasView()
+      }
+      // Shift+1 → fit to screen / reset view
+      else if (e.key === '1' && e.shiftKey) {
+        e.preventDefault()
+        resetCanvasView()
+      }
+      // Ctrl/Cmd+Z / Ctrl/Cmd+Shift+Z handled by App-level listener
+    },
+    [zoomIn, zoomOut, resetCanvasView],
+  )
+
+  // ─── External zoom/pan sync ───────────────────────────────────────────────
+  //
+  // ZoomControls (toolbar + buttons) and any other external caller update the
+  // Zustand store directly via zoomIn/zoomOut/resetView.  The DOM transform
+  // layer is NOT subscribed to the store via React state (intentional perf
+  // design — avoids re-renders during 60fps gestures).  Without this
+  // subscription those external actions only update the zoom indicator number
+  // and never move the canvas visually.
+  //
+  // Zustand subscribers fire synchronously inside set(), so the DOM is updated
+  // in the same microtask as the store change — no visible frame lag.
+  //
+  // The guard `zoom !== cur.zoom || ...` prevents redundant DOM writes from our
+  // own debounced Zustand commits (scheduleStoreCommit): by the time the 100ms
+  // debounce fires, transformRef already holds the same values the debounce is
+  // committing, so the comparison returns false and we skip the write.
+  useEffect(() => {
+    const unsubscribe = useEditorStore.subscribe((state) => {
+      const { zoom, panX, panY } = state
+      const cur = transformRef.current
+      if (zoom !== cur.zoom || panX !== cur.panX || panY !== cur.panY) {
+        transformRef.current = { zoom, panX, panY }
+        applyTransformToDOM(transformRef.current)
+      }
+    })
+    return unsubscribe
+  }, [applyTransformToDOM])
+
+  // ─── Native wheel pan/zoom ────────────────────────────────────────────────
+  //
+  // Wheel cannot go through @use-gesture's React bind() path: React synthetic
+  // wheel listeners are passive in modern React, so preventDefault is ignored,
+  // and currentTarget can be null by the time @use-gesture invokes the handler.
+  useEffect(() => {
+    const canvasEl = canvasRootRef.current
+    if (!canvasEl) return
+
+    const handleWheel = (event: WheelEvent) => {
+      event.preventDefault()
+
+      const t = transformRef.current
+      const rect = canvasEl.getBoundingClientRect()
+      const originX = event.clientX - rect.left
+      const originY = event.clientY - rect.top
+
+      if (event.ctrlKey || event.metaKey) {
+        const newZoom = zoomFromWheelDelta(t.zoom, event.deltaY)
+        const next = applyZoom(t.zoom, newZoom, originX, originY, t.panX, t.panY)
+        updateTransform(next)
+        return
+      }
+
+      const wheelX = event.shiftKey && event.deltaX === 0 ? event.deltaY : event.deltaX
+      const wheelY = event.shiftKey ? 0 : event.deltaY
+      const next = applyPan(t.panX, t.panY, -wheelX, -wheelY)
+      updateTransform({ zoom: t.zoom, ...next })
+    }
+
+    canvasEl.addEventListener('wheel', handleWheel, { passive: false })
+    return () => {
+      canvasEl.removeEventListener('wheel', handleWheel)
+    }
+  }, [canvasRootRef, updateTransform])
+
+  // ─── Gesture handlers ─────────────────────────────────────────────────────
+
+  const bind = useGesture(
+    {
+      onDrag: ({ delta: [dx, dy], buttons, first, last }) => {
+        const isMiddleButton = (buttons & 4) !== 0
+        const isSpacePan = spaceActiveRef.current
+
+        if (!isMiddleButton && !isSpacePan) return
+
+        if (first) isDraggingRef.current = true
+        if (last) isDraggingRef.current = false
+
+        const t = transformRef.current
+        const next = applyPan(t.panX, t.panY, dx, dy)
+        updateTransform({ zoom: t.zoom, ...next })
+      },
+
+      onPinch: ({ movement: [scaleMovement], origin: [ox, oy], first, last }) => {
+        // event?.preventDefault() intentionally omitted — the document-level
+        // gesturestart/gesturechange listeners above handle Safari, and the
+        // document wheel listener handles Chrome/Firefox.  Calling preventDefault
+        // here would be on a passive React synthetic event and has no effect.
+        const t = transformRef.current
+        // `origin` is in page coordinates — convert to canvas-relative
+        const canvasEl = transformLayerRef.current?.parentElement
+        if (!canvasEl) return
+        const rect = canvasEl.getBoundingClientRect()
+        const originX = ox - rect.left
+        const originY = oy - rect.top
+        // @use-gesture pinch movement[0] is accumulated since gesture start.
+        // Convert it to a per-frame multiplier before applying it to the
+        // current transform; otherwise every frame compounds the full gesture.
+        const previousMovement = first ? 1 : lastPinchMovementRef.current
+        const scaleDelta = incrementalScaleFromPinchMovement(scaleMovement, previousMovement)
+        lastPinchMovementRef.current =
+          Number.isFinite(scaleMovement) && scaleMovement > 0 ? scaleMovement : previousMovement
+
+        const newZoom = clampZoom(t.zoom * scaleDelta)
+        const next = applyZoom(t.zoom, newZoom, originX, originY, t.panX, t.panY)
+        updateTransform(next)
+
+        if (last) lastPinchMovementRef.current = 1
+      },
+    },
+    {
+      drag: { filterTaps: true },
+      pinch: {
+        eventOptions: { passive: false },
+        // Trackpad pinch already arrives here through the native ctrl/meta
+        // wheel listener above. Letting @use-gesture convert the same wheel
+        // event into onPinch applies zoom twice and makes pinch far too fast.
+        pinchOnWheel: false,
+      },
+    },
+  )
+
+  // ─── Cleanup on unmount ───────────────────────────────────────────────────
+
+  useEffect(() => {
+    return () => {
+      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current)
+      if (commitTimerRef.current) clearTimeout(commitTimerRef.current)
+    }
+  }, [])
+
+  return {
+    bind,
+    handleKeyDown,
+    /** Whether a space-pan or middle-mouse drag is in progress */
+    isDragging: isDraggingRef,
+  }
+}

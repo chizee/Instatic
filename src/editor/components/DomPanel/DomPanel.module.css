@@ -1,0 +1,85 @@
+/* DomPanel — DOM tree panel (floating overlay, Guideline #356/#357/#318/#321) */
+
+/* ── Panel shell ─────────────────────────────────────────────────────────── */
+.panel {
+    position: absolute;
+    /* Position driven by --panel-x / --panel-y CSS vars (useDraggablePanel) */
+    left: var(--panel-x, 16px);
+    top: var(--panel-y, 16px);
+    z-index: 50;
+    max-height: 80vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    background: var(--panel-bg);
+    backdrop-filter: blur(var(--panel-blur));
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    box-shadow: var(--panel-shadow);
+    transition: width 150ms ease-in-out;
+    outline: none;
+    will-change: transform;
+    transform: translateZ(0);
+    /* width is set via --panel-w CSS custom property (dynamic resizable state) */
+    width: var(--panel-w);
+}
+
+.panelDocked {
+    position: relative;
+    left: auto;
+    top: auto;
+    z-index: auto;
+    width: 100%;
+    height: 100%;
+    max-height: none;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    backdrop-filter: none;
+    background: transparent;
+    transition: none;
+    will-change: auto;
+    transform: none;
+}
+
+/* ── Hidden focus trap (for F6 focus cycling) ────────────────────────────── */
+.focusTrap {
+    position: absolute;
+    width: 0;
+    height: 0;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+/* ── Tree / scrollable content area ─────────────────────────────────────── */
+.treeArea {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-top: 2px;
+    padding-bottom: 6px;
+    padding-right: 8px;
+}
+
+.dragOverlayRow {
+    width: min(240px, var(--panel-w));
+    background: var(--panel-bg);
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.32);
+    pointer-events: none;
+}
+
+/* ── Empty / loading states ──────────────────────────────────────────────── */
+.emptyMsg {
+    padding: 12px;
+    color: var(--editor-text-subtle);
+    font-size: 11px;
+    line-height: 1.6;
+}
+
+.noMatchMsg {
+    padding: 16px;
+    color: var(--editor-text-subtle);
+    font-size: 12px;
+}

@@ -1,0 +1,23 @@
+/**
+ * base.container — default editor styles.
+ * These defaults are overridden by user-applied mc-{id} CSS classes (cascade order wins).
+ *
+ * Dynamic prop-driven layout (display, flex-direction, padding, etc.) is handled by
+ * the publisher's render() function. The editor preview shows these defaults only.
+ */
+
+.container {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: stretch;
+  flex-wrap: nowrap;
+  gap: 16px;
+  padding: 16px;
+  background: transparent;
+  max-width: 100%;
+  width: 100%;
+  border-radius: 0;
+  overflow: visible;
+  box-sizing: border-box;
+}

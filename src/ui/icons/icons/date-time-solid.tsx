@@ -1,0 +1,18 @@
+import React from 'react';
+import type { IconProps } from '../types';
+
+export function DateTimeSolidIcon({ size = 24, color = 'currentColor', className, style }: IconProps): React.ReactElement {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+      style={style}
+    >
+      <path d="M21 13H23V21H21V23H13V21H11V13H13V11H21V13ZM7 3H13V1H15V3H17V5H19V9H17V7H3V9H11V11H9V21H3V19H1V5H3V3H5V1H7V3ZM18 20H20V18H18V20ZM16 18H18V13H16V18Z" fill={color}/>
+    </svg>
+  );
+}

@@ -1,0 +1,106 @@
+/**
+ * ComponentRefView — PropertiesPanel view for base.visualComponentRef instances.
+ *
+ * Architecture source: Contribution #619 §8.5
+ * Achromatic palette (Guideline #376). CSS Modules only (Constraint #402/#403).
+ */
+
+/* ── Header strip ────────────────────────────────────────────────────────── */
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--editor-border);
+  background: var(--editor-surface-3);
+}
+
+.headerIcon {
+  flex-shrink: 0;
+  color: var(--editor-text-secondary);
+}
+
+.headerName {
+  flex: 1;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--editor-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── No params placeholder ───────────────────────────────────────────────── */
+
+.noParams {
+  padding: 20px 12px;
+  font-size: 11px;
+  color: var(--editor-text-subtle);
+  text-align: center;
+  line-height: 1.6;
+}
+
+/* ── Unknown VC placeholder ──────────────────────────────────────────────── */
+
+.unknownVC {
+  padding: 16px 12px;
+  font-size: 11px;
+  color: var(--editor-danger-light);
+  text-align: center;
+}
+
+/* ── Param row ───────────────────────────────────────────────────────────── */
+
+.paramsList {
+  overflow-y: auto;
+  flex: 1;
+}
+
+.paramRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px;
+  min-height: 28px;
+  border-bottom: 1px solid var(--editor-border);
+}
+
+.paramRow:last-child {
+  border-bottom: none;
+}
+
+/* Left edge accent — present on overridden params */
+.paramRowOverridden {
+  border-left: 2px solid rgba(255, 255, 255, 0.4);
+  padding-left: 10px;
+}
+
+.paramName {
+  flex: 0 0 90px;
+  font-size: 11px;
+  color: var(--editor-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.paramField {
+  flex: 1;
+}
+
+/* Override status pill */
+.overridePill {
+  flex-shrink: 0;
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--editor-surface-4);
+  color: var(--editor-text-secondary);
+  white-space: nowrap;
+}
+
+/* Boolean switch — compact intrinsic sizing. */
+.paramSwitch {
+  flex: 0 0 auto;
+}

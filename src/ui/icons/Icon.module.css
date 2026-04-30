@@ -1,0 +1,5 @@
+/* Placeholder SVG — preserves space while icon chunk loads */
+.placeholder {
+  display: inline-block;
+  flex-shrink: 0;
+}

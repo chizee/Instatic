@@ -1,0 +1,219 @@
+/* AgentPanel — self-contained floating AI assistant panel (Guideline #410) */
+
+/* ── Floating panel outer shell ──────────────────────────────────────────── */
+.floatPanel {
+  position: absolute;
+  /* Position driven by --panel-x / --panel-y CSS vars (useDraggablePanel) */
+  left: var(--panel-x, calc(100% - 336px));
+  top: var(--panel-y, 200px);
+  z-index: 50;
+  width: 320px;
+  height: 480px;
+  display: flex;
+  flex-direction: column;
+  background: var(--panel-bg);
+  backdrop-filter: blur(var(--panel-blur));
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  box-shadow: var(--panel-shadow);
+  overflow: hidden;
+  outline: none;
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+.floatPanelDocked {
+  position: relative;
+  left: auto;
+  top: auto;
+  z-index: auto;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+  background: transparent;
+  will-change: auto;
+  transform: none;
+}
+
+/* Always-mounted pattern: display:none hides without unmounting (preserves store state) */
+.floatPanelClosed {
+  display: none;
+}
+
+/* ── Inner panel shell (fill the float container) ────────────────────────── */
+.panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+/* ── Streaming badge — shown in header extra actions slot ────────────────── */
+.streamingBadge {
+  font-size: 10px;
+  color: var(--editor-accent-light);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  pointer-events: none;
+}
+
+.streamingDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--editor-accent-light);
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* ── Message thread ──────────────────────────────────────────────────────── */
+.thread {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 12px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+}
+
+.errorBanner {
+  padding: 8px 10px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 6px;
+  color: var(--editor-danger-light);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+/* ── Input bar ───────────────────────────────────────────────────────────── */
+.inputBar {
+  padding: 12px;
+  border-top: 1px solid var(--panel-border);
+  flex-shrink: 0;
+}
+
+.inputForm {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* ── MessageBubble ───────────────────────────────────────────────────────── */
+.messageBubble {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.messageBubbleUser {
+  align-items: flex-end;
+}
+
+.messageBubbleAssistant {
+  align-items: flex-start;
+}
+
+.roleLabel {
+  font-size: 9px;
+  color: var(--editor-text-subtle);
+  letter-spacing: 0.05em;
+}
+
+.contentBubble {
+  max-width: 90%;
+  padding: 7px 10px;
+  color: var(--editor-text);
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+  border: 1px solid var(--panel-border);
+}
+
+.contentBubbleUser {
+  border-radius: 10px 10px 2px 10px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.contentBubbleAssistant {
+  border-radius: 2px 10px 10px 10px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.toolCallsContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 90%;
+}
+
+/* ── ToolCallBadge ───────────────────────────────────────────────────────── */
+.toolCallBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 10px;
+  color: var(--editor-text-secondary);
+}
+
+.toolCallIconPending {
+  color: var(--editor-text-subtle);
+}
+
+.toolCallIconSuccess {
+  color: var(--editor-success-bright);
+}
+
+.toolCallIconFailed {
+  color: var(--editor-danger-light);
+}
+
+.toolCallType {
+  font-family: var(--font-mono, monospace);
+  font-size: 9px;
+  opacity: 0.70;
+}
+
+/* ── Empty state ─────────────────────────────────────────────────────────── */
+.emptyState {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--editor-text-subtle);
+  padding: 24px 16px;
+  text-align: center;
+}
+
+.emptyIcon {
+  opacity: 0.40;
+}
+
+.emptyText {
+  font-size: 12px;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.emptyHint {
+  font-size: 10px;
+  line-height: 1.5;
+  margin: 0;
+  color: var(--editor-border-med);
+}

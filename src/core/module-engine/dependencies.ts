@@ -1,0 +1,129 @@
+import type { Project, PageNode } from '../page-tree/types'
+import type { AnyModuleDefinition, IModuleRegistry, ModuleDependencies } from './types'
+import type { ProjectPackageJson } from '../project-dependencies/manifest'
+import { isSafePackageName } from '../project-dependencies/packageNames'
+
+export interface NormalizedModuleDependency {
+  name: string
+  version: string
+  dev: boolean
+}
+
+export interface ProjectModuleDependencyUsage {
+  name: string
+  version: string
+  dev: boolean
+  modules: string[]
+  moduleIds: string[]
+  placements: number
+}
+
+export function normalizeModuleDependencies(
+  dependencies: ModuleDependencies | undefined,
+): NormalizedModuleDependency[] {
+  return Object.entries(dependencies ?? {}).map(([rawName, spec]) => {
+    const name = rawName.trim()
+    if (!isSafePackageName(name)) {
+      throw new Error(`[module dependencies] Invalid package name "${rawName}"`)
+    }
+
+    const version = typeof spec === 'string' ? spec.trim() : spec.version.trim()
+    if (!version) {
+      throw new Error(`[module dependencies] "${name}" must declare a non-empty version`)
+    }
+
+    return {
+      name,
+      version,
+      dev: typeof spec === 'string' ? false : Boolean(spec.dev),
+    }
+  })
+}
+
+export function getProjectDependencyVersion(
+  packageJson: ProjectPackageJson,
+  dependency: Pick<NormalizedModuleDependency, 'name' | 'dev'>,
+): string | null {
+  const bucket = dependency.dev ? packageJson.devDependencies : packageJson.dependencies
+  return bucket[dependency.name] ?? null
+}
+
+export function getMissingModuleDependencies(
+  moduleDefinition: AnyModuleDefinition,
+  packageJson: ProjectPackageJson,
+): NormalizedModuleDependency[] {
+  const dependencies = normalizeModuleDependencies(moduleDefinition.dependencies)
+  return dependencies.filter(
+    (dependency) => getProjectDependencyVersion(packageJson, dependency) === null,
+  )
+}
+
+export function getProjectModuleDependencyUsage(
+  project: Pick<Project, 'pages' | 'visualComponents'> | null | undefined,
+  registry: IModuleRegistry,
+): Map<string, ProjectModuleDependencyUsage> {
+  const usage = new Map<string, ProjectModuleDependencyUsage>()
+  if (!project) return usage
+
+  const recordModule = (moduleId: string) => {
+    const definition = registry.get(moduleId)
+    if (!definition) return
+
+    for (const dependency of normalizeModuleDependencies(definition.dependencies)) {
+      const current = usage.get(dependency.name)
+      if (current) {
+        current.placements += 1
+        if (!current.moduleIds.includes(definition.id)) {
+          current.moduleIds.push(definition.id)
+        }
+        if (!current.modules.includes(definition.name)) {
+          current.modules.push(definition.name)
+        }
+        continue
+      }
+
+      usage.set(dependency.name, {
+        name: dependency.name,
+        version: dependency.version,
+        dev: dependency.dev,
+        modules: [definition.name],
+        moduleIds: [definition.id],
+        placements: 1,
+      })
+    }
+  }
+
+  for (const page of project.pages) {
+    for (const node of Object.values(page.nodes)) {
+      recordModule(node.moduleId)
+    }
+  }
+
+  for (const component of project.visualComponents) {
+    walkNestedNode(component.rootNode, recordModule)
+  }
+
+  return usage
+}
+
+function walkNestedNode(
+  node: Pick<PageNode, 'moduleId' | 'childNodes'> | unknown,
+  visit: (moduleId: string) => void,
+): void {
+  if (!isNodeLike(node)) return
+
+  visit(node.moduleId)
+
+  for (const child of node.childNodes ?? []) {
+    walkNestedNode(child, visit)
+  }
+}
+
+function isNodeLike(value: unknown): value is Pick<PageNode, 'moduleId' | 'childNodes'> {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'moduleId' in value &&
+    typeof value.moduleId === 'string'
+  )
+}

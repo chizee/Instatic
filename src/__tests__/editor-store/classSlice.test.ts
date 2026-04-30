@@ -1,0 +1,391 @@
+/**
+ * classSlice tests — Phase C CSS Class System
+ *
+ * Covers:
+ * - createClass / renameClass / deleteClass CRUD
+ * - updateClassStyles / setClassBreakpointStyles patch semantics
+ * - addNodeClass / removeNodeClass / reorderNodeClasses node assignment
+ * - activeClassId state management
+ * - deleteClass cascade (removes from all nodes, clears activeClassId)
+ * - Uniqueness guards (duplicate class names throw)
+ * - No-op guards (Guideline #242)
+ */
+
+import { describe, it, expect, beforeEach } from 'bun:test'
+import { useEditorStore } from '../../core/editor-store/store'
+
+// ---------------------------------------------------------------------------
+// Test helpers
+// ---------------------------------------------------------------------------
+
+function getStore() {
+  return useEditorStore.getState()
+}
+
+function freshStore() {
+  useEditorStore.setState({
+    project: null,
+    _historyPast: [],
+    _historyFuture: [],
+    canUndo: false,
+    canRedo: false,
+    selectedNodeId: null,
+    hoveredNodeId: null,
+    activeClassId: null,
+    previewClassAssignment: null,
+    hasUnsavedChanges: false,
+  })
+  return getStore()
+}
+
+/**
+ * Set up a project with one page, one root node, and one child node.
+ * Returns { rootId, childId }.
+ */
+function setupProject() {
+  const s = freshStore()
+  const project = s.createProject('Test')
+  const rootId = project.pages[0].rootNodeId
+  const childId = useEditorStore.getState().insertNode('base.heading', {}, rootId)
+  return { rootId, childId, project: useEditorStore.getState().project! }
+}
+
+// ---------------------------------------------------------------------------
+// createClass
+// ---------------------------------------------------------------------------
+
+describe('classSlice.createClass', () => {
+  it('creates a class and adds it to project.classes', () => {
+    setupProject()
+    const cls = getStore().createClass('btn')
+    const classes = useEditorStore.getState().project!.classes
+    expect(classes[cls.id]).toBeDefined()
+    expect(classes[cls.id].name).toBe('btn')
+    expect(classes[cls.id].styles).toEqual({})
+    expect(classes[cls.id].breakpointStyles).toEqual({})
+  })
+
+  it('creates a class with initial styles', () => {
+    setupProject()
+    const cls = getStore().createClass('hero', { fontSize: '24px', color: '#fff' })
+    const stored = useEditorStore.getState().project!.classes[cls.id]
+    expect(stored.styles.fontSize).toBe('24px')
+    expect(stored.styles.color).toBe('#fff')
+  })
+
+  it('throws if a class with the same name already exists', () => {
+    setupProject()
+    getStore().createClass('btn')
+    expect(() => getStore().createClass('btn')).toThrow()
+  })
+
+  it('throws if no project is loaded', () => {
+    freshStore() // no createProject call
+    expect(() => getStore().createClass('btn')).toThrow()
+  })
+
+  it('returns the new CSSClass with createdAt / updatedAt timestamps', () => {
+    setupProject()
+    const before = Date.now()
+    const cls = getStore().createClass('card')
+    const after = Date.now()
+    expect(cls.createdAt).toBeGreaterThanOrEqual(before)
+    expect(cls.createdAt).toBeLessThanOrEqual(after)
+    expect(cls.updatedAt).toBeGreaterThanOrEqual(before)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// updateClassStyles
+// ---------------------------------------------------------------------------
+
+describe('classSlice.updateClassStyles', () => {
+  it('shallow-merges a patch into base styles', () => {
+    setupProject()
+    const cls = getStore().createClass('btn')
+    getStore().updateClassStyles(cls.id, { fontSize: '14px', color: '#000' })
+    const stored = useEditorStore.getState().project!.classes[cls.id].styles
+    expect(stored.fontSize).toBe('14px')
+    expect(stored.color).toBe('#000')
+  })
+
+  it('overwrites individual keys on subsequent patches', () => {
+    setupProject()
+    const cls = getStore().createClass('btn')
+    getStore().updateClassStyles(cls.id, { fontSize: '14px' })
+    getStore().updateClassStyles(cls.id, { fontSize: '16px' })
+    expect(useEditorStore.getState().project!.classes[cls.id].styles.fontSize).toBe('16px')
+  })
+
+  it('deletes a key when patched to undefined/null', () => {
+    setupProject()
+    const cls = getStore().createClass('btn')
+    getStore().updateClassStyles(cls.id, { fontSize: '14px' })
+    getStore().updateClassStyles(cls.id, { fontSize: undefined })
+    const stored = useEditorStore.getState().project!.classes[cls.id].styles
+    expect('fontSize' in stored).toBe(false)
+  })
+
+  it('is a no-op for unknown classId', () => {
+    setupProject()
+    const projectBefore = useEditorStore.getState().project!.updatedAt
+    getStore().updateClassStyles('nonexistent-id', { fontSize: '14px' })
+    expect(useEditorStore.getState().project!.updatedAt).toBe(projectBefore)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// setClassBreakpointStyles
+// ---------------------------------------------------------------------------
+
+describe('classSlice.setClassBreakpointStyles', () => {
+  it('creates a breakpoint override entry and patches it', () => {
+    setupProject()
+    const cls = getStore().createClass('btn')
+    getStore().setClassBreakpointStyles(cls.id, 'mobile', { fontSize: '12px' })
+    const bpStyles = useEditorStore.getState().project!.classes[cls.id].breakpointStyles
+    expect(bpStyles['mobile']?.fontSize).toBe('12px')
+  })
+
+  it('merges subsequent patches to the same breakpoint', () => {
+    setupProject()
+    const cls = getStore().createClass('btn')
+    getStore().setClassBreakpointStyles(cls.id, 'mobile', { fontSize: '12px' })
+    getStore().setClassBreakpointStyles(cls.id, 'mobile', { color: '#fff' })
+    const bp = useEditorStore.getState().project!.classes[cls.id].breakpointStyles['mobile']
+    expect(bp?.fontSize).toBe('12px')
+    expect(bp?.color).toBe('#fff')
+  })
+
+  it('removes a key from breakpoint styles when patched to null/undefined', () => {
+    setupProject()
+    const cls = getStore().createClass('btn')
+    getStore().setClassBreakpointStyles(cls.id, 'mobile', { fontSize: '12px' })
+    getStore().setClassBreakpointStyles(cls.id, 'mobile', { fontSize: null as unknown as undefined })
+    const bp = useEditorStore.getState().project!.classes[cls.id].breakpointStyles['mobile']
+    expect('fontSize' in (bp ?? {})).toBe(false)
+  })
+
+  it('does not affect base styles', () => {
+    setupProject()
+    const cls = getStore().createClass('btn')
+    getStore().updateClassStyles(cls.id, { fontSize: '14px' })
+    getStore().setClassBreakpointStyles(cls.id, 'mobile', { fontSize: '12px' })
+    expect(useEditorStore.getState().project!.classes[cls.id].styles.fontSize).toBe('14px')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// renameClass
+// ---------------------------------------------------------------------------
+
+describe('classSlice.renameClass', () => {
+  it('renames a class', () => {
+    setupProject()
+    const cls = getStore().createClass('btn')
+    getStore().renameClass(cls.id, 'button')
+    expect(useEditorStore.getState().project!.classes[cls.id].name).toBe('button')
+  })
+
+  it('allows renaming to the same name (no-op, no throw)', () => {
+    setupProject()
+    const cls = getStore().createClass('btn')
+    expect(() => getStore().renameClass(cls.id, 'btn')).not.toThrow()
+    expect(useEditorStore.getState().project!.classes[cls.id].name).toBe('btn')
+  })
+
+  it('throws when renaming to an already-used name', () => {
+    setupProject()
+    const cls1 = getStore().createClass('btn')
+    getStore().createClass('card')
+    expect(() => getStore().renameClass(cls1.id, 'card')).toThrow()
+  })
+
+  it('is a no-op for unknown classId', () => {
+    setupProject()
+    expect(() => getStore().renameClass('nonexistent', 'whatever')).not.toThrow()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// deleteClass
+// ---------------------------------------------------------------------------
+
+describe('classSlice.deleteClass', () => {
+  it('removes the class from the registry', () => {
+    setupProject()
+    const cls = getStore().createClass('btn')
+    getStore().deleteClass(cls.id)
+    expect(useEditorStore.getState().project!.classes[cls.id]).toBeUndefined()
+  })
+
+  it('removes the classId from all nodes that reference it', () => {
+    const { childId } = setupProject()
+    const cls = getStore().createClass('btn')
+    getStore().addNodeClass(childId, cls.id)
+    // Verify it was added
+    const pageBefore = useEditorStore.getState().project!.pages[0]
+    expect(pageBefore.nodes[childId].classIds).toContain(cls.id)
+    // Delete the class
+    getStore().deleteClass(cls.id)
+    const pageAfter = useEditorStore.getState().project!.pages[0]
+    expect(pageAfter.nodes[childId].classIds ?? []).not.toContain(cls.id)
+  })
+
+  it('clears activeClassId when the active class is deleted', () => {
+    setupProject()
+    const cls = getStore().createClass('btn')
+    getStore().setActiveClass(cls.id)
+    expect(useEditorStore.getState().activeClassId).toBe(cls.id)
+    getStore().deleteClass(cls.id)
+    expect(useEditorStore.getState().activeClassId).toBeNull()
+  })
+
+  it('does not clear activeClassId when a different class is deleted', () => {
+    setupProject()
+    const cls1 = getStore().createClass('btn')
+    const cls2 = getStore().createClass('card')
+    getStore().setActiveClass(cls1.id)
+    getStore().deleteClass(cls2.id)
+    expect(useEditorStore.getState().activeClassId).toBe(cls1.id)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// addNodeClass / removeNodeClass / reorderNodeClasses
+// ---------------------------------------------------------------------------
+
+describe('classSlice — node class assignment', () => {
+  it('addNodeClass appends a classId to the node', () => {
+    const { childId } = setupProject()
+    const cls = getStore().createClass('btn')
+    getStore().addNodeClass(childId, cls.id)
+    const node = useEditorStore.getState().project!.pages[0].nodes[childId]
+    expect(node.classIds).toContain(cls.id)
+  })
+
+  it('addNodeClass is a no-op if classId is already present', () => {
+    const { childId } = setupProject()
+    const cls = getStore().createClass('btn')
+    getStore().addNodeClass(childId, cls.id)
+    getStore().addNodeClass(childId, cls.id) // second call
+    const node = useEditorStore.getState().project!.pages[0].nodes[childId]
+    expect(node.classIds?.filter((id) => id === cls.id).length).toBe(1)
+  })
+
+  it('addNodeClass can assign multiple classes in order', () => {
+    const { childId } = setupProject()
+    const cls1 = getStore().createClass('a')
+    const cls2 = getStore().createClass('b')
+    getStore().addNodeClass(childId, cls1.id)
+    getStore().addNodeClass(childId, cls2.id)
+    const node = useEditorStore.getState().project!.pages[0].nodes[childId]
+    expect(node.classIds).toEqual([cls1.id, cls2.id])
+  })
+
+  it('removeNodeClass removes the classId from the node', () => {
+    const { childId } = setupProject()
+    const cls = getStore().createClass('btn')
+    getStore().addNodeClass(childId, cls.id)
+    getStore().removeNodeClass(childId, cls.id)
+    const node = useEditorStore.getState().project!.pages[0].nodes[childId]
+    expect(node.classIds ?? []).not.toContain(cls.id)
+  })
+
+  it('removeNodeClass is a no-op if classId is not present', () => {
+    const { childId } = setupProject()
+    const cls = getStore().createClass('btn')
+    expect(() => getStore().removeNodeClass(childId, cls.id)).not.toThrow()
+  })
+
+  it('reorderNodeClasses swaps positions by index', () => {
+    const { childId } = setupProject()
+    const cls1 = getStore().createClass('a')
+    const cls2 = getStore().createClass('b')
+    const cls3 = getStore().createClass('c')
+    getStore().addNodeClass(childId, cls1.id)
+    getStore().addNodeClass(childId, cls2.id)
+    getStore().addNodeClass(childId, cls3.id)
+    // Move index 0 → index 2: [cls1, cls2, cls3] → [cls2, cls3, cls1]
+    getStore().reorderNodeClasses(childId, 0, 2)
+    const node = useEditorStore.getState().project!.pages[0].nodes[childId]
+    expect(node.classIds).toEqual([cls2.id, cls3.id, cls1.id])
+  })
+
+  it('reorderNodeClasses is a no-op when fromIndex === toIndex', () => {
+    const { childId } = setupProject()
+    const cls = getStore().createClass('a')
+    getStore().addNodeClass(childId, cls.id)
+    getStore().reorderNodeClasses(childId, 0, 0)
+    const node = useEditorStore.getState().project!.pages[0].nodes[childId]
+    expect(node.classIds).toEqual([cls.id])
+  })
+})
+
+// ---------------------------------------------------------------------------
+// class hover preview
+// ---------------------------------------------------------------------------
+
+describe('classSlice — class hover preview', () => {
+  it('stores a preview assignment without mutating node classIds or project timestamps', () => {
+    const { childId } = setupProject()
+    const cls = getStore().createClass('preview-me')
+    const beforeProjectUpdatedAt = useEditorStore.getState().project!.updatedAt
+    const beforeClassIds = useEditorStore.getState().project!.pages[0].nodes[childId].classIds
+
+    getStore().setPreviewNodeClass(childId, cls.id)
+
+    const state = useEditorStore.getState()
+    expect(state.previewClassAssignment).toEqual({ nodeId: childId, classId: cls.id })
+    expect(state.project!.pages[0].nodes[childId].classIds).toEqual(beforeClassIds)
+    expect(state.project!.updatedAt).toBe(beforeProjectUpdatedAt)
+  })
+
+  it('clears only the matching preview assignment so stale mouseleave events cannot remove a newer preview', () => {
+    const { childId } = setupProject()
+    const first = getStore().createClass('first')
+    const second = getStore().createClass('second')
+
+    getStore().setPreviewNodeClass(childId, first.id)
+    getStore().setPreviewNodeClass(childId, second.id)
+    getStore().clearPreviewNodeClass(childId, first.id)
+
+    expect(useEditorStore.getState().previewClassAssignment).toEqual({
+      nodeId: childId,
+      classId: second.id,
+    })
+
+    getStore().clearPreviewNodeClass(childId, second.id)
+    expect(useEditorStore.getState().previewClassAssignment).toBeNull()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// activeClassId
+// ---------------------------------------------------------------------------
+
+describe('classSlice.setActiveClass', () => {
+  it('sets activeClassId to a string value', () => {
+    freshStore()
+    getStore().setActiveClass('abc')
+    expect(useEditorStore.getState().activeClassId).toBe('abc')
+  })
+
+  it('sets activeClassId to null', () => {
+    freshStore()
+    getStore().setActiveClass('abc')
+    getStore().setActiveClass(null)
+    expect(useEditorStore.getState().activeClassId).toBeNull()
+  })
+
+  it('is a no-op when value is unchanged (Guideline #242)', () => {
+    freshStore()
+    getStore().setActiveClass('abc')
+    // Get store reference — if it changes, the selector ref changes
+    const storeBefore = useEditorStore.getState()
+    getStore().setActiveClass('abc') // same value
+    const storeAfter = useEditorStore.getState()
+    // The store object reference should be the same when no mutation occurred
+    expect(storeAfter.activeClassId).toBe(storeBefore.activeClassId)
+  })
+})

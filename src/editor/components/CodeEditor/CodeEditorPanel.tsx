@@ -1,0 +1,166 @@
+/**
+ * CodeEditorPanel — floating code editor panel (Task 432).
+ *
+ * CodeMirror 6 (@codemirror/view, @codemirror/state, @codemirror/lang-javascript,
+ * @codemirror/lang-css, @codemirror/lang-json, @codemirror/lang-markdown) is loaded
+ * lazily via React.lazy() to keep the editor startup bundle lean (~150 kB min+gz).
+ *
+ * Architecture:
+ * - Floating panel: shared PanelHeader + useDraggablePanel (Guideline 410).
+ * - Panel visibility driven by activeEditorFileId: shown when non-null.
+ * - Asset files with image/* MIME: renders ImagePreview instead of CodeMirror.
+ * - Non-image assets: renders "Binary file" placeholder (handled in ImagePreview).
+ * - Text files (component/script/style/config/doc): lazy-loads CodeMirrorEditor.
+ * - Content sync: debounced 250ms to updateFileContent(); flush on file switch.
+ *
+ * Security:
+ * - File content treated as plaintext. No dangerouslySetInnerHTML, no eval.
+ * - No live preview/execution — files become code only at publisher export.
+ *
+ * Architecture source: Contribution 595 section 3
+ * Amendment: Contribution 613 section A.2 — image preview and binary placeholder
+ * UX spec: Contributions 611 and 612 — center-stage default, 800x500.
+ * Guideline 410 — floating panels must use shared PanelHeader
+ * Constraint 402 — no inline styles (except CSS-var panelPositionStyle)
+ * Guideline 376 — achromatic palette only
+ */
+
+import { Suspense, lazy, memo, useEffect, useRef } from 'react'
+import { useEditorStore } from '../../../core/editor-store/store'
+import { PanelHeader } from '../shared/PanelHeader'
+import { useDraggablePanel } from '../../hooks/useDraggablePanel'
+import { ImagePreview } from './ImagePreview'
+import { cn } from '@ui/cn'
+import styles from './CodeEditorPanel.module.css'
+
+// ---------------------------------------------------------------------------
+// Lazy-load CodeMirrorEditor — code-splits the heavy CodeMirror 6 bundle
+// so it does not inflate the editor's startup chunk.
+// ---------------------------------------------------------------------------
+const CodeMirrorEditor = lazy(() => import('./CodeMirrorEditor'))
+
+// Panel dimensions per UX Spec (Contribution 612)
+const PANEL_WIDTH = 800
+
+// ---------------------------------------------------------------------------
+// CodeEditorPanel
+// ---------------------------------------------------------------------------
+
+/**
+ * Floating CodeEditor panel — always mounted, CSS display:none when no active file.
+ * This preserves useDraggablePanel position state across open/close cycles.
+ */
+export const CodeEditorPanel = memo(function CodeEditorPanel() {
+  // ── Store subscriptions ──────────────────────────────────────────────────
+  const activeEditorFileId = useEditorStore((s) => s.activeEditorFileId)
+  const codeEditorPanelOpen = useEditorStore((s) => s.codeEditorPanelOpen)
+  const project = useEditorStore((s) => s.project)
+  const closeEditor = useEditorStore((s) => s.closeEditor)
+  const updateFileContent = useEditorStore((s) => s.updateFileContent)
+
+  // Find the active file (null when no file is open or no project loaded)
+  const activeFile = activeEditorFileId && project
+    ? (project.files.find((f) => f.id === activeEditorFileId) ?? null)
+    : null
+
+  // ── Draggable panel position ─────────────────────────────────────────────
+  // Default: center-stage per UX Spec (Contribution 612 §4)
+  //   x = Math.max(220, (window.innerWidth - 800) / 2)  — avoid dom panel overlap
+  //   y = 80
+  // Position is persisted by useDraggablePanel in the unified editor layout.
+  const { panelRef, headerDragProps, panelPositionStyle } = useDraggablePanel(
+    'codeeditor',
+    () => ({
+      x: typeof window !== 'undefined'
+        ? Math.max(220, (window.innerWidth - PANEL_WIDTH) / 2)
+        : 220,
+      y: 80,
+    }),
+  )
+
+  // ── Focus management (WCAG 2.4.3) ───────────────────────────────────────
+  // When activeEditorFileId transitions null → non-null, move focus into the
+  // panel so keyboard users don't get stranded on the toolbar button.
+  // Uses requestAnimationFrame to let CSS display:flex settle before focusing
+  // Match docked editor panels by focusing the containing aside when opened.
+  // NOTE: `panelRef` is NOT in deps — refs are stable identities (React rule).
+  // Including it caused a TDZ ReferenceError when this effect was placed above
+  // the `useDraggablePanel` destructure (Code Reviewer Contribution six-three-seven).
+  const prevFileIdRef = useRef<string | null>(null)
+  useEffect(() => {
+    const prev = prevFileIdRef.current
+    prevFileIdRef.current = activeEditorFileId
+    if (prev === null && activeEditorFileId !== null && codeEditorPanelOpen) {
+      requestAnimationFrame(() => {
+        panelRef.current?.focus()
+      })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeEditorFileId, codeEditorPanelOpen])
+
+  // ── Determine content mode ───────────────────────────────────────────────
+  // Image asset → ImagePreview; non-image asset → placeholder (in ImagePreview);
+  // text file → CodeMirrorEditor (lazy)
+  const isAsset = activeFile?.type === 'asset'
+  const isImageAsset = isAsset && (activeFile?.blob?.mimeType.startsWith('image/') ?? false)
+  const isNonImageAsset = isAsset && !isImageAsset
+  const isTextFile = activeFile && !isAsset
+
+  // Panel title: show filename when a file is active
+  const panelTitle = activeFile
+    ? (activeFile.path.split('/').pop() ?? 'Code Editor')
+    : 'Code Editor'
+
+  return (
+    <aside
+      ref={panelRef as React.RefObject<HTMLElement>}
+      role="complementary"
+      aria-label="Code Editor"
+      data-panel="code-editor"
+      tabIndex={-1}
+      onClick={(e) => e.stopPropagation()}
+      // panelPositionStyle injects --panel-x / --panel-y CSS vars (whitelisted)
+      style={panelPositionStyle}
+      className={cn(styles.panel, (!activeEditorFileId || !codeEditorPanelOpen) && styles.panelHidden)}
+    >
+      <div className={styles.inner}>
+        {/* ── Shared Panel Header ──────────────────────────────────────────── */}
+        <PanelHeader
+          panelId="code-editor"
+          title={panelTitle}
+          onClose={closeEditor}
+          dragHandleProps={headerDragProps}
+        />
+
+        {/* ── Editor body ─────────────────────────────────────────────────── */}
+        <div className={styles.editorBody}>
+          {!activeFile ? (
+            /* No file selected — show empty state */
+            <div className={styles.emptyState}>
+              <p>Select a file to edit</p>
+              <p className={styles.emptyHint}>
+                Click any file in the Files panel to open it here.
+              </p>
+            </div>
+
+          ) : isImageAsset || isNonImageAsset ? (
+            /* Asset file — ImagePreview handles both image and binary cases */
+            <ImagePreview file={activeFile} />
+
+          ) : isTextFile ? (
+            /* Text file — lazy-load the heavy CodeMirror 6 bundle */
+            <Suspense
+              fallback={<div className={styles.loading}>Loading editor…</div>}
+            >
+              <CodeMirrorEditor
+                file={activeFile}
+                updateFileContent={updateFileContent}
+              />
+            </Suspense>
+
+          ) : null}
+        </div>
+      </div>
+    </aside>
+  )
+})

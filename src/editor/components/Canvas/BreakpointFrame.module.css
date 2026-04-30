@@ -1,0 +1,66 @@
+/**
+ * BreakpointFrame — fixed-width viewport container for one breakpoint.
+ * Uses design tokens from globals.css (no hardcoded colours).
+ *
+ * Dynamic width is driven via the --bp-width CSS custom property set
+ * inline on the wrapper element (breakpoint.width changes per frame).
+ */
+
+.frameWrapper {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+/* Breakpoint label width is driven by --bp-width CSS var. */
+.labelBtn {
+  width: var(--bp-width);
+}
+
+/* Pixel-count badge inside label button */
+.pxBadge {
+  opacity: 0.6;
+}
+
+/* Viewport frame — width driven by --bp-width CSS var */
+.viewport {
+  width: var(--bp-width);
+  min-height: 600px;
+  background: var(--editor-accent);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+}
+
+.viewportActive {
+  box-shadow:
+    0 0 0 2px rgba(255, 255, 255, 0.15),
+    0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+/* Empty canvas onboarding state */
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 600px;
+  gap: 12px;
+  color: var(--editor-text-subtle);
+  font-family: system-ui, sans-serif;
+  pointer-events: none;
+  user-select: none;
+}
+
+.emptyTitle {
+  font-size: 14px;
+  font-weight: 500;
+  margin: 0;
+}
+
+.emptyHint {
+  font-size: 12px;
+  margin: 0;
+  opacity: 0.7;
+}

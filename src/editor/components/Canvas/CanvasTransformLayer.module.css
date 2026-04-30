@@ -1,0 +1,38 @@
+/**
+ * CanvasTransformLayer — GPU-composited transform container.
+ * Uses design tokens from globals.css (no hardcoded colours).
+ *
+ * The `transform` property is set to a no-op initial value here;
+ * useCanvas overwrites it imperatively via a ref on mount + pan/zoom.
+ * `will-change` is toggled via .transformLayerActive when page content
+ * is present (promotes layer to GPU composite only when needed).
+ */
+
+.transformLayer {
+  /* Initial transform — overridden imperatively by useCanvas on mount */
+  transform: translate(0px, 0px) scale(1);
+  transform-origin: 0 0;
+  will-change: auto;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  /* 40px == FRAME_GAP constant (CanvasTransformLayer.tsx) */
+  gap: 40px;
+  position: absolute;
+  top: 80px;
+  left: 80px;
+}
+
+/* Promote to GPU composite layer when page content is present */
+.transformLayerActive {
+  will-change: transform;
+}
+
+/* Empty-project placeholder */
+.noProject {
+  color: var(--editor-text-subtle);
+  font-family: system-ui, sans-serif;
+  font-size: 14px;
+  user-select: none;
+  padding: 60px 40px;
+}

@@ -1,0 +1,63 @@
+/* PreviewOverlay — full-screen in-browser preview */
+
+.backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.85);
+    z-index: 400;
+    backdrop-filter: blur(3px);
+}
+
+.dialogWrapper {
+    position: fixed;
+    inset: 0;
+    z-index: 401;
+    display: flex;
+    flex-direction: column;
+    padding: 16px;
+    pointer-events: none;
+}
+
+.card {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: var(--editor-surface-2);
+    border: 1px solid var(--editor-border);
+    border-radius: 12px;
+    overflow: hidden;
+    pointer-events: auto;
+    box-shadow: 0 32px 80px rgba(0, 0, 0, 0.7);
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    padding: 0 8px 0 16px;
+    height: 44px;
+    background: var(--editor-bg);
+    border-bottom: 1px solid var(--editor-border);
+    flex-shrink: 0;
+    gap: 10px;
+}
+
+.headerIcon {
+    flex-shrink: 0;
+}
+
+.headerTitle {
+    flex: 1;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--editor-text-secondary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.iframe {
+    flex: 1;
+    border: 0;
+    background: var(--editor-accent);
+    display: block;
+}

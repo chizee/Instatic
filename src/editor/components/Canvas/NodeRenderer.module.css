@@ -1,0 +1,43 @@
+/**
+ * NodeRenderer — canvas node wrapper and selection/hover ring styles.
+ * Uses design tokens from globals.css (no hardcoded colours).
+ */
+
+/* Fallback for unknown / unregistered module */
+.unknownModule {
+  outline: 1px dashed var(--editor-danger);
+  padding: 4px;
+}
+
+/* NodeWrapper — click/hover target; position:relative required for rings */
+.nodeWrapper {
+  position: relative;
+  isolation: isolate;
+}
+
+.nodeWrapper::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2147483647;
+  box-sizing: border-box;
+  pointer-events: none;
+  border-radius: 1px;
+}
+
+/*
+ * Embedded iframes have their own browsing context and consume wheel/pointer
+ * input before the canvas gesture layer can see it. In the editor canvas they
+ * are previews, so keep them visually present but pointer-transparent.
+ */
+.nodeWrapper iframe {
+  pointer-events: none;
+}
+
+.nodeWrapper[aria-pressed='true']::after {
+  box-shadow: var(--canvas-selection-ring);
+}
+
+.nodeWrapper[data-hovered='true']::after {
+  box-shadow: var(--canvas-hover-ring);
+}

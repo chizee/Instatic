@@ -1,0 +1,80 @@
+/* Section - shared collapsible category primitive for the Properties Panel. */
+
+.section {
+    padding: 2px 4px;
+}
+
+.sectionOpen {
+    background: rgba(255, 255, 255, 0.012);
+}
+
+.sectionToggle {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    width: 100%;
+    min-height: 32px;
+    padding: 0 8px;
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+    color: var(--editor-text-secondary);
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 12px;
+    font-family: inherit;
+    text-align: left;
+}
+
+.sectionToggle:hover {
+    background: rgba(255, 255, 255, 0.2);
+    color: var(--editor-text);
+}
+
+.sectionIcon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: var(--editor-text-muted);
+}
+
+.sectionIcon {
+    width: 18px;
+    height: 18px;
+}
+
+.sectionTitle {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--editor-text);
+}
+
+.sectionMeta {
+    max-width: 118px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--editor-text-muted);
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0;
+    text-transform: none;
+}
+
+.sectionIndicatorDot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--editor-accent);
+    opacity: 0.75;
+    flex-shrink: 0;
+}
+
+.sectionContent {
+    padding: 10px 14px 16px;
+}

@@ -1,0 +1,125 @@
+/* Shared tree row visuals for structural editor trees. */
+
+.row {
+    --tree-row-accent: transparent;
+    --tree-row-focus: transparent;
+
+    position: relative;
+    display: flex;
+    align-items: center;
+    height: 28px;
+    padding-left: var(--tree-row-pl);
+    padding-right: 12px;
+    gap: 3px;
+    border-radius: 8px;
+    color: var(--editor-text-secondary);
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 1;
+    white-space: nowrap;
+    outline: none;
+    user-select: none;
+    cursor: pointer;
+    transition:
+        background 80ms ease,
+        color 80ms ease,
+        opacity 80ms ease;
+}
+
+.row:hover,
+.rowHovered {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--editor-text-secondary);
+}
+
+.row:focus-visible,
+.rowFocused {
+    --tree-row-focus: rgba(255, 255, 255, 0.18);
+}
+
+.rowSelected {
+    --tree-row-accent: rgba(255, 255, 255, 0.55);
+
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--editor-text);
+}
+
+.rowMuted {
+    color: var(--editor-text-secondary);
+}
+
+.rowLocked {
+    color: var(--editor-text-subtle);
+}
+
+.rowHidden {
+    opacity: 0.35;
+}
+
+.rowGenerated {
+    opacity: 0.6;
+}
+
+.rowDragging {
+    cursor: grabbing;
+    opacity: 0.5;
+}
+
+.chevron {
+    width: 14px;
+    height: 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: var(--editor-text-subtle);
+    transition: transform 120ms ease;
+}
+
+.chevronExpanded {
+    transform: rotate(90deg);
+}
+
+.chevronCollapsed {
+    transform: rotate(0deg);
+}
+
+.chevronHidden {
+    visibility: hidden;
+}
+
+.iconSlot {
+    width: 14px;
+    height: 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: var(--editor-text-subtle);
+}
+
+.labelGroup {
+    flex: 1;
+    min-width: 0;
+    display: inline-flex;
+    align-items: baseline;
+    gap: 5px;
+}
+
+.label {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0;
+}
+
+.meta {
+    flex-shrink: 0;
+    color: var(--editor-text-subtle);
+    font-size: 9px;
+    line-height: 1;
+}

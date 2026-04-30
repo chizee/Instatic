@@ -1,0 +1,582 @@
+/**
+ * Publisher Integration Tests — Real modules through the full pipeline
+ *
+ * These tests exercise the COMPLETE publisher pipeline:
+ *   escapeProps() → module render() → published HTML
+ *
+ * They use REAL base modules (not mocks) to catch the double-escaping bug
+ * (CWE-116 / Task #260) that isolation tests cannot detect.
+ *
+ * Regression test for: publisher escapeProps() HTML-escapes plain string props,
+ * but base modules ALSO called escapeHtml() internally — resulting in text like
+ * "Hello & World" → "Hello &amp;amp; World" in published output.
+ */
+
+import { describe, it, expect } from 'bun:test'
+import { publishPage, renderNode, type RenderContext } from '../../core/publisher/render'
+import { makePage, makeProject, makeModule, makeRegistry } from './helpers'
+
+// Import REAL base modules — they self-register on import
+import { TextModule } from '../../modules/base/text'
+import { ButtonModule } from '../../modules/base/button'
+import { LinkModule } from '../../modules/base/link'
+import { ImageModule } from '../../modules/base/image'
+import { ContainerModule } from '../../modules/base/container'
+import { ListModule } from '../../modules/base/list'
+import { DividerModule } from '../../modules/base/divider'
+import { registry } from '../../core/module-engine/registry'
+
+// Confirm real modules are registered
+const REAL_REGISTRY = registry
+
+function realCtx(page: ReturnType<typeof makePage>): RenderContext {
+  return {
+    page,
+    project: makeProject(),
+    registry: REAL_REGISTRY,
+    breakpointId: undefined,
+    cssMap: new Map(),
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Double-escape regression (CWE-116 — the core bug being fixed)
+// ---------------------------------------------------------------------------
+
+describe('Publisher + real modules — single-level HTML escaping (CWE-116 regression)', () => {
+  it('text: "Hello & World" appears as &amp; NOT &amp;amp; in published HTML', () => {
+    const page = makePage({
+      root: {
+        moduleId: 'base.text',
+        props: { ...TextModule.defaults, text: 'Hello & World', tag: 'h1' },
+      },
+    })
+    const html = renderNode('root', realCtx(page))
+    // Single escape: browser shows "Hello & World"
+    expect(html).toContain('Hello &amp; World')
+    // Double-escape would produce: "Hello &amp;amp; World" — browser shows "Hello &amp; World"
+    expect(html).not.toContain('&amp;amp;')
+  })
+
+  it('text: "<em>styled</em>" text appears with single-escaped entities', () => {
+    const page = makePage({
+      root: {
+        moduleId: 'base.text',
+        props: { ...TextModule.defaults, text: '<em>styled</em>', tag: 'h2' },
+      },
+    })
+    const html = renderNode('root', realCtx(page))
+    expect(html).toContain('&lt;em&gt;styled&lt;/em&gt;')
+    expect(html).not.toContain('&amp;lt;')   // would indicate double-escaping
+    expect(html).not.toContain('<em>')        // raw tag must not appear
+  })
+
+  it('text paragraph: ampersand in text renders as &amp; not &amp;amp;', () => {
+    const page = makePage({
+      root: {
+        moduleId: 'base.text',
+        props: { ...TextModule.defaults, text: 'Terms & Conditions', tag: 'p' },
+      },
+    })
+    const html = renderNode('root', realCtx(page))
+    expect(html).toContain('Terms &amp; Conditions')
+    expect(html).not.toContain('&amp;amp;')
+  })
+
+  it('button: label with & renders as single &amp;', () => {
+    const page = makePage({
+      root: {
+        moduleId: 'base.button',
+        props: { ...ButtonModule.defaults, href: '', label: 'Cats & Dogs' },
+      },
+    })
+    const html = renderNode('root', realCtx(page))
+    expect(html).toContain('Cats &amp; Dogs')
+    expect(html).not.toContain('&amp;amp;')
+  })
+
+  it('link: text with & renders as single &amp;', () => {
+    const page = makePage({
+      root: {
+        moduleId: 'base.link',
+        props: { ...LinkModule.defaults, href: '/about', text: 'About & Contact' },
+      },
+    })
+    const html = renderNode('root', realCtx(page))
+    expect(html).toContain('About &amp; Contact')
+    expect(html).not.toContain('&amp;amp;')
+  })
+
+  it('list: items with & render as single &amp;', () => {
+    const page = makePage({
+      root: {
+        moduleId: 'base.list',
+        props: { ...ListModule.defaults, items: 'Cats & Dogs\nBirds & Bees' },
+      },
+    })
+    const html = renderNode('root', realCtx(page))
+    expect(html).toContain('Cats &amp; Dogs')
+    expect(html).toContain('Birds &amp; Bees')
+    expect(html).not.toContain('&amp;amp;')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// XSS protection — end-to-end (publisher is the sole escaping layer)
+// ---------------------------------------------------------------------------
+
+describe('Publisher + real modules — XSS protection (end-to-end)', () => {
+  it('text heading: <script> tag in text is fully escaped in published HTML', () => {
+    const page = makePage({
+      root: {
+        moduleId: 'base.text',
+        props: { ...TextModule.defaults, text: '<script>alert(1)</script>', tag: 'h1' },
+      },
+    })
+    const html = renderNode('root', realCtx(page))
+    expect(html).not.toContain('<script>')
+    expect(html).toContain('&lt;script&gt;alert(1)&lt;/script&gt;')
+  })
+
+  it('text paragraph: XSS payload in text is escaped to safe entity-encoded text', () => {
+    const page = makePage({
+      root: {
+        moduleId: 'base.text',
+        props: { ...TextModule.defaults, text: '<img src=x onerror=alert(1)>', tag: 'p' },
+      },
+    })
+    const html = renderNode('root', realCtx(page))
+    // Must not contain a live <img> tag — only the entity-encoded representation
+    expect(html).not.toContain('<img src=x')
+    // The full escaped sequence must appear in the text content
+    expect(html).toContain('&lt;img src=x onerror=alert(1)&gt;')
+  })
+
+  it('button: javascript: href is replaced with # in published HTML', () => {
+    const page = makePage({
+      root: {
+        moduleId: 'base.button',
+        props: { ...ButtonModule.defaults, href: 'javascript:alert(1)', label: 'Click' },
+      },
+    })
+    const html = renderNode('root', realCtx(page))
+    expect(html).not.toContain('javascript:')
+    // Degrades to <button> (no href) since safeUrl returns '#' and href===# skips <a>
+    expect(html).toContain('Click')
+  })
+
+  it('link: javascript: href is replaced with # in published HTML', () => {
+    const page = makePage({
+      root: {
+        moduleId: 'base.link',
+        props: { ...LinkModule.defaults, href: 'javascript:alert(1)', text: 'Click' },
+      },
+    })
+    const html = renderNode('root', realCtx(page))
+    expect(html).not.toContain('javascript:')
+    expect(html).toContain('href="#"')
+  })
+
+  it('image: javascript: src is blocked — rendered as safe fallback', () => {
+    const page = makePage({
+      root: {
+        moduleId: 'base.image',
+        props: { ...ImageModule.defaults, src: 'javascript:alert(1)', alt: 'test' },
+      },
+    })
+    const html = renderNode('root', realCtx(page))
+    // safeUrl() returns '#' for javascript: URLs — the literal scheme must never appear
+    expect(html).not.toContain('javascript:')
+    // '#' is truthy so the image renders with src="#" (safe placeholder)
+    expect(html).toContain('src="#"')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// URL edge cases — data: URIs, protocol-relative, empty href
+// ---------------------------------------------------------------------------
+
+describe('Publisher + real modules — URL edge cases', () => {
+  it('image: data:text/html URI is blocked by safeUrl() in src attribute', () => {
+    const page = makePage({
+      root: {
+        moduleId: 'base.image',
+        props: {
+          ...ImageModule.defaults,
+          src: 'data:text/html,<script>alert(1)</script>',
+          alt: 'test',
+        },
+      },
+    })
+    const html = renderNode('root', realCtx(page))
+    // data: URI must not appear in src — safeUrl blocks it
+    expect(html).not.toContain('data:text/html')
+    expect(html).not.toContain('<script>')
+  })
+
+  it('link: data: URI is blocked; href falls back to safe value', () => {
+    const page = makePage({
+      root: {
+        moduleId: 'base.link',
+        props: { ...LinkModule.defaults, href: 'data:text/html,<h1>xss</h1>', text: 'Click' },
+      },
+    })
+    const html = renderNode('root', realCtx(page))
+    expect(html).not.toContain('data:text/html')
+    expect(html).toContain('Click')
+  })
+
+  it('button: relative URL is passed through unchanged (not blocked)', () => {
+    const page = makePage({
+      root: {
+        moduleId: 'base.button',
+        props: { ...ButtonModule.defaults, href: '/pricing', label: 'Pricing' },
+      },
+    })
+    const html = renderNode('root', realCtx(page))
+    expect(html).toContain('/pricing')
+    expect(html).toContain('Pricing')
+  })
+
+  it('image: HTTPS URL is allowed through as-is', () => {
+    const page = makePage({
+      root: {
+        moduleId: 'base.image',
+        props: {
+          ...ImageModule.defaults,
+          src: 'https://cdn.example.com/hero.jpg',
+          alt: 'Hero image',
+        },
+      },
+    })
+    const html = renderNode('root', realCtx(page))
+    expect(html).toContain('src="https://cdn.example.com/hero.jpg"')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Quote and multi-character escaping
+// ---------------------------------------------------------------------------
+
+describe('Publisher + real modules — quote and multi-character escaping', () => {
+  it('text: text with double quote is single-escaped as &quot;', () => {
+    const page = makePage({
+      root: {
+        moduleId: 'base.text',
+        props: { ...TextModule.defaults, text: 'Say "Hello"', tag: 'h3' },
+      },
+    })
+    const html = renderNode('root', realCtx(page))
+    expect(html).toContain('Say &quot;Hello&quot;')
+    expect(html).not.toContain('&amp;quot;')
+  })
+
+  it('text paragraph: text with all four special chars escapes correctly once', () => {
+    // Tests & < > " together — if any double-escapes, the test fails
+    const page = makePage({
+      root: {
+        moduleId: 'base.text',
+        props: {
+          ...TextModule.defaults,
+          text: 'A&B <tag> C>D "quoted"',
+          tag: 'p',
+        },
+      },
+    })
+    const html = renderNode('root', realCtx(page))
+    expect(html).toContain('A&amp;B')
+    expect(html).toContain('&lt;tag&gt;')
+    expect(html).toContain('C&gt;D')
+    expect(html).toContain('&quot;quoted&quot;')
+    expect(html).not.toContain('&amp;amp;')
+    expect(html).not.toContain('&amp;lt;')
+    expect(html).not.toContain('&amp;quot;')
+  })
+
+  it('list: items with quotes are single-escaped in <li> elements', () => {
+    const page = makePage({
+      root: {
+        moduleId: 'base.list',
+        props: { ...ListModule.defaults, items: '"First"\n"Second"' },
+      },
+    })
+    const html = renderNode('root', realCtx(page))
+    expect(html).toContain('&quot;First&quot;')
+    expect(html).toContain('&quot;Second&quot;')
+    expect(html).not.toContain('&amp;quot;')
+  })
+
+  it('image: alt text with all special chars is single-escaped in attribute', () => {
+    const page = makePage({
+      root: {
+        moduleId: 'base.image',
+        props: {
+          ...ImageModule.defaults,
+          src: 'https://example.com/img.jpg',
+          alt: 'AT&T "Premium" Plan <Pro>',
+        },
+      },
+    })
+    const html = renderNode('root', realCtx(page))
+    expect(html).toContain('AT&amp;T')
+    expect(html).toContain('&quot;Premium&quot;')
+    expect(html).toContain('&lt;Pro&gt;')
+    expect(html).not.toContain('&amp;amp;')
+    expect(html).not.toContain('&amp;quot;')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Divider module — CSS property injection safety (Constraint #228)
+// ---------------------------------------------------------------------------
+
+describe('Publisher + real modules — Divider CSS injection safety', () => {
+  it('divider: renders a valid <hr> element with default props', () => {
+    const page = makePage({
+      root: {
+        moduleId: 'base.divider',
+        props: DividerModule.defaults,
+      },
+    })
+    const html = renderNode('root', realCtx(page))
+    expect(html).toContain('<hr')
+    expect(html).toContain('aria-hidden="true"')
+  })
+
+  it('divider: color prop with expression() is blocked from CSS output', () => {
+    const page = makePage({
+      root: {
+        moduleId: 'base.divider',
+        props: { ...DividerModule.defaults, color: 'expression(alert(1))' },
+      },
+    })
+    const html = renderNode('root', realCtx(page))
+    // The expression() CSS injection must not appear in output
+    expect(html).not.toContain('expression(alert')
+  })
+
+  it('divider: width prop with javascript: is not in the CSS style string', () => {
+    const page = makePage({
+      root: {
+        moduleId: 'base.divider',
+        props: { ...DividerModule.defaults, width: 'javascript:alert(1)' },
+      },
+    })
+    const html = renderNode('root', realCtx(page))
+    // javascript: in a CSS width value is syntactically invalid; must not appear
+    expect(html).not.toContain('javascript:')
+  })
+
+  it('divider: color prop with curly brace (}) is blocked — CSS block breakout attempt', () => {
+    // A `}` in a CSS value inside a <style> block would close the current selector
+    // block and allow injection of rogue CSS rules (CWE-74, CSS Injection).
+    // sanitiseCssValue() must reject any value containing `{` or `}`.
+    const page = makePage({
+      root: {
+        moduleId: 'base.divider',
+        props: { ...DividerModule.defaults, color: 'red; } a { color: blue' },
+      },
+    })
+    const html = renderNode('root', realCtx(page))
+    // The entire value is dropped — no `}` appears in CSS output
+    expect(html).not.toContain('}')
+    expect(html).not.toContain('color: blue')
+  })
+
+  it('divider: color prop with curly brace ({) is blocked', () => {
+    const page = makePage({
+      root: {
+        moduleId: 'base.divider',
+        props: { ...DividerModule.defaults, color: 'red; a { color: blue' },
+      },
+    })
+    const html = renderNode('root', realCtx(page))
+    expect(html).not.toContain('{')
+    expect(html).not.toContain('color: blue')
+  })
+
+  it('divider: valid numeric props render correctly without escaping issues', () => {
+    const page = makePage({
+      root: {
+        moduleId: 'base.divider',
+        props: { ...DividerModule.defaults, thickness: 2, marginTop: 24, marginBottom: 24, color: '#cccccc' },
+      },
+    })
+    const html = renderNode('root', realCtx(page))
+    expect(html).toContain('<hr')
+    // No double-escaping of numeric values
+    expect(html).not.toContain('&amp;')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Richtext props — publisher pass-through (Constraint #299)
+// ---------------------------------------------------------------------------
+
+describe('Publisher — richtext prop pass-through (Constraint #299)', () => {
+  /**
+   * A minimal module that injects richtext/html/bodyHtml props directly into output HTML.
+   * This simulates any future richtext-capable module (e.g. a WYSIWYG content block).
+   *
+   * The contract (Constraint #299):
+   *   - Publisher's escapeProps() must NOT HTML-escape richtext-keyed props.
+   *   - DOMPurify is the sanitizer, applied at WRITE TIME (Contribution #411).
+   *   - Publisher trusts the pre-sanitized value — re-escaping would break the output.
+   */
+  const richtextModule = makeModule('test.richtextBlock', {
+    render: (props) => ({
+      html: `<div class="richtext-block">${(props.richtext as string) ?? ''}${(props.html as string) ?? ''}${(props.bodyHtml as string) ?? ''}</div>`,
+    }),
+  })
+  const richtextRegistry = makeRegistry({ 'test.richtextBlock': richtextModule })
+  const richtextProject = makeProject()
+
+  function rtCtx(page: ReturnType<typeof makePage>): RenderContext {
+    return {
+      page,
+      project: richtextProject,
+      registry: richtextRegistry,
+      breakpointId: undefined,
+      cssMap: new Map(),
+    }
+  }
+
+  it('prop named "richtext" is passed through unescaped — HTML tags are preserved', () => {
+    const sanitizedHtml = '<p><strong>Bold text</strong> and <em>italic</em></p>'
+    const page = makePage({
+      root: { moduleId: 'test.richtextBlock', props: { richtext: sanitizedHtml } },
+    })
+    const html = renderNode('root', rtCtx(page))
+    // HTML tags must survive the publisher pipeline intact (not entity-encoded)
+    expect(html).toContain('<p><strong>Bold text</strong>')
+    expect(html).not.toContain('&lt;p&gt;')     // NOT double-escaped
+    expect(html).not.toContain('&lt;strong&gt;') // NOT double-escaped
+  })
+
+  it('prop named "html" is passed through unescaped', () => {
+    const sanitizedHtml = '<ul><li>Item one</li><li>Item two</li></ul>'
+    const page = makePage({
+      root: { moduleId: 'test.richtextBlock', props: { html: sanitizedHtml } },
+    })
+    const html = renderNode('root', rtCtx(page))
+    expect(html).toContain('<ul><li>Item one</li><li>Item two</li></ul>')
+    expect(html).not.toContain('&lt;ul&gt;')
+  })
+
+  it('prop with "Html" suffix (e.g. bodyHtml) is passed through unescaped', () => {
+    const sanitizedHtml = '<a href="https://example.com" rel="noopener">Visit site</a>'
+    const page = makePage({
+      root: { moduleId: 'test.richtextBlock', props: { bodyHtml: sanitizedHtml } },
+    })
+    const html = renderNode('root', rtCtx(page))
+    expect(html).toContain('<a href="https://example.com"')
+    expect(html).not.toContain('&lt;a ')
+  })
+
+  it('plain string prop (non-richtext-keyed) IS HTML-escaped — confirms escaping boundary', () => {
+    // "content" is not a richtext-keyed name — it will be HTML-escaped.
+    // This test confirms the complement: only richtext-keyed props are passed through.
+    const htmlContent = '<p><strong>Bold</strong></p>'
+    const plainModule = makeModule('test.plainBlock', {
+      render: (props) => ({ html: `<div>${props.content as string}</div>` }),
+    })
+    const plainRegistry = makeRegistry({ 'test.plainBlock': plainModule })
+    const plainPage = makePage({
+      root: { moduleId: 'test.plainBlock', props: { content: htmlContent } },
+    })
+    const html = renderNode('root', {
+      page: plainPage,
+      project: richtextProject,
+      registry: plainRegistry,
+      breakpointId: undefined,
+      cssMap: new Map(),
+    })
+    // "content" is a plain string prop — it MUST be HTML-escaped
+    expect(html).toContain('&lt;p&gt;')
+    expect(html).not.toContain('<p>')
+  })
+
+  it('publishPage(): richtext content survives the full document pipeline unescaped', () => {
+    // End-to-end: publishPage() must not HTML-escape richtext props at any stage
+    const sanitizedHtml = '<p>Hello <strong>World</strong></p>'
+    const page = makePage({
+      root: { moduleId: 'test.richtextBlock', props: { richtext: sanitizedHtml } },
+    })
+    const { html: docHtml } = publishPage(page, richtextProject, richtextRegistry)
+    // Richtext must appear in the published document without entity encoding
+    expect(docHtml).toContain('<p>Hello <strong>World</strong></p>')
+    expect(docHtml).not.toContain('&lt;p&gt;')
+    expect(docHtml).not.toContain('&lt;strong&gt;')
+  })
+
+  it('richtext with nested formatting survives the pipeline — complex HTML preserved', () => {
+    const complexHtml = '<h2>Title</h2><p>Para with <a href="/page" rel="noopener">link</a> and <code>code</code>.</p>'
+    const page = makePage({
+      root: { moduleId: 'test.richtextBlock', props: { richtext: complexHtml } },
+    })
+    const { html: docHtml } = publishPage(page, richtextProject, richtextRegistry)
+    expect(docHtml).toContain('<h2>Title</h2>')
+    expect(docHtml).toContain('<a href="/page"')
+    expect(docHtml).toContain('<code>code</code>')
+    expect(docHtml).not.toContain('&lt;h2&gt;')
+    expect(docHtml).not.toContain('&lt;a ')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// publishPage — full document integration
+// ---------------------------------------------------------------------------
+
+describe('publishPage() + real modules — end-to-end document', () => {
+  it('produces a valid HTML document with correctly escaped content', () => {
+    const page = makePage({
+      root: {
+        moduleId: 'base.container',
+        props: ContainerModule.defaults,
+        children: ['h1', 'p1'],
+      },
+      h1: {
+        moduleId: 'base.text',
+        props: { ...TextModule.defaults, text: 'Hello & <World>', tag: 'h1' },
+      },
+      p1: {
+        moduleId: 'base.text',
+        props: { ...TextModule.defaults, text: 'Terms & "Conditions"', tag: 'p' },
+      },
+    })
+
+    const project = makeProject()
+    const { html } = publishPage(page, project, REAL_REGISTRY)
+
+    // Document structure
+    expect(html).toContain('<!DOCTYPE html>')
+    expect(html).toContain('<html lang="en">')
+    expect(html).toContain('</html>')
+
+    // Heading: single-escaped, browser shows "Hello & <World>"
+    expect(html).toContain('Hello &amp; &lt;World&gt;')
+    expect(html).not.toContain('&amp;amp;')   // no double escaping
+    expect(html).not.toContain('<World>')      // raw tag not present
+
+    // Paragraph: single-escaped
+    expect(html).toContain('Terms &amp; &quot;Conditions&quot;')
+    expect(html).not.toContain('&amp;amp;')
+
+    // CSP header present (Constraint #227)
+    expect(html).toContain('Content-Security-Policy')
+    expect(html).toContain("script-src 'none'")
+  })
+
+  it('image alt text with & is correctly single-escaped in published output', () => {
+    const page = makePage({
+      root: {
+        moduleId: 'base.image',
+        props: { ...ImageModule.defaults, src: 'https://example.com/img.jpg', alt: 'Cat & Dog' },
+      },
+    })
+    const project = makeProject()
+    const { html } = publishPage(page, project, REAL_REGISTRY)
+    expect(html).toContain('alt="Cat &amp; Dog"')
+    expect(html).not.toContain('alt="Cat &amp;amp; Dog"')
+  })
+})

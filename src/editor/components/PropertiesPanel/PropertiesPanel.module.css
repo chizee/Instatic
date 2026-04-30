@@ -1,0 +1,176 @@
+/* PropertiesPanel - inspector shell. */
+
+.panel {
+    position: absolute;
+    left: var(--panel-x, calc(100% - 376px));
+    top: var(--panel-y, 16px);
+    bottom: 12px;
+    z-index: 50;
+    display: flex;
+    flex-direction: column;
+    width: var(--panel-w);
+    max-height: calc(100vh - 28px);
+    overflow: hidden;
+    border: 1px solid var(--panel-border);
+    border-radius: var(--panel-radius);
+    background: var(--panel-bg);
+    backdrop-filter: blur(var(--panel-blur));
+    box-shadow: var(--panel-shadow);
+    outline: none;
+    transition: width 150ms ease-in-out;
+    transform: translateZ(0);
+    will-change: transform;
+}
+
+.panelDocked {
+    position: relative;
+    left: auto;
+    top: auto;
+    bottom: auto;
+    z-index: auto;
+    width: 100%;
+    height: 100%;
+    max-height: none;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    backdrop-filter: none;
+    background: transparent;
+    transition: none;
+    will-change: auto;
+    transform: none;
+}
+
+.srLiveRegion {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}
+
+.propertiesPanel {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.emptyState {
+    display: grid;
+    place-items: center;
+    flex: 1;
+    padding: 28px 20px;
+    color: var(--editor-text-muted);
+    font-size: 12px;
+    line-height: 1.6;
+    text-align: center;
+}
+
+.scrollArea {
+    flex: 1;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+}
+
+.headerClassPicker {
+    padding: 10px 14px 12px;
+}
+
+.headerNodeTitle {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    gap: 4px;
+}
+
+.headerNodeLabel {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.headerNameInput {
+    width: 100%;
+    min-width: 0;
+}
+
+.moduleContent {
+    display: grid;
+    gap: 0;
+}
+
+.moduleStyleFields {
+    display: grid;
+    gap: 0;
+}
+
+.breakpointHint {
+    margin-bottom: 12px;
+    padding: 8px 10px;
+    border: 1px solid var(--panel-border);
+    border-radius: var(--editor-radius);
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--editor-text-secondary);
+    font-size: 11px;
+    line-height: 1.5;
+}
+
+.breakpointHint strong {
+    color: var(--editor-text);
+    font-weight: 650;
+}
+
+.advancedContent {
+    display: grid;
+    gap: 8px;
+}
+
+.advancedRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 34px;
+    padding: 0 10px;
+    border: 1px solid var(--panel-border);
+    border-radius: var(--editor-radius);
+    background: rgba(255, 255, 255, 0.025);
+}
+
+.advancedLabel {
+    color: var(--editor-text-secondary);
+    font-size: 11px;
+    font-weight: 550;
+    user-select: none;
+}
+
+.advancedBreakpointNote {
+    padding: 8px 10px;
+    border: 1px solid var(--panel-border);
+    border-radius: var(--editor-radius);
+    background: rgba(255, 255, 255, 0.035);
+    color: var(--editor-text-secondary);
+    font-size: 11px;
+    line-height: 1.5;
+}
+
+.advancedBreakpointNote strong {
+    color: var(--editor-text);
+}
+
+.advancedNodeId {
+    color: var(--editor-text-muted);
+    font-size: 10px;
+    line-height: 1.5;
+    word-break: break-all;
+}
+
+.advancedNodeId code {
+    color: var(--editor-text-secondary);
+    font-family:
+        ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}

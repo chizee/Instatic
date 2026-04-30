@@ -1,0 +1,98 @@
+.rail {
+    position: relative;
+    z-index: 55;
+    display: flex;
+    flex: 0 0 42px;
+    width: 42px;
+    min-width: 42px;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 5px;
+    background: var(--editor-bg);
+}
+
+.itemGroup {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    align-items: center;
+}
+
+.railButton {
+    position: relative;
+    --rail-icon-color: var(--editor-text-secondary);
+    --rail-icon-active-bg: var(--editor-surface-active);
+    --rail-icon-hover-bg: var(--editor-surface-hover);
+    --rail-icon-glow: transparent;
+}
+
+.railButton[data-accent="mint"] {
+    --rail-icon-color: #8ee6c8;
+    --rail-icon-active-bg: rgba(142, 230, 200, 0.16);
+    --rail-icon-hover-bg: rgba(142, 230, 200, 0.1);
+    --rail-icon-glow: rgba(142, 230, 200, 0.28);
+}
+
+.railButton[data-accent="lilac"] {
+    --rail-icon-color: #c8b6ff;
+    --rail-icon-active-bg: rgba(200, 182, 255, 0.16);
+    --rail-icon-hover-bg: rgba(200, 182, 255, 0.1);
+    --rail-icon-glow: rgba(200, 182, 255, 0.28);
+}
+
+.railButton[data-accent="sky"] {
+    --rail-icon-color: #9bdcff;
+    --rail-icon-active-bg: rgba(155, 220, 255, 0.15);
+    --rail-icon-hover-bg: rgba(155, 220, 255, 0.09);
+    --rail-icon-glow: rgba(155, 220, 255, 0.26);
+}
+
+.railButton[data-accent="peach"] {
+    --rail-icon-color: #ffc7a8;
+    --rail-icon-active-bg: rgba(255, 199, 168, 0.15);
+    --rail-icon-hover-bg: rgba(255, 199, 168, 0.09);
+    --rail-icon-glow: rgba(255, 199, 168, 0.26);
+}
+
+.railButton.railButton:hover {
+    background: var(--rail-icon-hover-bg);
+}
+
+.railButton.railButton[aria-pressed="true"] {
+    background: var(--rail-icon-active-bg);
+}
+
+.railIcon {
+    color: var(--rail-icon-color);
+    filter: drop-shadow(0 0 5px var(--rail-icon-glow));
+    transition:
+        color 140ms ease,
+        filter 140ms ease;
+}
+
+.activeIndicator {
+    position: absolute;
+    left: -5px;
+    width: 2px;
+    height: 14px;
+    border-radius: 0 2px 2px 0;
+    background: var(--rail-icon-color);
+    opacity: 0;
+    transform: scaleY(0.6);
+    transition:
+        opacity 140ms ease,
+        transform 140ms ease;
+}
+
+.railButton[aria-pressed="true"] .activeIndicator {
+    opacity: 0.9;
+    transform: scaleY(1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .railIcon,
+    .activeIndicator {
+        transition: none;
+    }
+}

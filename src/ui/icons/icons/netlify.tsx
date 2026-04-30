@@ -1,0 +1,18 @@
+import React from 'react';
+import type { IconProps } from '../types';
+
+export function NetlifyIcon({ size = 24, color = 'currentColor', className, style }: IconProps): React.ReactElement {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+      style={style}
+    >
+      <path d="M13 23H11V17H13V23ZM6 20H4V18H6V20ZM8 18H6V16H8V18ZM13 15H11V13H13V15ZM7 13H0V11H7V13ZM11 13H9V11H11V13ZM15 13H13V11H15V13ZM24 13H17V11H24V13ZM13 11H11V9H13V11ZM8 8H6V6H8V8ZM13 7H11V1H13V7ZM6 6H4V4H6V6Z" fill={color}/>
+    </svg>
+  );
+}

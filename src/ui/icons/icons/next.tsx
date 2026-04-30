@@ -1,0 +1,18 @@
+import React from 'react';
+import type { IconProps } from '../types';
+
+export function NextIcon({ size = 24, color = 'currentColor', className, style }: IconProps): React.ReactElement {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+      style={style}
+    >
+      <path d="M8 6H10V8H8V16H10V18H8V20H6V4H8V6ZM18 20H16V4H18V20ZM12 16H10V14H12V16ZM14 14H12V10H14V14ZM12 10H10V8H12V10Z" fill={color}/>
+    </svg>
+  );
+}

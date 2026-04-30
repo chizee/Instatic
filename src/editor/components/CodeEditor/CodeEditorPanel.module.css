@@ -1,0 +1,93 @@
+/**
+ * CodeEditorPanel — floating code editor panel (Task #432).
+ *
+ * Achromatic palette only (Guideline #376).
+ * No Tailwind, no force-overrides (Constraints 402, 403).
+ * CSS vars for all colour values.
+ */
+
+/* ── Floating panel outer shell ───────────────────────────────────────────── */
+.panel {
+  position: absolute;
+  /* Position driven by --panel-x / --panel-y CSS vars (useDraggablePanel) */
+  left: var(--panel-x, calc(50vw - 400px));
+  top: var(--panel-y, 80px);
+  z-index: 50;
+  width: 800px;
+  height: 500px;
+  display: flex;
+  flex-direction: column;
+  background: var(--panel-bg);
+  backdrop-filter: blur(var(--panel-blur));
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  box-shadow: var(--panel-shadow);
+  overflow: hidden;
+  outline: none;
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+/* Always-mounted pattern: display:none hides without unmounting
+   (useDraggablePanel position is preserved across open/close) */
+.panelHidden {
+  display: none;
+}
+
+/* ── Inner panel shell (fills the float container) ───────────────────────── */
+.inner {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+/* ── Editor body (flex:1, holds CodeMirror or preview) ───────────────────── */
+.editorBody {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── Loading / empty state ───────────────────────────────────────────────── */
+.loading {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: var(--editor-text-subtle);
+}
+
+.emptyState {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: var(--editor-text-subtle);
+  font-size: 11px;
+  padding: 24px;
+  text-align: center;
+}
+
+.emptyHint {
+  font-size: 10px;
+  color: var(--editor-border-med);
+}
+
+/* ── CodeMirror container fill ───────────────────────────────────────────── */
+/* Applied via data-codemirror-container attribute on the container div.
+   Fills the editorBody flex container so CM6 takes up all available space. */
+.editorBody [data-codemirror-container] {
+  height: 100%;
+}
+
+/* CodeMirror overrides — ensure the editor fills its container */
+.editorBody :global(.cm-editor) {
+  height: 100%;
+  overflow: auto;
+}

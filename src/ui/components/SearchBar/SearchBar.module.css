@@ -1,0 +1,19 @@
+.searchBar {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    gap: 6px;
+    padding: 5px 8px;
+}
+
+.input {
+    flex: 1;
+    min-width: 0;
+}
+
+.input::-webkit-search-cancel-button,
+.input::-webkit-search-decoration {
+    -webkit-appearance: none;
+    appearance: none;
+    display: none;
+}

@@ -1,0 +1,18 @@
+import React from 'react';
+import type { IconProps } from '../types';
+
+export function Heading5Icon({ size = 24, color = 'currentColor', className, style }: IconProps): React.ReactElement {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className={className} style={style}>
+      <rect x="3" y="6" width="2" height="12" fill={color}/>
+      <rect x="3" y="11" width="10" height="2" fill={color}/>
+      <rect x="11" y="6" width="2" height="12" fill={color}/>
+      <rect width="6" height="2" transform="matrix(-1 0 0 1 21 16)" fill={color}/>
+      <rect width="2" height="2" transform="matrix(-1 0 0 1 21 14)" fill={color}/>
+      <rect width="2" height="2" transform="matrix(-1 0 0 1 19 12)" fill={color}/>
+      <rect width="2" height="6" transform="matrix(-1 0 0 1 17 8)" fill={color}/>
+      <rect width="2" height="2" transform="matrix(-1 0 0 1 19 8)" fill={color}/>
+      <rect width="2" height="2" transform="matrix(-1 0 0 1 21 8)" fill={color}/>
+    </svg>
+  );
+}

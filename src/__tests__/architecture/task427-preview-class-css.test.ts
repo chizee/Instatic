@@ -1,0 +1,529 @@
+/**
+ * Task #427 — Preview CSS: "I press preview; it opens the preview, but it seems
+ * it doesn't load the CSS from classes I use."
+ *
+ * ── Root cause analysis ─────────────────────────────────────────────────────
+ * Three defects block reliable testing (and likely underlie the user-visible bug):
+ *
+ *   Bug A — `makePage()` helper ignores `classIds` in NodeSpec
+ *     The shared test helper constructs PageNode objects without copying the
+ *     `classIds` field from the spec.  Any test that builds a node via
+ *     `makePage({ btn: { moduleId: 'base.button', classIds: ['x'] } })` will
+ *     produce a node with `classIds: undefined`, silently bypassing the entire
+ *     CSS class pipeline in `publishPage`.
+ *
+ *   Bug B — `makeProject()` helper missing `classes: {}` and `projectMode` defaults
+ *     Projects created via `makeProject()` have `project.classes = undefined` unless
+ *     overridden.  In `collectClassCSS(project)`, if any node has classIds AND
+ *     `project.classes` is undefined, the `project.classes[id]` read throws:
+ *       TypeError: Cannot read properties of undefined (reading '<classId>')
+ *     This turns any legitimate "preview with classes" scenario into an unhandled
+ *     crash in the test environment — the very path the user is hitting.
+ *
+ *   Bug C — Zero end-to-end test coverage for class CSS in published HTML
+ *     `render.test.ts` has no test that verifies `publishPage()` embeds
+ *     `.mc-{classId} { … }` in the `<style>` block, nor that the root element
+ *     of a published node carries `class="mc-{classId}"`.  The publisher can
+ *     silently lose class CSS with no failing signal.
+ *
+ * ── Gate plan ────────────────────────────────────────────────────────────────
+ *   Gate 1 (Bug A)    — makePage preserves classIds from NodeSpec
+ *   Gate 2 (Bug B)    — makeProject includes classes + projectMode defaults
+ *   Gate 3 (Bug B2)   — collectClassCSS does NOT crash when project.classes is missing
+ *   Gate 4 (Bug C)    — publishPage embeds .mc-{id} CSS rule in <style> block
+ *   Gate 5 (Bug C)    — publishPage injects class="mc-{id}" on the rendered element
+ *   Gate 6 (Combined) — full path via makePage helper: classIds survive to HTML output
+ *   Gate 7 (Combined) — multiple classIds: all CSS rules present, all on element
+ *   Gate 8 (Combined) — breakpoint override emits @media block in published HTML
+ *
+ * Gates 1, 2, 3, 6 are pre-failing today.
+ * Gates 4, 5, 7, 8 will be green once the helper fixes land (publisher code is correct).
+ *
+ * @see src/__tests__/publisher/helpers.ts        — makePage / makeProject (needs fix)
+ * @see src/core/publisher/render.ts              — publishPage, renderNode
+ * @see src/core/publisher/cssCollector.ts        — collectClassCSS
+ * @see src/editor/components/Canvas/ClassStyleInjector.tsx — generateClassCSS, bagToCSS
+ */
+
+import { describe, it, expect } from 'bun:test'
+import { publishPage } from '../../core/publisher/render'
+import { collectClassCSS } from '../../core/publisher/cssCollector'
+import type { Page, PageNode, Project, CSSClass } from '../../core/page-tree/types'
+import { makeModule, makeRegistry, makePage, makeProject } from '../publisher/helpers'
+
+// ---------------------------------------------------------------------------
+// Shared fixtures
+// ---------------------------------------------------------------------------
+
+function makeClass(id: string, styles: CSSClass['styles'] = {}): CSSClass {
+  return {
+    id,
+    name: id,
+    styles,
+    breakpointStyles: {},
+    createdAt: 0,
+    updatedAt: 0,
+  }
+}
+
+/** Minimal registry used across integration gates */
+const rootModule = makeModule('base.root', {
+  canHaveChildren: true,
+  render: (_props, children) => ({ html: children.join('') }),
+})
+
+const buttonModule = makeModule('base.button', {
+  canHaveChildren: false,
+  render: () => ({ html: '<button class="pb-btn">Click me</button>' }),
+})
+
+const headingModule = makeModule('base.heading', {
+  canHaveChildren: false,
+  render: (props) => ({
+    html: `<h2 class="pb-heading">${props['text'] ?? ''}</h2>`,
+    css: '.pb-heading { font-size: 1.5rem; }',
+  }),
+})
+
+const reg = makeRegistry({
+  'base.root': rootModule,
+  'base.button': buttonModule,
+  'base.heading': headingModule,
+})
+
+/** Build a minimal Page directly (bypasses makePage) so gates 4/5/7/8 test
+ *  the publisher itself rather than the helper.
+ */
+function directPage(nodeClassIds: string[]): Page {
+  const root: PageNode = {
+    id: 'root',
+    moduleId: 'base.root',
+    props: {},
+    children: ['btn'],
+    breakpointOverrides: {},
+    classIds: [],
+  }
+  const btn: PageNode = {
+    id: 'btn',
+    moduleId: 'base.button',
+    props: {},
+    children: [],
+    breakpointOverrides: {},
+    classIds: nodeClassIds,
+  }
+  return {
+    id: 'page-1',
+    slug: 'index',
+    title: 'Home',
+    rootNodeId: 'root',
+    nodes: { root, btn },
+  }
+}
+
+/** Build a minimal Project directly (bypasses makeProject) */
+function directProject(page: Page, classes: Project['classes'] = {}): Project {
+  return {
+    id: 'proj-1',
+    name: 'Test',
+    projectMode: 'html',
+    pages: [page],
+    breakpoints: [{ id: 'desktop', label: 'Desktop', width: 1440, icon: 'monitor' }],
+    settings: { colorTokens: {}, typeScale: { baseSize: 16, ratio: 1.25 }, shortcuts: {} },
+    classes,
+    createdAt: 0,
+    updatedAt: 0,
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Gate 1 — Bug A: makePage helper must pass classIds to nodes
+// ─────────────────────────────────────────────────────────────────────────────
+// CURRENTLY FAILING:
+//   makePage() constructs PageNode objects without copying spec.classIds.
+//   Any test that relies on nodes having classIds will silently get undefined
+//   instead, bypassing the entire class CSS pipeline.
+//
+// FIX TARGET: src/__tests__/publisher/helpers.ts — add `classIds: spec.classIds ?? []`
+//   to the PageNode construction in makePage().
+// ---------------------------------------------------------------------------
+
+describe('Gate 1 — makePage helper passes classIds to generated nodes', () => {
+  it('[FAILING-Gate1a] makePage assigns a non-empty classIds array to the node', () => {
+    const classId = 'hero-abc'
+    const page = makePage(
+      {
+        root: { moduleId: 'base.root', children: ['btn'] },
+        btn: { moduleId: 'base.button', classIds: [classId] },
+      },
+      'root',
+    )
+    // Bug A: currently undefined because makePage ignores classIds from NodeSpec
+    expect(page.nodes['btn'].classIds).toEqual([classId])
+  })
+
+  it('[FAILING-Gate1b] makePage passes empty classIds array when none specified', () => {
+    const page = makePage({ root: { moduleId: 'base.root' } }, 'root')
+    // Should be [] (explicit empty) rather than undefined, for type-safe downstream use
+    expect(page.nodes['root'].classIds).toEqual([])
+  })
+
+  it('[FAILING-Gate1c] makePage passes multiple classIds correctly', () => {
+    const ids = ['cls-1', 'cls-2', 'cls-3']
+    const page = makePage(
+      { root: { moduleId: 'base.root', classIds: ids } },
+      'root',
+    )
+    expect(page.nodes['root'].classIds).toEqual(ids)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Gate 2 — Bug B: makeProject helper must include classes + projectMode defaults
+// ─────────────────────────────────────────────────────────────────────────────
+// CURRENTLY FAILING:
+//   makeProject() returns `{ pages, breakpoints, settings, ... }` with no
+//   `classes` key and no `projectMode` key.
+//
+//   Missing `classes`:
+//     collectClassCSS(project) does `project.classes[id]` — when project.classes
+//     is undefined and any node has a classId, this throws a TypeError, masking
+//     the real path under a crash.
+//
+//   Missing `projectMode`:
+//     TypeScript typing requires `projectMode: 'html' | 'react'`. Runtime code
+//     that reads `project.projectMode` sees `undefined` instead of `'html'`.
+//
+// FIX TARGET: src/__tests__/publisher/helpers.ts — add both fields to the
+//   default object inside makeProject().
+// ---------------------------------------------------------------------------
+
+describe('Gate 2 — makeProject helper provides classes and projectMode defaults', () => {
+  it('[FAILING-Gate2a] makeProject() result has classes defined (not undefined)', () => {
+    const project = makeProject()
+    // Bug B: currently undefined — missing default
+    expect(project.classes).toBeDefined()
+    expect(typeof project.classes).toBe('object')
+    expect(Array.isArray(project.classes)).toBe(false)
+  })
+
+  it('[FAILING-Gate2b] makeProject() result has projectMode defined', () => {
+    const project = makeProject()
+    // Bug B: currently undefined — missing default
+    expect(project.projectMode).toBe('html')
+  })
+
+  it('[FAILING-Gate2c] makeProject() classes default is an empty object', () => {
+    const project = makeProject()
+    expect(Object.keys(project.classes)).toHaveLength(0)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Gate 3 — Bug B2: collectClassCSS must not crash when project.classes is missing
+// ─────────────────────────────────────────────────────────────────────────────
+// CURRENTLY FAILING:
+//   If any page node has classIds AND project.classes is undefined (the current
+//   state of makeProject()), collectClassCSS does project.classes[id] → TypeError.
+//   This is a defensive coding gap: the function should degrade gracefully.
+//
+// FIX TARGET: src/core/publisher/cssCollector.ts — guard `project.classes` before
+//   accessing it: `if (!project.classes) return ''` near the top of collectClassCSS.
+// ---------------------------------------------------------------------------
+
+describe('Gate 3 — collectClassCSS is defensive against missing project.classes', () => {
+  it('[FAILING-Gate3] does not throw when project.classes is undefined but nodes have classIds', () => {
+    // Construct a project where classes is explicitly missing (as makeProject() creates it)
+    const page: Page = {
+      id: 'p1', slug: 'index', title: 'Home', rootNodeId: 'root',
+      nodes: {
+        root: {
+          id: 'root', moduleId: 'base.root', props: {}, children: [],
+          breakpointOverrides: {}, classIds: ['orphan-class-id'],
+        },
+      },
+    }
+    const brokenProject = {
+      id: 'proj1', name: 'Test', projectMode: 'html' as const,
+      pages: [page],
+      breakpoints: [],
+      settings: { colorTokens: {}, typeScale: { baseSize: 16, ratio: 1.25 }, shortcuts: {} },
+      classes: undefined as unknown as Project['classes'],  // simulates the makeProject() gap
+      createdAt: 0, updatedAt: 0,
+    }
+    // Should NOT throw — should return '' gracefully
+    expect(() => collectClassCSS(brokenProject)).not.toThrow()
+    expect(collectClassCSS(brokenProject)).toBe('')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Gates 4 & 5 — Bug C: publishPage must embed class CSS in <style> and inject
+//               class attribute on the HTML element (direct construction path)
+// ─────────────────────────────────────────────────────────────────────────────
+// These tests use directPage() / directProject() to bypass the broken makeProject
+// and makePage helpers — they test the PUBLISHER code itself.
+//
+// Expected: CURRENTLY PASSING (publisher code is correct; these are regression guards).
+//
+// If these tests start failing after a refactor, the publisher pipeline is broken.
+// ---------------------------------------------------------------------------
+
+describe('Gate 4 — publishPage embeds class CSS in <style> block (direct construction)', () => {
+  const classId = 'hero-xyz'
+
+  it('Gate4a: <style> block contains .mc-{classId} CSS rule', () => {
+    const page = directPage([classId])
+    const project = directProject(page, {
+      [classId]: makeClass(classId, { backgroundColor: '#ff0000' }),
+    })
+    const { html } = publishPage(page, project, reg)
+    expect(html).toContain(`.mc-${classId}`)
+  })
+
+  it('Gate4b: <style> block contains the correct CSS property', () => {
+    const page = directPage([classId])
+    const project = directProject(page, {
+      [classId]: makeClass(classId, { backgroundColor: '#ff0000' }),
+    })
+    const { html } = publishPage(page, project, reg)
+    expect(html).toContain('background-color: #ff0000')
+  })
+
+  it('Gate4c: class CSS appears inside the <style> tag, not the <body>', () => {
+    const page = directPage([classId])
+    const project = directProject(page, {
+      [classId]: makeClass(classId, { color: 'red' }),
+    })
+    const { html } = publishPage(page, project, reg)
+    const styleBlockMatch = html.match(/<style>([\s\S]*?)<\/style>/)
+    expect(styleBlockMatch).not.toBeNull()
+    const styleContent = styleBlockMatch![1]
+    expect(styleContent).toContain(`.mc-${classId}`)
+  })
+
+  it('Gate4d: unused classes are NOT emitted in the style block (tree-shaking)', () => {
+    const usedId = 'used-cls'
+    const unusedId = 'unused-cls'
+    const page = directPage([usedId]) // only usedId on the node
+    const project = directProject(page, {
+      [usedId]: makeClass(usedId, { color: 'green' }),
+      [unusedId]: makeClass(unusedId, { color: 'red' }),
+    })
+    const { html } = publishPage(page, project, reg)
+    expect(html).toContain(`.mc-${usedId}`)
+    expect(html).not.toContain(`.mc-${unusedId}`)
+  })
+})
+
+describe('Gate 5 — publishPage injects mc-{id} class attribute on rendered element', () => {
+  const classId = 'btn-style'
+
+  it('Gate5a: rendered HTML element carries class="mc-{classId}"', () => {
+    const page = directPage([classId])
+    const project = directProject(page, {
+      [classId]: makeClass(classId, { color: 'blue' }),
+    })
+    const { html } = publishPage(page, project, reg)
+    expect(html).toContain(`mc-${classId}`)
+  })
+
+  it('Gate5b: mc-{classId} appears on the <button> element, not a wrapper', () => {
+    const page = directPage([classId])
+    const project = directProject(page, {
+      [classId]: makeClass(classId, { color: 'blue' }),
+    })
+    const { html } = publishPage(page, project, reg)
+    // The button module renders <button class="pb-btn">; mc class should be prepended
+    expect(html).toMatch(new RegExp(`<button[^>]*class="mc-${classId}`))
+  })
+
+  it('Gate5c: node with NO classIds produces no mc- class on element', () => {
+    const page = directPage([]) // no classIds
+    const project = directProject(page)
+    const { html } = publishPage(page, project, reg)
+    expect(html).not.toContain('mc-')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Gate 6 — Combined: full path using makePage helper must preserve classIds
+// ─────────────────────────────────────────────────────────────────────────────
+// CURRENTLY FAILING: depends on Gate 1 (makePage ignores classIds).
+// Once Gate 1 is fixed, this test should pass automatically.
+//
+// This is the critical integration test: the complete happy-path
+// "create a node via makePage with classIds → publishPage includes class CSS"
+// must work correctly for the preview to show class styles.
+// ---------------------------------------------------------------------------
+
+describe('Gate 6 — publishPage full path via makePage helper', () => {
+  const classId = 'hero-full'
+
+  it('[FAILING-Gate6a] publishPage includes class CSS when node has classIds set via makePage', () => {
+    const page = makePage(
+      {
+        root: { moduleId: 'base.root', children: ['btn'] },
+        btn: { moduleId: 'base.button', classIds: [classId] },
+      },
+      'root',
+    )
+    const project = makeProject({
+      pages: [page],
+      projectMode: 'html',
+      classes: { [classId]: makeClass(classId, { backgroundColor: 'blue' }) },
+    })
+    const { html } = publishPage(page, project, reg)
+    expect(html).toContain(`.mc-${classId}`)
+    expect(html).toContain('background-color: blue')
+  })
+
+  it('[FAILING-Gate6b] HTML element has mc-{classId} when classIds set via makePage', () => {
+    const page = makePage(
+      {
+        root: { moduleId: 'base.root', children: ['btn'] },
+        btn: { moduleId: 'base.button', classIds: [classId] },
+      },
+      'root',
+    )
+    const project = makeProject({
+      pages: [page],
+      projectMode: 'html',
+      classes: { [classId]: makeClass(classId, { color: 'white' }) },
+    })
+    const { html } = publishPage(page, project, reg)
+    expect(html).toContain(`mc-${classId}`)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Gate 7 — Multiple classIds: all CSS rules + all class names on element
+// ─────────────────────────────────────────────────────────────────────────────
+// Expected: CURRENTLY PASSING (regression guard for multi-class support).
+// ---------------------------------------------------------------------------
+
+describe('Gate 7 — multiple classIds produce all CSS rules and class names', () => {
+  it('Gate7a: all CSS rules appear in <style> block', () => {
+    const ids = ['cls-a', 'cls-b', 'cls-c']
+    const page = directPage(ids)
+    const project = directProject(page, {
+      'cls-a': makeClass('cls-a', { color: 'red' }),
+      'cls-b': makeClass('cls-b', { fontWeight: 'bold' }),
+      'cls-c': makeClass('cls-c', { fontSize: '1.2rem' }),
+    })
+    const { html } = publishPage(page, project, reg)
+    for (const id of ids) {
+      expect(html).toContain(`.mc-${id}`)
+    }
+  })
+
+  it('Gate7b: all class names appear on the rendered element', () => {
+    const ids = ['cls-a', 'cls-b', 'cls-c']
+    const page = directPage(ids)
+    const project = directProject(page, {
+      'cls-a': makeClass('cls-a', { color: 'red' }),
+      'cls-b': makeClass('cls-b', { fontWeight: 'bold' }),
+      'cls-c': makeClass('cls-c', { fontSize: '1.2rem' }),
+    })
+    const { html } = publishPage(page, project, reg)
+    for (const id of ids) {
+      expect(html).toContain(`mc-${id}`)
+    }
+  })
+
+  it('Gate7c: class names appear in the declared order on the element', () => {
+    const ids = ['first', 'second', 'third']
+    const page = directPage(ids)
+    const project = directProject(page, {
+      first: makeClass('first', { color: 'red' }),
+      second: makeClass('second', { color: 'blue' }),
+      third: makeClass('third', { color: 'green' }),
+    })
+    const { html } = publishPage(page, project, reg)
+    const firstPos = html.indexOf('mc-first')
+    const secondPos = html.indexOf('mc-second')
+    const thirdPos = html.indexOf('mc-third')
+    // class="mc-first mc-second mc-third" — order must match node.classIds order
+    expect(firstPos).toBeLessThan(secondPos)
+    expect(secondPos).toBeLessThan(thirdPos)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Gate 8 — Breakpoint override in class emits @media block in published HTML
+// ─────────────────────────────────────────────────────────────────────────────
+// Expected: CURRENTLY PASSING (regression guard for responsive class CSS).
+// ---------------------------------------------------------------------------
+
+describe('Gate 8 — class breakpoint overrides emit @media blocks in published HTML', () => {
+  it('Gate8a: @media block is present for a class with a breakpoint override', () => {
+    const classId = 'responsive-cls'
+    const bpId = 'mobile'
+    const page = directPage([classId])
+    const project: Project = {
+      id: 'proj-1', name: 'Test', projectMode: 'html',
+      pages: [page],
+      breakpoints: [{ id: bpId, label: 'Mobile', width: 375, icon: 'smartphone' }],
+      settings: { colorTokens: {}, typeScale: { baseSize: 16, ratio: 1.25 }, shortcuts: {} },
+      classes: {
+        [classId]: {
+          id: classId, name: classId,
+          styles: { fontSize: '1rem' },
+          breakpointStyles: {
+            [bpId]: { fontSize: '0.875rem' },
+          },
+          createdAt: 0, updatedAt: 0,
+        },
+      },
+      createdAt: 0, updatedAt: 0,
+    }
+    const { html } = publishPage(page, project, reg)
+    // Should contain @media (max-width: 375px) { .mc-{classId} { ... } }
+    expect(html).toContain('@media')
+    expect(html).toContain('375px')
+    expect(html).toContain(`.mc-${classId}`)
+  })
+
+  it('Gate8b: base class CSS rule is also present alongside the @media block', () => {
+    const classId = 'responsive-cls'
+    const bpId = 'mobile'
+    const page = directPage([classId])
+    const project: Project = {
+      id: 'proj-1', name: 'Test', projectMode: 'html',
+      pages: [page],
+      breakpoints: [{ id: bpId, label: 'Mobile', width: 375, icon: 'smartphone' }],
+      settings: { colorTokens: {}, typeScale: { baseSize: 16, ratio: 1.25 }, shortcuts: {} },
+      classes: {
+        [classId]: {
+          id: classId, name: classId,
+          styles: { color: 'black' },
+          breakpointStyles: { [bpId]: { color: 'white' } },
+          createdAt: 0, updatedAt: 0,
+        },
+      },
+      createdAt: 0, updatedAt: 0,
+    }
+    const { html } = publishPage(page, project, reg)
+    const styleBlock = (html.match(/<style>([\s\S]*?)<\/style>/) ?? [])[1] ?? ''
+    // Both the base rule and the media query must be present
+    expect(styleBlock).toContain('color: black')   // base styles
+    expect(styleBlock).toContain('color: white')   // breakpoint override
+    expect(styleBlock).toContain('@media')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Summary — what must be fixed to turn all red → green
+// ---------------------------------------------------------------------------
+//
+//   1. src/__tests__/publisher/helpers.ts (makePage):
+//      Add `classIds: spec.classIds ?? []` to the PageNode construction block.
+//
+//   2. src/__tests__/publisher/helpers.ts (makeProject):
+//      Add `classes: {}` and `projectMode: 'html'` to the default return object.
+//
+//   3. src/core/publisher/cssCollector.ts (collectClassCSS):
+//      Add a guard at the top: `if (!project.classes) return ''`
+//      to prevent crashes when old/partial project snapshots are processed.
+//
+// Gates 4, 5, 7, 8 are regression guards — they confirm the publisher pipeline
+// is already correct. They must not be broken by the helper fixes.

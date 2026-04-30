@@ -1,0 +1,19 @@
+/**
+ * CanvasRoot — infinite editing surface styles.
+ * Uses design tokens from globals.css (no hardcoded colours).
+ */
+
+.canvas {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    background: var(--editor-surface-2);
+    border-top-left-radius: 12px;
+    cursor: default;
+    user-select: none;
+    /* Required by @use-gesture/react to intercept trackpad pinch gestures.
+     Without this the browser's native pinch-to-zoom captures the event
+     first and zooms the entire viewport instead of the canvas only. */
+    touch-action: none;
+    outline: none;
+}

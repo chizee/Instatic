@@ -1,0 +1,280 @@
+/* Button — shared action button primitive (Task #462 / Task #458 Phase 2)
+ * Achromatic palette only (Guideline #376).
+ * No !important, no Tailwind, no inline styles (Constraints #402/#403).
+ * All colours via --editor-* tokens.
+ */
+
+/* ── Base ─────────────────────────────────────────────────────────────────── */
+.btn {
+    font-family: Inter;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+    transition:
+        color 150ms ease,
+        background-color 150ms ease,
+        border-color 150ms ease,
+        opacity 150ms ease;
+    /* Prevent text-overflow in tight toolbars */
+    flex-shrink: 0;
+}
+
+.btn:focus-visible {
+    outline: none;
+    box-shadow: var(--btn-focus-ring, 0 0 0 1px rgba(255, 255, 255, 0.25));
+}
+
+.btn:disabled,
+.btn[aria-disabled="true"] {
+    opacity: 0.38;
+    cursor: default;
+    pointer-events: none;
+}
+
+/* ── Sizes ────────────────────────────────────────────────────────────────── */
+.size-micro {
+    height: 18px;
+    padding: 0 4px;
+    gap: 2px;
+    font-size: 10px;
+    border-radius: 6px;
+}
+
+.size-xs {
+    height: 26px;
+    padding: 0 6px;
+    gap: 4px;
+    font-size: 11px;
+}
+
+.size-sm {
+    height: 28px;
+    padding: 0 8px;
+    gap: 4px;
+    font-size: 11px;
+}
+
+.size-md {
+    height: 32px;
+    padding: 6px 14px;
+    gap: 5px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.size-lg {
+    height: 44px;
+    padding: 0 16px;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+/* ── Icon-only (square) ───────────────────────────────────────────────────── */
+.iconOnly {
+    padding: 0;
+}
+.size-micro.iconOnly {
+    width: 18px;
+}
+.size-xs.iconOnly {
+    width: 26px;
+}
+.size-sm.iconOnly {
+    width: 28px;
+}
+.size-md.iconOnly {
+    width: 32px;
+}
+.size-lg.iconOnly {
+    width: 44px;
+}
+
+.fullWidth {
+    width: 100%;
+}
+
+.align-center {
+    justify-content: center;
+    text-align: center;
+}
+
+.align-start {
+    justify-content: flex-start;
+    text-align: left;
+}
+
+.align-between {
+    justify-content: space-between;
+    text-align: left;
+}
+
+.shape-pill {
+    border-radius: 999px;
+}
+
+.shape-flush {
+    border-radius: 0;
+}
+
+.numeric {
+    font-variant-numeric: tabular-nums;
+}
+
+.menuItem {
+    width: 100%;
+    height: auto;
+    min-height: 28px;
+    padding: 6px 12px;
+    gap: 8px;
+    border-radius: 0;
+    justify-content: flex-start;
+    text-align: left;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+/* ── Variant: ghost ───────────────────────────────────────────────────────── */
+.variant-ghost {
+    background: transparent;
+    border: 0;
+    color: var(--editor-text-secondary);
+}
+
+.variant-ghost:hover {
+    background: var(--editor-surface-hover);
+    color: var(--editor-text);
+}
+
+.variant-ghost:active {
+    background: var(--editor-surface-active);
+    color: var(--editor-text);
+}
+
+.variant-ghost[aria-pressed="true"],
+.variant-ghost[aria-expanded="true"],
+.variant-ghost[data-active="true"] {
+    background: var(--editor-surface-active);
+    color: var(--editor-text);
+}
+
+.variant-ghost[data-tone="danger"] {
+    color: var(--editor-danger-light);
+}
+
+.variant-ghost[data-tone="danger"]:hover,
+.variant-ghost[data-danger-hover="true"]:hover {
+    background: var(--editor-danger-bg);
+    color: var(--editor-danger-light);
+}
+
+/* ── Variant: secondary ───────────────────────────────────────────────────── */
+.variant-secondary {
+    background: var(--editor-surface);
+    border: 0;
+    color: var(--editor-text-secondary);
+}
+
+.variant-secondary:hover {
+    background: var(--editor-surface-hover);
+    border-color: var(--editor-border-med);
+    color: var(--editor-text);
+}
+
+.variant-secondary:active {
+    background: var(--editor-surface-active);
+}
+
+.variant-secondary[data-active="true"] {
+    background: var(--editor-surface-active);
+    color: var(--editor-text);
+}
+
+.variant-secondary[data-tone="danger"] {
+    background: var(--editor-danger-bg);
+    border-color: var(--editor-danger-border);
+    color: var(--editor-danger);
+}
+
+.variant-secondary[data-tone="danger"]:hover {
+    background: var(--editor-danger-bg);
+    color: var(--editor-danger-light);
+}
+
+/* ── Variant: primary ─────────────────────────────────────────────────────── */
+.variant-primary {
+    background: var(--editor-surface-active);
+    border: 1px solid var(--panel-border);
+    color: var(--editor-text);
+}
+
+.variant-primary:hover {
+    background: var(--editor-surface-3);
+    border-color: var(--editor-border-med);
+}
+
+.variant-primary:active {
+    background: var(--editor-surface-4);
+}
+
+/* Accent-fill CTA (Module Picker "+Add") */
+.variant-primary[data-accent="true"] {
+    background: var(--editor-accent);
+    color: var(--editor-bg);
+    border-color: transparent;
+}
+
+.variant-primary[data-accent="true"]:hover {
+    opacity: 0.9;
+    border-color: transparent;
+}
+
+/* ── Variant: destructive ─────────────────────────────────────────────────── */
+.variant-destructive {
+    background: var(--editor-danger-bg);
+    border: 1px solid var(--editor-danger-border);
+    color: var(--editor-danger);
+}
+
+.variant-destructive:hover {
+    opacity: 0.9;
+}
+
+.variant-destructive:active {
+    opacity: 0.8;
+}
+
+/* ── Navigation item chrome ──────────────────────────────────────────────── */
+.navItem {
+    width: 100%;
+    min-height: 44px;
+    height: auto;
+    padding: 0 16px;
+    gap: 10px;
+    border: 0;
+    border-left: 2px solid transparent;
+    border-radius: 0;
+    justify-content: flex-start;
+    font-size: 13px;
+    font-weight: 500;
+    text-align: left;
+    color: var(--editor-text-muted);
+}
+
+.navItem:hover {
+    color: var(--editor-text-secondary);
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.navItem[data-active="true"] {
+    background: rgba(255, 255, 255, 0.05);
+    border-left-color: var(--editor-text);
+    color: var(--editor-text);
+}

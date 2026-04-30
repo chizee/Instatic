@@ -1,0 +1,155 @@
+@import "@fontsource-variable/geist";
+@import "@fontsource-variable/inter";
+
+/*
+ * Global CSS custom properties — design tokens for the editor UI.
+ * These map to ProjectSettings.colorTokens for the canvas/published output.
+ * Editor chrome uses its own tokens below.
+ */
+:root {
+    --font-sans: "Inter Variable", "Geist Variable", sans-serif;
+
+    /* ─── Editor Surface Hierarchy (Vercel/Linear pure-black) ─────────────── */
+    --editor-bg: #000000; /* deepest background (app shell) */
+    --editor-surface: #1b1b1b; /* panel / card background */
+    --editor-surface-2: #282828; /* elevated surface (input bg, secondary btn) */
+    --editor-surface-3: #323232; /* deep surface (toolbar, modal backdrop) */
+    --editor-surface-4: #4a4a4a; /* slightly elevated input / toggle bg */
+
+    /* ─── Borders ────────────────────────────────────────────────────────── */
+    --editor-border: #1f1f1f;
+    --editor-border-med: #2e2e2e; /* medium border (slightly elevated) */
+
+    /* ─── Text Hierarchy ─────────────────────────────────────────────────── */
+    --editor-text: #ededed; /* primary text */
+    --editor-text-secondary: #a1a1aa; /* labels, secondary UI text */
+    --editor-text-muted: #71717a; /* muted / placeholder */
+    --editor-text-subtle: #52525b; /* disabled / very subtle */
+
+    /* ─── Accent — white (Vercel style) + indigo for canvas selection ─────── */
+    --editor-accent: #ffffff;
+    --editor-accent-light: #a1a1aa; /* subtle accent */
+    --editor-accent-violet: rgba(
+        255,
+        255,
+        255,
+        0.8
+    ); /* canvas selection — achromatic white */
+    --editor-selection: rgba(255, 255, 255, 0.08);
+
+    /* ─── Semantic Colours ───────────────────────────────────────────────── */
+    --editor-danger: #ef4444;
+    --editor-danger-light: #f87171; /* red-400 — lighter danger for text */
+    --editor-danger-lighter: #fca5a5; /* red-300 — very light danger tint */
+    --editor-danger-bg: rgba(239, 68, 68, 0.1);
+    --editor-danger-border: rgba(239, 68, 68, 0.2);
+    --editor-warning: #f59e0b;
+    --editor-success-green: #34d399; /* emerald-400 — saved / ok indicator */
+    --editor-success-bright: #4ade80; /* green-400 — agent tool success */
+
+    /* ─── Button Interaction Surfaces (Task #462 — Button Design System) ── */
+    --editor-surface-hover: rgba(
+        255,
+        255,
+        255,
+        0.05
+    ); /* ghost/secondary hover bg */
+    --editor-surface-active: rgba(
+        255,
+        255,
+        255,
+        0.08
+    ); /* ghost pressed / primary rest */
+
+    /* ─── Border Radius ──────────────────────────────────────────────────── */
+    --editor-radius-sm: 3px;
+    --editor-radius: 6px;
+
+    /* ─── Panels ─────────────────────────────────────────────────────────── */
+    --editor-panel-border: #1f1f1f;
+
+    /* ─── Floating Overlay Panels */
+    --panel-bg: rgb(30 30 30);
+    --panel-border: rgba(255, 255, 255, 0.1);
+    --panel-radius: 12px;
+    --panel-blur: 24px;
+    --panel-shadow-inset-top: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    --panel-shadow-inset-bottom: inset 0 -1px 0 rgba(0, 0, 0, 0.35);
+    --panel-shadow-drop: 0 12px 40px rgba(0, 0, 0, 0.65);
+    --panel-shadow:
+        var(--panel-shadow-inset-top), var(--panel-shadow-inset-bottom),
+        var(--panel-shadow-drop);
+
+    /* ─── Editor Inputs ──────── */
+    --input-bg: transparent;
+    --input-bg-focus: trasparent;
+    --input-border: rgba(255, 255, 255, 0.2);
+    --input-border-focus: rgba(255, 255, 255, 0.5); /* achromatic focus ring */
+    --input-shadow: none;
+    --input-shadow-focus:
+        inset 0 0 5px #ffffff0f, inset 0 -5px 8px #ffffff17, 0 0px 5px #0000003d; /* achromatic glow */
+    --input-radius: 12px;
+
+    /* ─── Canvas ─────────────────────────────────────────────────────────── */
+    --canvas-selection-ring: inset 0 0 0 1px #39ff14;
+    --canvas-hover-ring: inset 0 0 0 1px #ff2bd6;
+}
+
+/* Reduced motion support — Constraint from UX Guideline #189 */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/* Base reset */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html,
+body,
+#root {
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+}
+
+body {
+    background: var(--editor-bg);
+    color: var(--editor-text);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+}
+
+/* Focus styles — WCAG 2.1 AA (Guideline #189) */
+:focus-visible {
+    outline: 2px solid var(--editor-accent);
+    outline-offset: 2px;
+    border-radius: 2px;
+}
+
+/* Scrollbar styling for panels */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb {
+    background: var(--editor-border);
+    border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: var(--editor-text-muted);
+}

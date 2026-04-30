@@ -1,0 +1,18 @@
+import React from 'react';
+import type { IconProps } from '../types';
+
+export function AiAppMacSolidIcon({ size = 24, color = 'currentColor', className, style }: IconProps): React.ReactElement {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+      style={style}
+    >
+      <path d="M18 15H20V17H22V19H20V21H18V23H16V21H14V19H12V17H14V15H16V13H18V15ZM20 5H22V13H20V11H14V13H12V15H10V21H4V19H2V5H4V3H20V5ZM6 9H8V7H6V9ZM10 9H12V7H10V9ZM14 9H16V7H14V9Z" fill={color}/>
+    </svg>
+  );
+}

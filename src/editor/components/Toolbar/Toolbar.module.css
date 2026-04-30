@@ -1,0 +1,314 @@
+/* Toolbar — fixed top bar for the editor */
+
+/* ── Header bar ──────────────────────────────────────────────────────────── */
+.header {
+    display: flex;
+    align-items: center;
+    height: 36px;
+    padding: 0 8px;
+    gap: 2px;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 30;
+    user-select: none;
+    background: var(--editor-bg);
+}
+
+.projectName {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: -0.015em;
+    margin-right: 4px;
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--editor-text);
+}
+
+.spacer {
+    flex: 1;
+}
+
+.divider {
+    width: 1px;
+    height: 16px;
+    flex-shrink: 0;
+    margin: 0 2px;
+    background: var(--editor-border);
+}
+
+/* ── ZoomControls ─────────────────────────────────────────────────────────── */
+.zoomGroup {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.zoomPct {
+    min-width: 44px;
+}
+
+/* ── UndoRedoButtons ─────────────────────────────────────────────────────── */
+.undoRedoGroup {
+    display: flex;
+    gap: 2px;
+}
+
+/* ── SaveIndicator ────────────────────────────────────────────────────────── */
+.pill {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    transition:
+        color 200ms ease,
+        background-color 200ms ease,
+        border-color 200ms ease;
+    user-select: none;
+    white-space: nowrap;
+    border: 1px solid transparent;
+}
+
+.pillUnsaved {
+    color: var(--editor-warning);
+    background: rgba(251, 191, 36, 0.1);
+    border-color: rgba(251, 191, 36, 0.25);
+}
+
+.pillSaved {
+    color: var(--editor-success-green);
+    background: rgba(52, 211, 153, 0.1);
+    border-color: rgba(52, 211, 153, 0.25);
+}
+
+.dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.dotUnsaved {
+    background: var(--editor-warning);
+}
+
+.dotSaved {
+    background: var(--editor-success-green);
+}
+
+/* ── ExportButton ─────────────────────────────────────────────────────────── */
+.exportWrapper {
+    position: relative;
+}
+
+.exportChevron {
+    transition: transform 150ms ease;
+}
+
+.exportChevronOpen {
+    transform: rotate(180deg);
+}
+
+/* ── Export dropdown menu ─────────────────────────────────────────────────── */
+.exportMenu {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    min-width: 210px;
+    background: var(--editor-surface-2);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 4px 0;
+    z-index: 200;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+.exportMenuHeading {
+    padding: 6px 12px 4px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.3);
+    user-select: none;
+}
+
+.exportMenuItemIcon {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 6px;
+    flex-shrink: 0;
+    color: var(--editor-text-secondary);
+}
+
+.exportMenuItemIconError {
+    color: var(--editor-danger-light);
+}
+
+.exportMenuItemText {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+.exportMenuItemLabel {
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1.3;
+    color: var(--editor-text);
+}
+
+.exportMenuItemLabelError {
+    color: var(--editor-danger-light);
+}
+
+.exportMenuItemDesc {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.35);
+    line-height: 1.3;
+}
+
+/* ── Export error toast ───────────────────────────────────────────────────── */
+.exportErrorToast {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    background: var(--editor-surface);
+    border: 1px solid rgba(239, 68, 68, 0.4);
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 11px;
+    color: var(--editor-danger-lighter);
+    white-space: nowrap;
+    z-index: 201;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+/* ── Spinner animation ────────────────────────────────────────────────────── */
+@keyframes pbSpin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.spinIcon {
+    animation: pbSpin 0.8s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .spinIcon {
+        animation: none;
+    }
+}
+
+/* ── ModulePickerDropdown ─────────────────────────────────────────────────── */
+.pickerWrapper {
+    position: relative;
+}
+
+.pickerBackdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 49;
+}
+
+.pickerPanel {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    z-index: 50;
+    width: 280px;
+    max-height: 400px;
+    background: var(--editor-surface-2);
+    border: 1px solid var(--editor-border);
+    border-radius: 8px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.7);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.pickerActions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    padding: 8px 10px 0;
+    flex-shrink: 0;
+}
+
+.pickerMenu {
+    overflow-y: auto;
+    flex: 1;
+    padding: 4px 0;
+}
+
+.pickerEmpty {
+    padding: 16px 12px;
+    font-size: 12px;
+    color: var(--editor-text-subtle);
+    text-align: center;
+    margin: 0;
+}
+
+.pickerCategoryHeading {
+    padding: 6px 12px 3px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--editor-text-subtle);
+    text-transform: uppercase;
+    user-select: none;
+}
+
+.pickerOption {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    margin: 0 4px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--editor-text);
+    user-select: none;
+    outline: none;
+    transition: background-color 150ms ease;
+}
+
+.pickerOption:hover,
+.pickerOption:focus {
+    background: rgba(255, 255, 255, 0.06);
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.15);
+}
+
+.pickerOptionBadge {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 4px;
+    background: var(--editor-surface-4);
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--editor-text-secondary);
+    flex-shrink: 0;
+}
+
+.pickerFooter {
+    padding: 5px 12px;
+    font-size: 10px;
+    color: var(--editor-text-subtle);
+    border-top: 1px solid var(--editor-border);
+    flex-shrink: 0;
+}
