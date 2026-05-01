@@ -109,15 +109,16 @@ export function ContentAdmin() {
 
   useEffect(() => {
     if (!selectedCollectionId) return
+    const collectionId = selectedCollectionId
     let cancelled = false
 
     async function loadEntries() {
       setError(null)
       try {
-        const nextEntries = await listCmsContentEntries(selectedCollectionId)
+        const nextEntries = await listCmsContentEntries(collectionId)
         if (cancelled) return
         setEntries(nextEntries)
-        if (!selectedEntry || selectedEntry.collectionId !== selectedCollectionId) {
+        if (!selectedEntry || selectedEntry.collectionId !== collectionId) {
           applySelectedEntry(nextEntries[0] ?? null)
         }
       } catch (err) {
