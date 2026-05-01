@@ -39,7 +39,6 @@ const SHORTCUTS: Array<{ category: string; items: Array<{ keys: string[]; action
     category: 'File',
     items: [
       { keys: ['Ctrl', 'S'], action: 'Save project' },
-      { keys: ['Ctrl', 'Shift', 'E'], action: 'Export as ZIP' },
     ],
   },
   {

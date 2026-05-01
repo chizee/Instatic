@@ -61,7 +61,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     },
     ref,
   ) {
-    if (process.env.NODE_ENV !== "production" && iconOnly && !ariaLabel) {
+    if (import.meta.env.DEV && iconOnly && !ariaLabel) {
       console.warn(
         "[Button] iconOnly={true} requires an aria-label prop for accessibility.",
       );

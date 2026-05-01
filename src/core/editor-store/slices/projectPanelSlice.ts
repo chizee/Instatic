@@ -1,7 +1,7 @@
 /**
  * projectPanelSlice — Dependency management state (Phase E+).
  *
- * Owns the in-memory `packageJson` manifest and the last React export map.
+ * Owns the in-memory `packageJson` manifest.
  * The ProjectPanel overlay UI was deleted in Task #434 (Guideline #410: 5-panel layout);
  * DependenciesPanel now owns all dependency UI through DepsSection.tsx.
  *
@@ -9,8 +9,6 @@
  *   - packageJson         in-memory package.json manifest
  *   - setDependency       add/update a dependency
  *   - removeDependency    remove from both dependency buckets
- *   - lastReactExport     last generated file map (for export pipeline)
- *   - setLastReactExport  update the export map
  *
  * All setters include no-op guards (Guideline #242).
  *
@@ -46,14 +44,6 @@ export interface ProjectPanelSlice {
    */
   packageJson: PackageJson
 
-  /**
-   * Last React project file map (filename → content) produced by the export flow.
-   * Null until the user has triggered a React export.
-   * FilesTab derives FileNode[] from this — no direct ReactPublisher call.
-   * Phase G: this is replaced with the bridge-reported file tree.
-   */
-  lastReactExport: Record<string, string> | null
-
   // ── Actions ──────────────────────────────────────────────────────────────
 
   /**
@@ -69,12 +59,6 @@ export interface ProjectPanelSlice {
    */
   removeDependency: (name: string) => void
 
-  /**
-   * Store the last React export file map.
-   * Called by the export toolbar button after exportReactProjectAsZip completes.
-   * The panel's FilesTab reads this to display the virtual file tree.
-   */
-  setLastReactExport: (fileMap: Record<string, string> | null) => void
 }
 
 // ---------------------------------------------------------------------------
@@ -88,7 +72,6 @@ export const createProjectPanelSlice: StateCreator<
   ProjectPanelSlice
 > = (set, get) => ({
   packageJson: clonePackageJson(DEFAULT_PROJECT_PACKAGE_JSON),
-  lastReactExport: null,
 
   setDependency: (name, version, dev = false) => {
     if (!isSafePackageName(name)) return
@@ -135,7 +118,4 @@ export const createProjectPanelSlice: StateCreator<
     })
   },
 
-  setLastReactExport: (fileMap) => {
-    set({ lastReactExport: fileMap })
-  },
 })

@@ -37,7 +37,7 @@ import { createProjectPanelSlice } from './slices/projectPanelSlice'
  *   - visualComponentsSlice: VisualComponent CRUD (Contribution #619 / Task #436)
  *   - settingsSlice:       settings modal open/close + active section (Guideline #193/#323)
  *   - agentSlice:          AI Agent Panel state + streaming (Phase D)
- *   - projectPanelSlice:   Project Panel open/tab/packageJson/lastReactExport (Phase E+)
+ *   - projectPanelSlice:   Dependency manifest state
  *
  * All mutations are wrapped in Immer for structural sharing.
  * Use subscribeWithSelector for granular Zustand subscriptions without Context re-renders.

@@ -3,7 +3,7 @@
  *
  * Editor Overlay Layout (Guideline #410 — motion-editor style):
  *   ┌─────────────────────────────── Toolbar ──────────────────────────────────┐  z-60
- *   │ [ProjectName] [Undo/Redo] [+ Add] ──── [Zoom] [Save] [Export] [⚙] [✦] │
+ *   │ [ProjectName] [Undo/Redo] [+ Add] ──── [Zoom] [Save] [Publish] [⚙] [✦] │
  *   ├──────────────────────────── Canvas (full-bleed) ─────────────────────────┤
  *   │  [DOM Tree Panel ▓]     canvas          [Properties Panel ▓]            │
  *   │  position: absolute overlays (z-50)     [AI Panel ▓] (bottom-right)     │
@@ -63,7 +63,7 @@ export default function EditorLayout({ persistenceMode = 'local' }: EditorLayout
   return (
     <div className={styles.shell}>
       {/* ── Top toolbar (z-60, Guideline #374) ───────────────────────────── */}
-      <Toolbar onSave={saveProject} />
+      <Toolbar onSave={saveProject} publishEnabled={persistenceMode === 'cms'} />
 
       {/* ── Canvas + floating overlay panels ──────────────────────────────── */}
       {/*

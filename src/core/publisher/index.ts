@@ -9,5 +9,3 @@ export {
 export type { PublishedPage, RenderContext } from './render'
 
 export { CssCollector } from './cssCollector'
-
-export { exportProjectAsZip, downloadZip } from './export'

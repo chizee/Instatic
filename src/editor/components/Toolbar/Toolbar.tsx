@@ -3,7 +3,7 @@
  *
  * Layout (left → right):
  *   [Project name] [UndoRedo] [divider]
- *   [ZoomControls] [spacer→] [SaveIndicator/Save] [Preview] [Export] [Settings]
+ *   [ZoomControls] [spacer→] [SaveIndicator/Save] [Preview] [Publish] [Settings]
  *
  * Accessibility (WCAG 2.1 AA):
  * - role="banner" for the top-level landmark
@@ -15,7 +15,7 @@
 import { useEditorStore } from '@core/editor-store/store'
 import { UndoRedoButtons } from './UndoRedoButtons'
 import { ZoomControls } from './ZoomControls'
-import { ExportButton } from './ExportButton'
+import { PublishButton } from './PublishButton'
 import { PreviewButton } from './PreviewButton'
 import { SettingsButton } from './SettingsButton'
 import { SaveIndicator } from './SaveIndicator'
@@ -24,9 +24,10 @@ import styles from './Toolbar.module.css'
 
 interface ToolbarProps {
   onSave?: () => void | Promise<void>
+  publishEnabled?: boolean
 }
 
-export function Toolbar({ onSave }: ToolbarProps) {
+export function Toolbar({ onSave, publishEnabled = true }: ToolbarProps) {
   const projectName = useEditorStore((s) => s.project?.name ?? 'Untitled Project')
 
   return (
@@ -62,7 +63,7 @@ export function Toolbar({ onSave }: ToolbarProps) {
         <SaveIndicator onSave={onSave} />
         <Divider />
         <PreviewButton />
-        <ExportButton />
+        <PublishButton enabled={publishEnabled} onSave={onSave} />
         <SettingsButton />
       </header>
     </>

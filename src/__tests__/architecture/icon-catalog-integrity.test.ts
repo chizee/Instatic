@@ -23,8 +23,7 @@
  *
  *   Gate 3 — scans src/editor/ for inline <svg JSX (raw SVG definitions inside
  *             component files), which violates Constraint #348 / Guideline #350.
- *             FAILS NOW for: ZoomControls.tsx (MinusIcon/PlusIcon),
- *                             ExportButton.tsx (ExportIcon, ChevronIcon, etc.)
+ *             FAILS NOW for: ZoomControls.tsx (MinusIcon/PlusIcon).
  *
  * All gates go green when:
  *   - The three missing icons are added to src/ui/icons/icons/
@@ -238,9 +237,6 @@ describe('Gate 3 — No inline <svg JSX in src/editor/ (Constraint #348)', () =>
    * Currently failing files:
    *   ❌  src/editor/components/Toolbar/ZoomControls.tsx
    *         MinusIcon() and PlusIcon() are inline SVGs
-   *   ❌  src/editor/components/Toolbar/ExportButton.tsx
-   *         ExportIcon, ChevronIcon, SpinnerIcon, HtmlIcon, ReactAtomIcon
-   *         are all inline SVG helper functions
    *
    * Fix: replace each inline SVG function with <Icon name="..."> using the
    * closest matching MotionPageMaster icon (Constraint #348).

@@ -107,7 +107,7 @@ export function Icon({ name, fallback, size = 24, ...rest }: IconWrapperProps) {
   if (!LazyIcon) {
     // Only warn in Vite (dev/build) where iconModules is populated.
     // In bun test, iconModules is {} so warnings would fire for every render.
-    if (process.env.NODE_ENV !== 'production' && Object.keys(iconModules).length > 0) {
+    if (import.meta.env.DEV && Object.keys(iconModules).length > 0) {
       console.warn(`[Icon] Unknown icon name: "${name}"`)
     }
     return <Placeholder size={size} />

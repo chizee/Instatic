@@ -7,7 +7,7 @@
  *   2. ZoomControls — zoom percentage rendering, correct store subscriptions.
  *   3. SaveIndicator — correct "Saved" / "Unsaved changes" state display.
  *   4. ModulePickerDropdown — search filter pure logic.
- *   5. ExportButton — state machine (idle → exporting → idle / error).
+ *   5. PublishButton — state machine (idle → publishing → published / error).
  *   6. Toolbar — overall structure (role, testid, always-rendered sub-components).
  *
  * React component rendering tests use renderToStaticMarkup (same pattern as
@@ -253,29 +253,29 @@ describe('ModulePickerDropdown — search filter', () => {
 })
 
 // ---------------------------------------------------------------------------
-// 5 — ExportButton — state machine
+// 5 — PublishButton — state machine
 // ---------------------------------------------------------------------------
 
-describe('ExportButton — export state machine', () => {
-  it('transitions: idle → exporting → idle on success', () => {
-    type State = 'idle' | 'exporting' | 'error'
+describe('PublishButton — publish state machine', () => {
+  it('transitions: idle → publishing → published on success', () => {
+    type State = 'idle' | 'publishing' | 'published' | 'error'
     // Simulate the state transitions
     let state: State = 'idle'
 
-    // Start export
-    state = 'exporting'
-    expect(state).toBe('exporting')
+    // Start publish
+    state = 'publishing'
+    expect(state).toBe('publishing')
 
-    // Export succeeds
-    state = 'idle'
-    expect(state).toBe('idle')
+    // Publish succeeds
+    state = 'published'
+    expect(state).toBe('published')
   })
 
-  it('transitions: idle → exporting → error on failure', () => {
-    type State = 'idle' | 'exporting' | 'error'
+  it('transitions: idle → publishing → error on failure', () => {
+    type State = 'idle' | 'publishing' | 'published' | 'error'
     let state: State = 'idle'
 
-    state = 'exporting'
+    state = 'publishing'
     state = 'error'
     expect(state).toBe('error')
   })
@@ -283,29 +283,51 @@ describe('ExportButton — export state machine', () => {
   it('source emits role="alert" for error messages (Guideline #224)', () => {
     const { readFileSync } = require('fs')
     const src = readFileSync(
-      new URL('../../editor/components/Toolbar/ExportButton.tsx', import.meta.url),
+      new URL('../../editor/components/Toolbar/PublishButton.tsx', import.meta.url),
       'utf-8',
     )
     // Error must be surfaced via role="alert" — not silently swallowed
     expect(src).toContain('role="alert"')
   })
 
-  it('source uses aria-busy during export', () => {
+  it('source uses aria-busy during publish', () => {
     const { readFileSync } = require('fs')
     const src = readFileSync(
-      new URL('../../editor/components/Toolbar/ExportButton.tsx', import.meta.url),
+      new URL('../../editor/components/Toolbar/PublishButton.tsx', import.meta.url),
       'utf-8',
     )
-    expect(src).toContain('aria-busy={isExporting}')
+    expect(src).toContain('aria-busy={isPublishing}')
   })
 
-  it('export button has data-testid for Playwright targeting', () => {
+  it('publish button has data-testid for Playwright targeting', () => {
     const { readFileSync } = require('fs')
     const src = readFileSync(
-      new URL('../../editor/components/Toolbar/ExportButton.tsx', import.meta.url),
+      new URL('../../editor/components/Toolbar/PublishButton.tsx', import.meta.url),
       'utf-8',
     )
-    expect(src).toContain('data-testid="toolbar-export-btn"')
+    expect(src).toContain('data-testid="toolbar-publish-btn"')
+  })
+
+  it('saves the current draft before calling the CMS publish endpoint', () => {
+    const { readFileSync } = require('fs')
+    const src = readFileSync(
+      new URL('../../editor/components/Toolbar/PublishButton.tsx', import.meta.url),
+      'utf-8',
+    )
+    const savePosition = src.indexOf('await onSave?.()')
+    const publishPosition = src.indexOf('await publishCmsDraft()')
+    expect(savePosition).toBeGreaterThan(-1)
+    expect(publishPosition).toBeGreaterThan(savePosition)
+  })
+
+  it('does not import old static export pipelines', () => {
+    const { readFileSync } = require('fs')
+    const src = readFileSync(
+      new URL('../../editor/components/Toolbar/PublishButton.tsx', import.meta.url),
+      'utf-8',
+    )
+    expect(src).not.toContain('@core/publisher')
+    expect(src).not.toContain('@core/react-publisher')
   })
 })
 
@@ -341,7 +363,8 @@ describe('Toolbar — structural requirements', () => {
     expect(src).toContain('UndoRedoButtons')
     expect(src).toContain('ZoomControls')
     expect(src).not.toContain('ModulePickerDropdown')
-    expect(src).toContain('ExportButton')
+    expect(src).toContain('PublishButton')
+    expect(src).not.toContain('ExportButton')
     expect(src).toContain('SettingsButton')
     expect(src).toContain('SaveIndicator')
   })
@@ -441,13 +464,13 @@ describe('Toolbar — structural requirements', () => {
     expect(hasBoxShadowApproach || hasTailwindRingApproach || hasCssModuleFocus).toBe(true)
   })
 
-  it('ExportButton uses ref to track error timer (no useState leak on unmount)', () => {
+  it('PublishButton uses ref to track status timer (no useState leak on unmount)', () => {
     const { readFileSync } = require('fs')
     const src = readFileSync(
-      new URL('../../editor/components/Toolbar/ExportButton.tsx', import.meta.url), 'utf-8',
+      new URL('../../editor/components/Toolbar/PublishButton.tsx', import.meta.url), 'utf-8',
     )
     // Timer must be stored in a ref and cleared in a cleanup effect
-    expect(src).toContain('errorTimerRef')
+    expect(src).toContain('statusTimerRef')
     expect(src).toContain('clearTimeout')
     expect(src).toContain('useEffect')
   })
@@ -462,7 +485,7 @@ describe('Toolbar — structural requirements', () => {
     expect(src).toContain('const saveProject = usePersistence(')
     expect(src).toContain('requestedProjectId')
     expect(src).toContain('persistenceAdapter')
-    expect(src).toContain('<Toolbar onSave={saveProject} />')
+    expect(src).toContain('publishEnabled={persistenceMode === \'cms\'}')
   })
 
   it('touch targets: all toolbar buttons have a defined height (compact density per Guideline #357)', () => {
@@ -473,7 +496,7 @@ describe('Toolbar — structural requirements', () => {
     const files = [
       'UndoRedoButtons.tsx',
       'ZoomControls.tsx',
-      'ExportButton.tsx',
+      'PublishButton.tsx',
       'SettingsButton.tsx',
     ]
     const { readFileSync, existsSync } = require('fs')
