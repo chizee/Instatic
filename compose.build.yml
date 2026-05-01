@@ -1,0 +1,6 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ${PAGE_BUILDER_IMAGE:-page-builder-cms:local}

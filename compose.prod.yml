@@ -17,10 +17,7 @@ services:
       retries: 10
 
   app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: ${PAGE_BUILDER_IMAGE:-page-builder-cms:local}
+    image: ${PAGE_BUILDER_IMAGE:-ghcr.io/page-builder/page-builder-cms:latest}
     restart: unless-stopped
     ports:
       - "${HOST_PORT:-3001}:3001"

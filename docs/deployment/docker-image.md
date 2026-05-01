@@ -10,6 +10,20 @@ docker build -t page-builder-cms:local .
 
 The image does not run Vite or install dependencies at container startup. Those happen at image build time.
 
+## Pull A Published Image
+
+Once releases publish images, production servers should pull the image instead of building from source:
+
+```sh
+docker pull ghcr.io/page-builder/page-builder-cms:latest
+```
+
+Pin a version for predictable upgrades:
+
+```sh
+docker pull ghcr.io/page-builder/page-builder-cms:1.0.0
+```
+
 ## Run With An External Postgres Database
 
 Use this mode for managed hosts or when you already operate Postgres separately.
@@ -24,7 +38,7 @@ docker run -d \
   -e UPLOADS_DIR=/app/uploads \
   -v page-builder-uploads:/app/uploads \
   --restart unless-stopped \
-  page-builder-cms:local
+  ghcr.io/page-builder/page-builder-cms:latest
 ```
 
 Then open:

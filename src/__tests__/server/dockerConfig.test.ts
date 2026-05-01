@@ -35,15 +35,18 @@ describe('self-host docker config', () => {
 
   it('defines a production compose stack with health checks and persistent data', () => {
     const compose = readFileSync('compose.prod.yml', 'utf8')
+    const buildOverride = readFileSync('compose.build.yml', 'utf8')
 
-    expect(compose).toContain('build:')
-    expect(compose).toContain('dockerfile: Dockerfile')
+    expect(compose).toContain('ghcr.io/page-builder/page-builder-cms:latest')
+    expect(compose).not.toContain('build:')
     expect(compose).toContain('restart: unless-stopped')
     expect(compose).toContain('condition: service_healthy')
     expect(compose).toContain('postgres_data:')
     expect(compose).toContain('uploads:')
     expect(compose).toContain('${SESSION_SECRET:?')
     expect(compose).toContain('${POSTGRES_PASSWORD:?')
+    expect(buildOverride).toContain('build:')
+    expect(buildOverride).toContain('dockerfile: Dockerfile')
   })
 
   it('documents production environment variables and deployment workflows', () => {
@@ -56,7 +59,9 @@ describe('self-host docker config', () => {
     expect(env).toContain('POSTGRES_PASSWORD=')
     expect(env).toContain('SESSION_SECRET=')
     expect(readme).toContain('Self-hosted CMS')
-    expect(vpsDocs).toContain('docker compose -f compose.prod.yml up -d --build')
+    expect(vpsDocs).toContain('docker compose -f compose.prod.yml up -d')
+    expect(vpsDocs).toContain('docker compose -f compose.prod.yml pull app')
+    expect(vpsDocs).toContain('compose.build.yml')
     expect(managedDocs).toContain('DATABASE_URL')
     expect(backupDocs).toContain('pg_dump')
   })

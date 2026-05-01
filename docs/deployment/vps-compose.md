@@ -6,9 +6,30 @@ This is the easiest full self-host path. It runs the CMS app, Postgres, and uplo
 
 Install Docker Engine and Docker Compose on the VPS. Point your domain to the server if you plan to put a reverse proxy in front of the app.
 
-## 2. Create Production Environment
+## 2. Download The Production Files
 
-From the repository root:
+Create an install directory:
+
+```sh
+mkdir -p page-builder-cms
+cd page-builder-cms
+```
+
+Download the production Compose and environment templates from the release source:
+
+```sh
+curl -fsSLO https://raw.githubusercontent.com/page-builder/page-builder/main/compose.prod.yml
+curl -fsSLO https://raw.githubusercontent.com/page-builder/page-builder/main/.env.production.example
+```
+
+Before the project has a public GitHub repository/image, use the local repository files directly:
+
+```sh
+cp compose.prod.yml /path/on/server/compose.prod.yml
+cp .env.production.example /path/on/server/.env.production.example
+```
+
+## 3. Create Production Environment
 
 ```sh
 cp .env.production.example .env
@@ -28,10 +49,10 @@ openssl rand -hex 24
 openssl rand -hex 32
 ```
 
-## 3. Start The Stack
+## 4. Start The Stack
 
 ```sh
-docker compose -f compose.prod.yml up -d --build
+docker compose -f compose.prod.yml up -d
 ```
 
 Check status:
@@ -49,26 +70,30 @@ http://server-ip:3001/admin
 
 Create the first admin account in the browser.
 
-## 4. View Logs
+## 5. View Logs
 
 ```sh
 docker compose -f compose.prod.yml logs -f app
 docker compose -f compose.prod.yml logs -f postgres
 ```
 
-## 5. Update
+## 6. Update
 
-After pulling new code or changing the image:
+Pull the latest published CMS image and recreate the app container:
 
 ```sh
-docker compose -f compose.prod.yml up -d --build
+docker compose -f compose.prod.yml pull app
+docker compose -f compose.prod.yml up -d
 ```
 
-If you later use a published registry image instead of building locally:
+Postgres and upload volumes stay attached.
+
+## Build From Source Instead
+
+Most users should pull the published image. Developers can build locally from a source checkout with:
 
 ```sh
-docker compose -f compose.prod.yml pull
-docker compose -f compose.prod.yml up -d
+docker compose -f compose.prod.yml -f compose.build.yml up -d --build
 ```
 
 ## Data Safety

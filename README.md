@@ -26,13 +26,11 @@ The first visit creates the site and admin account.
 
 ## Production Deployment
 
-The production artifact is a Docker image built from `Dockerfile`.
-
 For a VPS/self-host install with bundled Postgres:
 
 ```sh
 cp .env.production.example .env
-docker compose -f compose.prod.yml up -d --build
+docker compose -f compose.prod.yml up -d
 ```
 
 Then open:
@@ -41,7 +39,13 @@ Then open:
 http://server-ip:3001/admin
 ```
 
-For managed hosts, deploy the Dockerfile and connect it to managed Postgres with `DATABASE_URL`.
+Production servers should normally pull the published Docker image configured in `.env.production.example`. Developers can build locally from source with:
+
+```sh
+docker compose -f compose.prod.yml -f compose.build.yml up -d --build
+```
+
+For managed hosts, deploy the Dockerfile from GitHub or a published image and connect it to managed Postgres with `DATABASE_URL`.
 
 Deployment docs:
 
@@ -65,5 +69,6 @@ Do not run `docker compose -f compose.prod.yml down -v` unless you intentionally
 bun run build
 bun test
 docker build -t page-builder-cms:local .
+docker compose -f compose.prod.yml pull app
 curl http://localhost:3001/health
 ```
