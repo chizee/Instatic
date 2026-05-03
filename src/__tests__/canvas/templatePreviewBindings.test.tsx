@@ -1,10 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import React from 'react'
 import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { DndContext } from '@dnd-kit/core'
 import { useEditorStore } from '@core/editor-store/store'
 import { CanvasRoot } from '../../editor/components/Canvas/CanvasRoot'
 import { makeNode, makePage, makeSite } from '../fixtures'
 import '../../modules/base'
+
+/** CanvasRoot uses useDroppable and must be rendered inside a DndContext. */
+function renderCanvas() {
+  return render(<DndContext><CanvasRoot /></DndContext>)
+}
 
 const originalFetch = globalThis.fetch
 
@@ -118,7 +124,7 @@ describe('canvas template preview bindings', () => {
       activeDocument: { kind: 'page', pageId: template.id },
     } as Parameters<typeof useEditorStore.setState>[0])
 
-    render(<CanvasRoot />)
+    renderCanvas()
 
     await waitFor(() => {
       expect(screen.getAllByText('Latest Post').length).toBeGreaterThan(0)
@@ -157,7 +163,7 @@ describe('canvas template preview bindings', () => {
       activeDocument: { kind: 'page', pageId: template.id },
     } as Parameters<typeof useEditorStore.setState>[0])
 
-    render(<CanvasRoot />)
+    renderCanvas()
 
     await waitFor(() => {
       expect(screen.getAllByAltText('Template image')[0].getAttribute('src')).toBe('/uploads/template-cover.png')

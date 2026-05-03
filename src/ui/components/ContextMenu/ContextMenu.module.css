@@ -45,3 +45,30 @@
     margin: 4px 6px;
     background: var(--editor-surface-5);
 }
+
+/* ── ContextMenuSubmenu ──────────────────────────────────────────────────── */
+
+.submenuRoot {
+    position: relative;
+}
+
+.submenuTrigger {
+    width: 100%;
+}
+
+.submenuTriggerContent {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    flex: 1;
+    min-width: 0;
+    text-align: left;
+}
+
+.submenuChevron {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    opacity: 0.7;
+}

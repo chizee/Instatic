@@ -23,7 +23,14 @@
  * Authenticates via ambient Claude Code credentials through the local Bun server.
  * No env vars, no API keys, no endpoint configuration required (Constraint #385).
  */
-import { CanvasRoot } from '@editor/components/Canvas'
+import {
+  DndContext,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import { CanvasRoot, CANVAS_ROOT_DROPPABLE_ID } from '@editor/components/Canvas'
 import { PropertiesPanel } from '@editor/components/PropertiesPanel'
 import { CodeEditorPanel } from '@editor/components/CodeEditor'
 import { Toolbar } from '@editor/components/Toolbar'
@@ -32,7 +39,7 @@ import { RightSidebar } from '@editor/components/RightSidebar'
 import { SettingsModal } from '@editor/components/Settings'
 import { usePersistence } from '@editor/hooks/usePersistence'
 import { useEditorLayoutPersistence } from '@editor/hooks/useEditorLayoutPersistence'
-import { selectRightSidebarExpanded, useEditorStore } from '@core/editor-store/store'
+import { selectActiveCanvasPage, selectRightSidebarExpanded, useEditorStore } from '@core/editor-store/store'
 import { cmsAdapter } from '@core/persistence'
 import { listCmsPlugins } from '@core/persistence/cmsPlugins'
 import type { PluginAdminPageRoute } from '@core/plugin-sdk'
@@ -41,12 +48,13 @@ import { useInstalledEditorPlugins } from './plugins/hooks/useInstalledEditorPlu
 import { CMS_PLUGINS_CHANGED_EVENT } from './plugins/utils/pluginEvents'
 import { AppLoadingScreen } from './AppLoadingScreen'
 import styles from './AdminLayout.module.css'
-import { useEffect, useState, type MouseEvent, type ReactNode } from 'react'
+import { useCallback, useEffect, useState, type MouseEvent, type ReactNode } from 'react'
 import { flushSync } from 'react-dom'
 import { Link, useInRouterContext, useLocation, useNavigate } from 'react-router-dom'
 import toolbarStyles from '@editor/components/Toolbar/Toolbar.module.css'
+import type { AdminWorkspace } from './workspace'
 
-export type AdminWorkspace = 'site' | 'content' | 'plugins' | 'pluginPage'
+export type { AdminWorkspace }
 
 interface AdminLayoutProps {
   workspace?: AdminWorkspace
@@ -75,6 +83,46 @@ export default function AdminLayout({
   const persistence = usePersistence('default', cmsAdapter, { markNewSiteUnsaved: true })
   useEditorLayoutPersistence()
   useInstalledEditorPlugins()
+
+  // ── Canvas-level DnD (B2 — visualComponentRef drop from SiteExplorer) ──────
+  // Handles drops of { kind: 'visualComponentRef', componentId: string } payloads
+  // dragged from the SiteExplorerPanel onto the canvas.
+  // NOTE: DomPanel has its own nested DndContext for DOM tree reordering — that
+  // context is isolated and unaffected by this outer one (dnd-kit nesting).
+  const canvasDndSensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 5 },
+    }),
+  )
+
+  const handleCanvasDragEnd = useCallback((event: DragEndEvent) => {
+    const payload = event.active.data.current
+    // Only handle visualComponentRef drags — ignore all other drag payloads
+    // (e.g. DOM-panel tree node drags which live in their own nested context).
+    if (!payload || payload['kind'] !== 'visualComponentRef') return
+    if (!event.over) return
+
+    const componentId = payload['componentId']
+    if (typeof componentId !== 'string' || !componentId) return
+
+    const state = useEditorStore.getState()
+    const page = selectActiveCanvasPage(state)
+
+    // Determine parent: canvas root drop → page root; node drop → that node.
+    let parentId: string | undefined
+    if (String(event.over.id) === CANVAS_ROOT_DROPPABLE_ID) {
+      parentId = page?.rootNodeId
+    } else {
+      parentId = String(event.over.id)
+    }
+
+    if (!parentId) return
+
+    const result = state.insertComponentRef(parentId, componentId)
+    if (result === null) {
+      console.warn('[component-system] insertComponentRef returned null — cycle prevented or empty componentId')
+    }
+  }, [])
 
   if (!site) {
     if (persistence.saveStatus.state === 'error') {
@@ -110,7 +158,12 @@ export default function AdminLayout({
         position: relative makes this the containing block for absolutely
         positioned panels (Guideline #356 / Task #358 / Architect #504).
         flex is kept so CanvasRoot's flex:1 fills the full width.
+        DndContext wraps the full editor body so SiteExplorerPanel draggables
+        (visualComponentRef) can be dropped onto the CanvasRoot drop target.
+        DomPanel has its own nested DndContext for tree-node reordering — that
+        context is isolated; nested DndContexts are fully supported by dnd-kit.
       */}
+      <DndContext sensors={canvasDndSensors} onDragEnd={handleCanvasDragEnd}>
       <div className={styles.editorBody}>
         {workspace === 'site' ? (
           <LeftSidebar workspace={workspace} contentPanel={contentLeftPanel} />
@@ -139,6 +192,7 @@ export default function AdminLayout({
           suppressDefaultPanel={workspace !== 'site'}
         />
       </div>
+      </DndContext>
 
       {/* Code editor/media preview: viewport overlay, not constrained by the
           canvas stage. The panel itself is small chrome; the heavy CodeMirror

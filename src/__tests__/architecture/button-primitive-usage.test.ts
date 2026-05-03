@@ -92,6 +92,28 @@ const ALLOWLIST = new Set([
   'admin/content/components/ContentExplorerPanel/ContentExplorerPanel.tsx',
   'admin/content/components/MediaPickerDialog/MediaPickerDialog.tsx',
   'admin/content/RichMarkdownEditor.tsx',
+
+  // ── §8.3 Sub-micro pill controls inside a status badge ──────────────────
+  // The runtime-preview Refresh control lives inside a 22px status pill in
+  // the breakpoint-frame chrome. It is a 16px-high pill — smaller than the
+  // Button "micro" size (18px) — sized to read as inline status chrome
+  // rather than a primary action. Button's token sizes can't go that small.
+  'editor/components/Canvas/BreakpointFrame.tsx',
+
+  // ── §8.6 ARIA tablist tabs ──────────────────────────────────────────────
+  // role="tab" buttons inside role="tablist" need a custom tab layout
+  // (icon + label, aria-selected, no border, mode-specific active state).
+  // Button's token-driven sizing would distort the segmented-toggle look.
+  'editor/components/Canvas/CanvasModeToggle.tsx',
+
+  // ── §8.7 Full-width row disclosure / listbox option custom layouts ──────
+  // ColorsPanel row toggles are full-width structured rows (title, meta,
+  // summary, expand caret) — same pattern as §8.2 disclosures but on a
+  // multi-cell row. TokenizedColorField renders role="option" items inside
+  // a role="listbox" with a swatch + token name + variant meta — Button's
+  // inline-flex layout cannot represent the option grid.
+  'editor/components/ColorsPanel/ColorsPanel.tsx',
+  'editor/components/PropertyControls/TokenizedColorField.tsx',
 ])
 
 // ---------------------------------------------------------------------------

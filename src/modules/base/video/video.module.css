@@ -1,29 +1,11 @@
 /**
- * base.video - default editor styles.
- * User class styles override these defaults through user-applied classes.
+ * base.video — editor-only chrome.
+ * No published-output styles: <iframe>/<video> render bare, with browser
+ * defaults unless the user attaches a class.
  */
-
-.video {
-  display: block;
-  width: 100%;
-  max-width: 100%;
-  aspect-ratio: 16 / 9;
-  border: 0;
-  border-radius: 0;
-  overflow: hidden;
-  background-color: #000;
-}
-
-.inner {
-  display: block;
-  width: 100%;
-  height: 100%;
-  border: 0;
-}
 
 .placeholder {
   width: 100%;
-  height: 100%;
   min-height: 160px;
   display: flex;
   flex-direction: column;

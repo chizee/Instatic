@@ -243,56 +243,19 @@ export interface DynamicPropBinding {
   fallback?: 'static' | 'empty'
 }
 
+// `BaseNode` lives in `./baseNode` so `visualComponents/schemas.ts` can
+// import it without re-entering this file (which would create the
+// page-tree ↔ visualComponents cycle).
+export type { BaseNode } from './baseNode'
+import type { BaseNode } from './baseNode'
+
 /**
  * A single element on the page — corresponds to exactly one ModuleDefinition.
+ *
+ * Extends `BaseNode` (shared with `VCNode`) with CMS-template-only fields.
+ * See `BaseNode` for the structural commentary.
  */
-export interface PageNode {
-  /** Unique ID — generated with nanoid() */
-  id: string
-
-  /**
-   * References a ModuleDefinition in the registry.
-   * Format: "namespace.module-name" — e.g. "base.text"
-   */
-  moduleId: string
-
-  /**
-   * Resolved property values for this node's module.
-   * Shape validated against ModuleDefinition.schema at runtime.
-   * Keys are FLAT — no dot-path nesting.
-   */
-  props: Record<string, unknown>
-
-  /**
-   * Per-breakpoint prop overrides — shallow-merged on top of props when
-   * rendering at a given breakpoint. Key is Breakpoint.id.
-   */
-  breakpointOverrides: Record<string, Partial<Record<string, unknown>>>
-
-  /**
-   * Ordered array of child node IDs.
-   * Only meaningful when ModuleDefinition.canHaveChildren === true.
-   * All children are in a single default slot (multi-slot deferred post-MVP).
-   */
-  children: string[]
-
-  /** Optional user-facing label — overrides the module name in the DOM tree panel */
-  label?: string
-
-  /** When true, cannot be selected or moved in the editor */
-  locked?: boolean
-
-  /** When true, hidden on the canvas (still present in the tree) */
-  hidden?: boolean
-
-  /**
-   * Ordered class IDs from the site's class registry.
-   * Applied as the referenced user-facing class names on the element.
-   * Later classes in the array win in cascade order.
-   * Empty array when no classes are applied.
-   */
-  classIds: string[]
-
+export interface PageNode extends BaseNode {
   /**
    * Template-only prop bindings.
    * Static props remain stored as fallback values; dynamicBindings overlay them
@@ -307,15 +270,6 @@ export interface PageNode {
    * Optional — absent on all standard Page nodes.
    */
   childNodes?: PageNode[]
-
-  /**
-   * VC-tree only: prop bindings for render-time parameter substitution.
-   * Maps prop key → { paramId } (stable VCParam.id reference).
-   * When present, the renderer substitutes instanceProps[param.name] for
-   * the bound prop key at render time (Contribution #619 §4 Option β).
-   * Optional — absent on all standard Page nodes and unbound VC nodes.
-   */
-  propBindings?: Record<string, { paramId: string }>
 }
 
 // ---------------------------------------------------------------------------
@@ -329,7 +283,7 @@ export interface Breakpoint {
   /** Viewport width in pixels */
   width: number
   /**
-   * @motion/icons kebab-case icon name — e.g. "smartphone", "tablet", "monitor".
+   * pixel-art-icons kebab-case icon name — e.g. "smartphone", "tablet", "monitor".
    * Rendered by the editor through the breakpoint icon option list.
    */
   icon: string

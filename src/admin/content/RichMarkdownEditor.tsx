@@ -13,11 +13,11 @@ import {
 import { createPortal, flushSync } from 'react-dom'
 import { Button } from '@ui/components/Button'
 import { ContextMenu, ContextMenuItem } from '@ui/components/ContextMenu'
-import { ChevronDownIcon } from '@ui/icons/icons/chevron-down'
-import { DragAndDropIcon } from '@ui/icons/icons/drag-and-drop'
-import { HeadingIcon } from '@ui/icons/icons/heading'
-import { ImagesIcon } from '@ui/icons/icons/images'
-import { TextStartTIcon } from '@ui/icons/icons/text-start-t'
+import { ChevronDownIcon } from 'pixel-art-icons/icons/chevron-down'
+import { DragAndDropIcon } from 'pixel-art-icons/icons/drag-and-drop'
+import { HeadingIcon } from 'pixel-art-icons/icons/heading'
+import { ImagesIcon } from 'pixel-art-icons/icons/images'
+import { TextStartTIcon } from 'pixel-art-icons/icons/text-start-t'
 import { autoformatMarkdownShortcut, createMediaBlock, createParagraphBlock } from '@core/content/markdown'
 import type { ContentBlock, ContentMediaType } from '@core/content/types'
 import styles from './RichMarkdownEditor.module.css'
@@ -467,7 +467,7 @@ function BlockFrame({
           size="xs"
           iconOnly
           aria-label={`Drag block ${index + 1}`}
-          title="Drag block"
+          tooltip="Drag block"
           className={styles.dragHandle}
           onPointerDown={(event) => onDragPointerDown(event, block.id)}
         >
@@ -477,7 +477,7 @@ function BlockFrame({
           variant="secondary"
           size="xs"
           aria-label={`Change block ${index + 1} type, current ${currentType.label}`}
-          title="Change block type"
+          tooltip="Change block type"
           className={styles.blockTypeButton}
           onClick={(event) => onTypeMenuOpen(event, index, block.id)}
         >

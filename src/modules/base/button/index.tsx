@@ -1,13 +1,16 @@
 /* eslint-disable react-refresh/only-export-components */
 /**
  * base.button — content/behavior module.
+ *
+ * Emits a bare semantic `<button>` (or `<a>` when `href` is set) with no
+ * default class or default CSS. Visual styling is opt-in via user classes
+ * (mcClassName / multi-class system).
  */
 import React from 'react'
 import { type ModuleDefinition, type ModuleComponentProps } from '@core/module-engine/types'
 import { registry } from '@core/module-engine/registry'
+import { CursorClickIcon } from 'pixel-art-icons/icons/cursor-click'
 import { safeUrl } from '../utils/escape'
-import styles from './button.module.css'
-import { cn } from '@ui/cn'
 
 interface ButtonProps extends Record<string, unknown> {
   label: string
@@ -16,14 +19,12 @@ interface ButtonProps extends Record<string, unknown> {
   disabled: boolean
 }
 
-const MODULE_CLASS = 'pb-button'
-
 const ButtonEditor: React.FC<ModuleComponentProps<ButtonProps>> = ({ props, mcClassName }) => {
   if (props.href) {
     const rel = props.target === '_blank' ? 'noopener noreferrer' : undefined
-    return <a href={props.href} target={props.target} rel={rel} className={cn(styles.button, mcClassName)}>{props.label || 'Button'}</a>
+    return <a href={props.href} target={props.target} rel={rel} className={mcClassName}>{props.label || 'Button'}</a>
   }
-  return <button type="button" className={cn(styles.button, mcClassName)} disabled={props.disabled}>{props.label || 'Button'}</button>
+  return <button type="button" className={mcClassName} disabled={props.disabled}>{props.label || 'Button'}</button>
 }
 
 export const ButtonModule: ModuleDefinition<ButtonProps> = {
@@ -32,7 +33,7 @@ export const ButtonModule: ModuleDefinition<ButtonProps> = {
   description: 'A button or call-to-action link.',
   category: 'Interactive',
   version: '2.0.0',
-  icon: 'MousePointerClick',
+  icon: CursorClickIcon,
   trusted: true,
   canHaveChildren: false,
 
@@ -66,15 +67,11 @@ export const ButtonModule: ModuleDefinition<ButtonProps> = {
     const label = String(props.label ?? '')
     const rel = props.target === '_blank' ? ' rel="noopener noreferrer"' : ''
     if (href && href !== '#') {
-      return { html: `<a class="${MODULE_CLASS}" href="${href}" target="${String(props.target)}"${rel}>${label}</a>`, css: buttonCss() }
+      return { html: `<a href="${href}" target="${String(props.target)}"${rel}>${label}</a>` }
     }
     const disabledAttr = props.disabled ? ' disabled aria-disabled="true"' : ''
-    return { html: `<button class="${MODULE_CLASS}" type="button"${disabledAttr}>${label}</button>`, css: buttonCss() }
+    return { html: `<button type="button"${disabledAttr}>${label}</button>` }
   },
-}
-
-function buttonCss(): string {
-  return `.${MODULE_CLASS}{display:inline-block;width:auto;text-align:center;padding:10px 20px;font-size:15px;font-weight:600;border-radius:8px;cursor:pointer;text-decoration:none;transition:opacity .15s;opacity:1;border:2px solid transparent;box-sizing:border-box;background-color:#6366f1;color:#fff}.${MODULE_CLASS}:disabled{cursor:not-allowed;opacity:.5}`
 }
 
 registry.register(ButtonModule)

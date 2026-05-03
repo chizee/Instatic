@@ -181,6 +181,10 @@
     line-height: 1.2;
 }
 
+.draggingComponent {
+    opacity: 0.5;
+}
+
 .sectionEmpty,
 .emptyState {
     color: var(--editor-text-muted);

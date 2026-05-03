@@ -1,5 +1,12 @@
-import { forwardRef, type InputHTMLAttributes, type TextareaHTMLAttributes } from 'react'
+import {
+  forwardRef,
+  useRef,
+  type InputHTMLAttributes,
+  type TextareaHTMLAttributes,
+} from 'react'
 import { cn } from '@ui/cn'
+import { ChevronUpIcon } from 'pixel-art-icons/icons/chevron-up'
+import { ChevronDownIcon } from 'pixel-art-icons/icons/chevron-down'
 import styles from './Input.module.css'
 
 type FieldSize = 'xs' | 'sm' | 'md'
@@ -10,6 +17,22 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   fieldSize?: FieldSize
   monospace?: boolean
   emphasis?: TextEmphasis
+  /**
+   * Optional unit displayed inside the input on the trailing edge
+   * (e.g. "px", "rem", "%"). Renders to the right of the value, inside
+   * the same border so it reads as part of the field.
+   */
+  unit?: string
+  /**
+   * When true (default for `type="number"`), the native browser spinner is
+   * hidden and a pair of compact `▲ / ▼` buttons is rendered inside the
+   * trailing edge of the input. The buttons inherit the input's `step`,
+   * `min`, `max` and dispatch a synthetic `change` event so controlled
+   * components stay in sync.
+   *
+   * Pass `false` to opt out (e.g. for read-only numeric displays).
+   */
+  numberSpinner?: boolean
 }
 
 interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
@@ -21,12 +44,46 @@ interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
 }
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
-  { className, invalid = false, fieldSize = 'md', monospace = false, emphasis = 'default', ...props },
+  {
+    className,
+    invalid = false,
+    fieldSize = 'md',
+    monospace = false,
+    emphasis = 'default',
+    unit,
+    numberSpinner,
+    type,
+    ...props
+  },
   ref,
 ) {
-  return (
+  const isNumber = type === 'number'
+  // Only number inputs get the spinner. Default on for number, off otherwise.
+  const showSpinner = isNumber && (numberSpinner ?? true)
+  const hasAffix = Boolean(unit) || showSpinner
+
+  const localRef = useRef<HTMLInputElement | null>(null)
+  const setRef = (node: HTMLInputElement | null) => {
+    localRef.current = node
+    if (typeof ref === 'function') ref(node)
+    else if (ref) ref.current = node
+  }
+
+  function nudge(delta: 1 | -1) {
+    const el = localRef.current
+    if (!el || el.disabled || el.readOnly) return
+    if (delta === 1) el.stepUp()
+    else el.stepDown()
+    // stepUp/stepDown do NOT fire input/change events automatically — emit one
+    // so controlled components see the new value.
+    el.dispatchEvent(new Event('input', { bubbles: true }))
+    el.dispatchEvent(new Event('change', { bubbles: true }))
+  }
+
+  const inputElement = (
     <input
-      ref={ref}
+      ref={setRef}
+      type={type}
       aria-invalid={invalid || props['aria-invalid'] ? true : undefined}
       data-emphasis={emphasis !== 'default' ? emphasis : undefined}
       className={cn(
@@ -34,10 +91,53 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
         styles[`size-${fieldSize}`],
         monospace && styles.monospace,
         invalid && styles.invalid,
-        className,
+        showSpinner && styles.numberNoSpinner,
+        hasAffix && styles.inputWithAffix,
+        !hasAffix && className,
       )}
       {...props}
     />
+  )
+
+  if (!hasAffix) return inputElement
+
+  return (
+    <span
+      className={cn(
+        styles.inputWrapper,
+        styles[`size-${fieldSize}`],
+        invalid && styles.invalid,
+        className,
+      )}
+      data-disabled={props.disabled ? 'true' : undefined}
+    >
+      {inputElement}
+      {unit && <span className={styles.unit} aria-hidden="true">{unit}</span>}
+      {showSpinner && (
+        <span className={styles.spinner} aria-hidden="true">
+          <button
+            type="button"
+            className={styles.spinnerButton}
+            tabIndex={-1}
+            aria-label="Increase"
+            disabled={props.disabled}
+            onClick={() => nudge(1)}
+          >
+            <ChevronUpIcon size={9} />
+          </button>
+          <button
+            type="button"
+            className={styles.spinnerButton}
+            tabIndex={-1}
+            aria-label="Decrease"
+            disabled={props.disabled}
+            onClick={() => nudge(-1)}
+          >
+            <ChevronDownIcon size={9} />
+          </button>
+        </span>
+      )}
+    </span>
   )
 })
 

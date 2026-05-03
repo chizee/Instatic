@@ -1,19 +1,20 @@
 /* eslint-disable react-refresh/only-export-components */
 /**
  * base.list — ordered or unordered list.
+ *
+ * Emits a bare `<ul>` / `<ol>` with no default class or default CSS.
+ * Visual styling is opt-in via user classes (mcClassName / multi-class system).
  */
 import React from 'react'
 import { type ModuleDefinition, type ModuleComponentProps } from '@core/module-engine/types'
 import { registry } from '@core/module-engine/registry'
+import { ListBoxIcon } from 'pixel-art-icons/icons/list-box'
 import styles from './list.module.css'
-import { cn } from '@ui/cn'
 
 interface ListProps extends Record<string, unknown> {
   items: string
   listType: 'unordered' | 'ordered'
 }
-
-const MODULE_CLASS = 'pb-list'
 
 function parseItems(raw: string): string[] {
   return raw
@@ -27,7 +28,7 @@ const ListEditor: React.FC<ModuleComponentProps<ListProps>> = ({ props, mcClassN
   const Tag = props.listType === 'ordered' ? 'ol' : 'ul'
   return React.createElement(
     Tag,
-    { className: cn(styles.list, mcClassName) },
+    { className: mcClassName },
     items.length > 0
       ? items.map((item, i) => React.createElement('li', { key: i }, item))
       : React.createElement('li', { className: styles.placeholder }, 'List item 1'),
@@ -40,7 +41,7 @@ export const ListModule: ModuleDefinition<ListProps> = {
   description: 'An ordered or unordered list.',
   category: 'Typography',
   version: '2.0.0',
-  icon: 'List',
+  icon: ListBoxIcon,
   trusted: true,
   canHaveChildren: false,
 
@@ -73,8 +74,7 @@ export const ListModule: ModuleDefinition<ListProps> = {
     const items = parseItems(String(props.items || ''))
     const liItems = items.map((item) => `<li>${item}</li>`).join('')
     return {
-      html: `<${tag} class="${MODULE_CLASS}">${liItems}</${tag}>`,
-      css: `.${MODULE_CLASS}{color:#374151;font-size:16px;font-weight:400;line-height:1.6;padding-left:24px;margin:0 0 16px 0}.${MODULE_CLASS} li{margin-bottom:6px}`,
+      html: `<${tag}>${liItems}</${tag}>`,
     }
   },
 }

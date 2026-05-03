@@ -4,11 +4,10 @@
  * ─── Test groups ────────────────────────────────────────────────────────────
  *   1. uiSlice preview actions — openPreview / closePreview store contract
  *   2. PreviewOverlay DOM — renders dialog, iframe, close behaviours
- *   3. PreviewButton source — data-testid, aria-label, 44px touch target
- *   4. PreviewOverlay source — sandbox attr, WCAG focus-return pattern
- *   5. Happy-path golden: 2-node tree → expected HTML (Phase 7 requirement)
+ *   3. PreviewOverlay source — sandbox attr, WCAG focus-return pattern
+ *   4. Happy-path golden: 2-node tree → expected HTML (Phase 7 requirement)
  *
- * Groups 3–4 use readFileSync source scanning (same pattern as toolbar.test.ts).
+ * Group 3 uses readFileSync source scanning (same pattern as toolbar.test.ts).
  * Groups 1–2 use @testing-library/react DOM integration (same as settingsModal.test.tsx).
  */
 
@@ -206,56 +205,7 @@ describe('PreviewOverlay — DOM rendering', () => {
 })
 
 // ---------------------------------------------------------------------------
-// 3 — PreviewButton source-scan assertions
-// ---------------------------------------------------------------------------
-
-describe('PreviewButton — source enforcement', () => {
-  const btnTsx = readFileSync(
-    new URL('../../editor/components/Toolbar/PreviewButton.tsx', import.meta.url),
-    'utf-8',
-  )
-  // Post-Task #399: height/padding moved from inline to shared Toolbar.module.css
-  const { existsSync } = require('fs')
-  const toolbarCssUrl = new URL('../../editor/components/Toolbar/Toolbar.module.css', import.meta.url)
-  const toolbarCss = existsSync(toolbarCssUrl.pathname) ? readFileSync(toolbarCssUrl, 'utf-8') : ''
-  const btnSrc = btnTsx + '\n' + toolbarCss
-
-  it('has data-testid="toolbar-preview-btn"', () => {
-    expect(btnTsx).toContain('data-testid="toolbar-preview-btn"')
-  })
-
-  it('has aria-label="Preview page"', () => {
-    expect(btnTsx).toContain('aria-label="Preview page"')
-  })
-
-  it('has a defined height/minHeight (Guideline #357 — compact density)', () => {
-    // Guideline #357 (user directive #1532): WCAG 2.5.5 44px touch target requirement
-    // is explicitly waived for editor chrome. PreviewButton is a toolbar control.
-    // Accept: legacy 44px forms OR compact Tailwind forms (h-7=28px, h-8=32px) OR
-    // CSS module height: 28px (post-Task #399 migration — styles in Toolbar.module.css).
-    const hasCompact = /h-7|h-8|minHeight:\s*\d+|min-h-\[\d+px\]|height:\s*2[4-9]px/.test(btnSrc)
-    expect(hasCompact).toBe(true)
-  })
-
-  it('has a defined width or horizontal padding', () => {
-    // Accept: legacy minWidth forms OR Tailwind px-* padding OR
-    // CSS module padding: 0 Npx (post-Task #399 — padding in Toolbar.module.css).
-    const hasWidth = /px-|min-w-|minWidth|padding:\s*0\s+\d+/.test(btnSrc)
-    expect(hasWidth).toBe(true)
-  })
-
-  it('calls openPreview() on click', () => {
-    expect(btnSrc).toContain('openPreview()')
-  })
-
-  it('is disabled when no site is loaded', () => {
-    expect(btnSrc).toContain('disabled={disabled}')
-    expect(btnSrc).toContain('!site')
-  })
-})
-
-// ---------------------------------------------------------------------------
-// 4 — PreviewOverlay source-scan assertions
+// 3 — PreviewOverlay source-scan assertions
 // ---------------------------------------------------------------------------
 
 describe('PreviewOverlay — source enforcement', () => {
@@ -313,7 +263,7 @@ describe('PreviewOverlay — source enforcement', () => {
 })
 
 // ---------------------------------------------------------------------------
-// 5 — Happy-path golden: 2-node tree → expected HTML (Phase 7 deliverable)
+// 4 — Happy-path golden: 2-node tree → expected HTML (Phase 7 deliverable)
 //
 // Task #185 requires: "Unit test: render a simple 2-node tree and assert the
 // HTML output matches expected string."

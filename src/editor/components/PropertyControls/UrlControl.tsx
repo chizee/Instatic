@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { ControlProps } from './shared'
 import { isValidUrl } from '@core/utils/urlValidation'
 import { Input } from '@ui/components/Input'
-import { cn } from '@ui/cn'
+import { ControlRow } from './ControlRow'
 import styles from './controls.module.css'
 
 export function UrlControl({
@@ -12,6 +12,7 @@ export function UrlControl({
   label,
   isOverride,
   disabled,
+  layout,
 }: ControlProps<string>) {
   const [error, setError] = useState(false)
 
@@ -23,20 +24,16 @@ export function UrlControl({
   }
 
   return (
-    <div className={cn(styles.controlWrapper, disabled && styles.controlWrapperDisabled)}>
-      <div className={styles.labelRow}>
-        <label
-          htmlFor={`ctrl-${propKey}`}
-          className={isOverride ? styles.labelOverride : undefined}
-        >
-          {label ?? propKey}
-        </label>
-        {error && (
-          <span className={styles.labelError} role="alert">
-            Invalid URL
-          </span>
-        )}
-      </div>
+    <ControlRow
+      propKey={propKey}
+      label={label}
+      layout={layout}
+      isOverride={isOverride}
+      disabled={disabled}
+      labelSuffix={error ? (
+        <span className={styles.labelError} role="alert">Invalid URL</span>
+      ) : undefined}
+    >
       <Input
         id={`ctrl-${propKey}`}
         type="url"
@@ -47,6 +44,6 @@ export function UrlControl({
         onChange={handleChange}
         invalid={error}
       />
-    </div>
+    </ControlRow>
   )
 }

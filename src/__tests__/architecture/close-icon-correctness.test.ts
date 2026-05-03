@@ -12,7 +12,7 @@
  *
  * The correct close icon for dialogs, modals, and panel headers is:
  *
- *   import { CloseIcon } from '@ui/icons/icons/close'
+ *   import { CloseIcon } from 'pixel-art-icons/icons/close'
  *   <CloseIcon size={12} color="currentColor" aria-hidden="true" />
  *
  * This pattern is codified in `PanelHeader.tsx` and is the site-wide standard
@@ -20,7 +20,7 @@
  *
  * ## What this test checks
  *
- * 1. No production file imports `src/ui/icons/icons/x` anywhere (catches future
+ * 1. No production file imports `pixel-art-icons/icons/x` anywhere (catches future
  *    regression regardless of context — the X/Twitter icon has no legitimate
  *    close-button use case in this codebase).
  *
@@ -32,7 +32,7 @@
  *   icon names (`circle-x`, `alert-circle`, etc.)
  *
  * @see PanelHeader.tsx — canonical close button reference implementation
- * @see Guideline #350 — @motion/icons accessibility requirements
+ * @see Guideline #350 — pixel-art-icons accessibility requirements
  * @see User directive msg #1967 — Fix X logo used as close icon
  */
 
@@ -76,7 +76,7 @@ function collectProdFiles(): string[] {
 // ---------------------------------------------------------------------------
 
 // NOTE: String is split so that THIS test file does not self-match.
-const X_LOGO_PATTERN = new RegExp(`from\\s+["'][^"']*ui/icons/icons/` + `x["']|<` + `XIcon\\b`)
+const X_LOGO_PATTERN = new RegExp(`from\\s+["']pixel-art-icons/icons/` + `x["']|<` + `XIcon\\b`)
 
 // ---------------------------------------------------------------------------
 // Tests
@@ -102,7 +102,7 @@ describe('Close-icon correctness — no X/Twitter logo used as close button', ()
           '',
           'Use the site-standard close icon instead:',
           '',
-          "  import { CloseIcon } from '@ui/icons/icons/close'",
+          "  import { CloseIcon } from 'pixel-art-icons/icons/close'",
           '  <CloseIcon size={12} color="currentColor" aria-hidden="true" />',
           '',
           'See PanelHeader.tsx for the canonical reference implementation.',
@@ -116,7 +116,7 @@ describe('Close-icon correctness — no X/Twitter logo used as close button', ()
     expect(violations).toHaveLength(0)
   })
 
-  it('CI-2: SiteCreateDialog close button uses CloseIcon from @ui/icons/icons/close', () => {
+  it('CI-2: SiteCreateDialog close button uses CloseIcon from pixel-art-icons/icons/close', () => {
     const modalPath = join(SRC_ROOT, 'editor/components/SiteCreateDialog/SiteCreateDialog.tsx')
     let src: string
     try {
@@ -126,7 +126,7 @@ describe('Close-icon correctness — no X/Twitter logo used as close button', ()
     }
 
     // Must import CloseIcon
-    expect(src).toMatch(/import\s*\{[^}]*CloseIcon[^}]*\}\s*from\s*['"]@ui\/icons\/icons\/close['"]/)
+    expect(src).toMatch(/import\s*\{[^}]*CloseIcon[^}]*\}\s*from\s*['"]pixel-art-icons\/icons\/close['"]/)
 
     // Must NOT use XIcon
     expect(src).not.toMatch(X_LOGO_PATTERN)
@@ -135,7 +135,7 @@ describe('Close-icon correctness — no X/Twitter logo used as close button', ()
     expect(src).toMatch(/<CloseIcon\b/)
   })
 
-  it('CI-3: SettingsModal close button uses CloseIcon from @ui/icons/icons/close', () => {
+  it('CI-3: SettingsModal close button uses CloseIcon from pixel-art-icons/icons/close', () => {
     const modalPath = join(SRC_ROOT, 'editor/components/Settings/SettingsModal.tsx')
     let src: string
     try {
@@ -144,12 +144,12 @@ describe('Close-icon correctness — no X/Twitter logo used as close button', ()
       throw new Error(`[CI-3] SettingsModal.tsx not found at expected path: ${modalPath}`)
     }
 
-    expect(src).toMatch(/import\s*\{[^}]*CloseIcon[^}]*\}\s*from\s*['"]@ui\/icons\/icons\/close['"]/)
+    expect(src).toMatch(/import\s*\{[^}]*CloseIcon[^}]*\}\s*from\s*['"]pixel-art-icons\/icons\/close['"]/)
     expect(src).not.toMatch(X_LOGO_PATTERN)
     expect(src).toMatch(/<CloseIcon\b/)
   })
 
-  it('CI-4: PreviewOverlay close button uses CloseIcon from @ui/icons/icons/close', () => {
+  it('CI-4: PreviewOverlay close button uses CloseIcon from pixel-art-icons/icons/close', () => {
     const overlayPath = join(SRC_ROOT, 'editor/components/Preview/PreviewOverlay.tsx')
     let src: string
     try {
@@ -158,7 +158,7 @@ describe('Close-icon correctness — no X/Twitter logo used as close button', ()
       throw new Error(`[CI-4] PreviewOverlay.tsx not found at expected path: ${overlayPath}`)
     }
 
-    expect(src).toMatch(/import\s*\{[^}]*CloseIcon[^}]*\}\s*from\s*['"]@ui\/icons\/icons\/close['"]/)
+    expect(src).toMatch(/import\s*\{[^}]*CloseIcon[^}]*\}\s*from\s*['"]pixel-art-icons\/icons\/close['"]/)
     expect(src).not.toMatch(X_LOGO_PATTERN)
     expect(src).toMatch(/<CloseIcon\b/)
   })

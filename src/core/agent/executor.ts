@@ -9,14 +9,22 @@
  */
 
 import { z } from 'zod'
-import { useEditorStore, type EditorStore } from '../editor-store/store'
+import type { EditorStore } from '../editor-store/types'
 import { registry } from '../module-engine/registry'
 import { sanitizeRichtext, isRichtextPropKey } from '../sanitize'
+import { getAgentStoreApi } from './storeRef'
 import type {
   AgentAction,
   AgentActionResult,
   InsertTreeNode,
 } from './types'
+
+// Live access to the editor store. Routed through `./storeRef` so this module
+// has no static import edge back into `editor-store/store.ts` — that's how the
+// executor → store → agentSlice → executor runtime cycle is broken.
+const getStoreState = (): EditorStore => getAgentStoreApi<EditorStore>().getState()
+const setStoreState = (partial: Partial<EditorStore>): void =>
+  getAgentStoreApi<EditorStore>().setState(partial)
 
 // ---------------------------------------------------------------------------
 // Per-action Zod schemas (Constraint #272)
@@ -161,7 +169,7 @@ const updateSiteSettingsSchema = z.object({
  * transparently resolves it here so callers never need to worry about it.
  */
 function resolveClassId(
-  store: ReturnType<typeof useEditorStore.getState>,
+  store: EditorStore,
   classIdOrName: string,
 ): string | null {
   const classes = store.site?.classes
@@ -206,7 +214,7 @@ function cloneSerializable<T>(value: T): T {
 }
 
 function takeBatchSnapshot(): AgentBatchSnapshot {
-  const state = useEditorStore.getState()
+  const state = getStoreState()
   return {
     site: cloneSerializable(state.site),
     activePageId: state.activePageId,
@@ -223,7 +231,7 @@ function takeBatchSnapshot(): AgentBatchSnapshot {
 }
 
 function restoreBatchSnapshot(snapshot: AgentBatchSnapshot): void {
-  useEditorStore.setState({
+  setStoreState({
     ...snapshot,
     site: cloneSerializable(snapshot.site),
     activeDocument: cloneSerializable(snapshot.activeDocument),
@@ -273,7 +281,7 @@ function resolveMoveParentId(
 }
 
 function resolveOrCreateClassId(
-  store: ReturnType<typeof useEditorStore.getState>,
+  store: EditorStore,
   classIdOrName: string,
   styles: Record<string, string | number> = {},
 ): string | null {
@@ -288,7 +296,7 @@ function resolveOrCreateClassId(
 }
 
 function resolveKnownClassIds(
-  store: ReturnType<typeof useEditorStore.getState>,
+  store: EditorStore,
   classIdsOrNames: string[],
 ): { classIds: string[]; missing: null } | { classIds: null; missing: string } {
   const resolved: string[] = []
@@ -301,7 +309,7 @@ function resolveKnownClassIds(
 }
 
 function ensureClassIdWithStyles(
-  store: ReturnType<typeof useEditorStore.getState>,
+  store: EditorStore,
   classIdOrName: string,
   styles: Record<string, string | number> = {},
   breakpointStyles: Record<string, Record<string, string | number>> = {},
@@ -318,7 +326,7 @@ function ensureClassIdWithStyles(
 }
 
 function validateBreakpointId(
-  store: ReturnType<typeof useEditorStore.getState>,
+  store: EditorStore,
   breakpointId: string,
 ): string | null {
   const site = store.site
@@ -329,7 +337,7 @@ function validateBreakpointId(
 }
 
 function validateBreakpointStyles(
-  store: ReturnType<typeof useEditorStore.getState>,
+  store: EditorStore,
   breakpointStyles: Record<string, Record<string, string | number>>,
 ): string | null {
   for (const breakpointId of Object.keys(breakpointStyles)) {
@@ -340,7 +348,7 @@ function validateBreakpointStyles(
 }
 
 function applyClassBreakpointStyles(
-  store: ReturnType<typeof useEditorStore.getState>,
+  store: EditorStore,
   classId: string,
   breakpointStyles: Record<string, Record<string, string | number>>,
 ): void {
@@ -379,7 +387,7 @@ function sanitizeNodeProps(props: Record<string, unknown>): Record<string, unkno
 }
 
 function ensureTreeClassIds(
-  store: ReturnType<typeof useEditorStore.getState>,
+  store: EditorStore,
   node: InsertTreeNode,
 ): string | null {
   const resolved = resolveKnownClassIds(store, node.classIds ?? EMPTY_TREE_CLASS_IDS)
@@ -392,7 +400,7 @@ function ensureTreeClassIds(
 }
 
 function insertTreeNode(
-  store: ReturnType<typeof useEditorStore.getState>,
+  store: EditorStore,
   node: InsertTreeNode,
   parentId: string,
   index: number | undefined,
@@ -433,7 +441,7 @@ export async function executeAgentAction(
   action: AgentAction,
   context?: AgentExecutionContext,
 ): Promise<AgentActionResult> {
-  const store = useEditorStore.getState()
+  const store = getStoreState()
 
   try {
     switch (action.type) {
@@ -481,7 +489,7 @@ export async function executeAgentAction(
 
         for (const classDef of a.classes) {
           const breakpointError = validateBreakpointStyles(
-            useEditorStore.getState(),
+            getStoreState(),
             classDef.breakpointStyles as Record<string, Record<string, string | number>>,
           )
           if (breakpointError) return { success: false, error: breakpointError }
@@ -489,7 +497,7 @@ export async function executeAgentAction(
 
         for (const classDef of a.classes) {
           const classId = ensureClassIdWithStyles(
-            useEditorStore.getState(),
+            getStoreState(),
             classDef.name,
             classDef.styles as Record<string, string | number>,
             classDef.breakpointStyles as Record<string, Record<string, string | number>>,
@@ -497,12 +505,12 @@ export async function executeAgentAction(
           if (!classId) return { success: false, error: `Class could not be created: ${classDef.name}` }
         }
 
-        const unresolvedClass = ensureTreeClassIds(useEditorStore.getState(), a.tree)
+        const unresolvedClass = ensureTreeClassIds(getStoreState(), a.tree)
         if (unresolvedClass) {
           return { success: false, error: `Class could not be resolved: ${unresolvedClass}` }
         }
 
-        const nodeId = insertTreeNode(useEditorStore.getState(), a.tree, parentId, a.index, context)
+        const nodeId = insertTreeNode(getStoreState(), a.tree, parentId, a.index, context)
         return { success: true, nodeId }
       }
 

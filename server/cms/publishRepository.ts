@@ -112,6 +112,7 @@ export async function publishDraftSite(
   try {
     const site = await loadDraftSite(db)
     if (!site) throw new Error('draft site not found')
+
     const runtime = normalizeSiteRuntimeConfig(site.runtime)
     const dependencyCache = Object.keys(runtime.dependencyLock.packages).length > 0
       ? await ensureRuntimeDependencyCache(runtime.dependencyLock)

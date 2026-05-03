@@ -14,14 +14,14 @@
 .notch {
     --notch-bg: var(--editor-bg);
     --notch-radius: 16px;
-    --notch-corner: 12px;
+    --notch-corner: 16px;
     --notch-corner-cut: calc(var(--notch-corner) - 0.5px);
     position: relative;
     isolation: isolate;
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 6px;
+    gap: 4px;
+    padding: 4px;
     pointer-events: auto;
     color: var(--editor-text);
     background: var(--notch-bg);
@@ -73,4 +73,10 @@
     height: 18px;
     margin: 0 2px;
     background: var(--editor-border-med);
+}
+
+.historyGroup {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
 }

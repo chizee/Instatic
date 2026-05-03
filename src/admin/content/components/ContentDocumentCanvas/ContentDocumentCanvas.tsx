@@ -2,7 +2,7 @@ import { useLayoutEffect, useRef } from 'react'
 import { Button } from '@ui/components/Button'
 import { Textarea } from '@ui/components/Input'
 import { cn } from '@ui/cn'
-import { FilePlusIcon } from '@ui/icons/icons/file-plus'
+import { FilePlusIcon } from 'pixel-art-icons/icons/file-plus'
 import { createParagraphBlock } from '@core/content/markdown'
 import { contentCollectionHasField } from '@core/content/fields'
 import type { ContentBlock, ContentCollection, ContentEntry } from '@core/content/types'
@@ -66,7 +66,13 @@ export function ContentDocumentCanvas({
       data-testid="content-canvas-root"
       className={cn(canvasStyles.canvas, styles.contentCanvas)}
     >
-      {bodyEnabled && <CanvasNotch actions={notchActions} addControl={addControl} />}
+      {bodyEnabled && (
+        <CanvasNotch
+          actions={notchActions}
+          addControl={addControl}
+          showHistoryControls={false}
+        />
+      )}
 
       <div className={styles.documentScroll}>
         {loading ? (

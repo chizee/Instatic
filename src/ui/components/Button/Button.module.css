@@ -48,14 +48,15 @@
 }
 
 .size-xs {
-    height: 26px;
+    height: 22px;
     padding: 0 6px;
+    border-radius: 8px;
     gap: 4px;
-    font-size: 11px;
+    font-size: 10px;
 }
 
 .size-sm {
-    height: 28px;
+    height: 26px;
     padding: 0 8px;
     gap: 4px;
     font-size: 11px;
@@ -66,7 +67,6 @@
     padding: 6px 14px;
     gap: 5px;
     font-size: 12px;
-    font-weight: 500;
 }
 
 .size-lg {
@@ -74,7 +74,6 @@
     padding: 0 16px;
     gap: 6px;
     font-size: 13px;
-    font-weight: 500;
 }
 
 /* ── Icon-only (square) ───────────────────────────────────────────────────── */
@@ -153,7 +152,7 @@
 }
 
 .variant-ghost:active {
-    background: var(--editor-surface-active);
+    background: var(--editor-surface);
     color: var(--editor-text);
 }
 
@@ -183,11 +182,12 @@
 }
 
 .variant-secondary:active {
-    background: var(--editor-surface-active);
+    background: var(--editor-surface);
 }
 
-.variant-secondary[data-active="true"] {
-    background: var(--editor-surface-active);
+.variant-secondary[data-active="true"],
+.variant-secondary[aria-pressed="true"] {
+    background: var(--editor-surface);
     color: var(--editor-text);
 }
 

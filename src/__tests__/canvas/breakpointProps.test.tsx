@@ -1,10 +1,17 @@
 import { describe, expect, it, beforeEach } from 'bun:test'
+import React from 'react'
 import { act, fireEvent, render, screen, cleanup } from '@testing-library/react'
 import { readFileSync } from 'fs'
+import { DndContext } from '@dnd-kit/core'
 import { useEditorStore } from '@core/editor-store/store'
 import { BreakpointFrame } from '../../editor/components/Canvas/BreakpointFrame'
 import { CanvasRoot } from '../../editor/components/Canvas/CanvasRoot'
 import '../../modules/base'
+
+/** CanvasRoot uses useDroppable and must be rendered inside a DndContext. */
+function renderCanvas() {
+  return render(<DndContext><CanvasRoot /></DndContext>)
+}
 
 const BREAKPOINT_FRAME_CSS = new URL(
   '../../editor/components/Canvas/BreakpointFrame.module.css',
@@ -65,7 +72,7 @@ describe('canvas breakpoint rendering', () => {
     }, page.rootNodeId)
     useEditorStore.getState().setActiveBreakpoint('desktop')
 
-    render(<CanvasRoot />)
+    renderCanvas()
 
     const mobileNode = document.querySelector(`[data-breakpoint-id="mobile"] [data-node-id="${textId}"]`)
     expect(mobileNode).toBeTruthy()
@@ -85,7 +92,7 @@ describe('canvas breakpoint rendering', () => {
       tag: 'h1',
     }, page.rootNodeId)
 
-    render(<CanvasRoot />)
+    renderCanvas()
 
     const mobileNode = document.querySelector(`[data-breakpoint-id="mobile"] [data-node-id="${textId}"]`)
     const desktopNode = document.querySelector(`[data-breakpoint-id="desktop"] [data-node-id="${textId}"]`)
@@ -118,7 +125,7 @@ describe('canvas breakpoint rendering', () => {
       propertiesPanelMode: 'docked',
     } as Parameters<typeof useEditorStore.setState>[0])
 
-    const { rerender } = render(<CanvasRoot />)
+    const { rerender } = render(<DndContext><CanvasRoot /></DndContext>)
 
     const tabletFrame = document.querySelector('[data-breakpoint-id="tablet"]')?.parentElement
     const mobileFrame = document.querySelector('[data-breakpoint-id="mobile"]')?.parentElement
@@ -133,7 +140,7 @@ describe('canvas breakpoint rendering', () => {
         propertiesPanel: { collapsed: true, x: 0, y: 0, width: 360 },
       } as Parameters<typeof useEditorStore.setState>[0])
     })
-    rerender(<CanvasRoot />)
+    rerender(<DndContext><CanvasRoot /></DndContext>)
 
     expect(mobileFrame?.getAttribute('data-breakpoint-dimmed')).toBeNull()
     expect(desktopFrame?.getAttribute('data-breakpoint-dimmed')).toBeNull()

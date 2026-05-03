@@ -1,5 +1,5 @@
 /**
- * ComponentRefView — PropertiesPanel view for a selected base.visualComponentRef instance.
+ * ComponentRefView — PropertiesPanel view for a selected base.visual-component-ref instance.
  *
  * Architecture source: Contribution #619 §8.5
  *
@@ -7,35 +7,23 @@
  * Properties tab. It shows:
  *   - Header: component icon + VC name + "Open in canvas" link
  *   - One row per VCParam, in vc.params declaration order
- *   - Each row: param name | value editor | status pill (Default / Overridden)
- *   - "Reset" button visible only on overridden params
- *
- * Per-param value editors are type-appropriate:
- *   string | url → text input
- *   number        → number input
- *   boolean       → checkbox
- *   color         → color input
- *   enum          → select
+ *   - Each row: <ParamRow mode='override-edit'> (handles Default / Overridden pill + Reset)
  *
  * Achromatic palette (Guideline #376). CSS Modules only (Constraint #402/#403).
- * Icons from @motion/icons (Guideline #350).
+ * Icons from pixel-art-icons (Guideline #350).
  */
 
 import { useCallback } from 'react'
 import { useEditorStore } from '@core/editor-store/store'
-import { WarningDiamondIcon } from '@ui/icons/icons/warning-diamond'
-import { BracesIcon } from '@ui/icons/icons/braces'
-import { ExternalLinkIcon } from '@ui/icons/icons/external-link'
-import { UndoIcon } from '@ui/icons/icons/undo'
+import { WarningDiamondIcon } from 'pixel-art-icons/icons/warning-diamond'
+import { BracesIcon } from 'pixel-art-icons/icons/braces'
+import { ExternalLinkIcon } from 'pixel-art-icons/icons/external-link'
 import { Button } from '@ui/components/Button'
-import { Input } from '@ui/components/Input'
-import { Select } from '@ui/components/Select'
-import { Switch } from '@ui/components/Switch'
-import { ColorInput } from '@ui/components/ColorInput'
+import { ParamRow } from './ParamRow'
 import styles from './ComponentRefView.module.css'
 
 interface ComponentRefViewProps {
-  /** ID of the selected base.visualComponentRef node */
+  /** ID of the selected base.visual-component-ref node */
   nodeId: string
   /** componentId prop from the node — identifies which VC this references */
   componentId: string
@@ -60,14 +48,14 @@ export function ComponentRefView({ nodeId, componentId, propOverrides }: Compone
     }
   }
 
-  function handleParamChange(paramName: string, value: unknown) {
-    const next = { ...propOverrides, [paramName]: value }
+  function handleParamChange(paramId: string, value: unknown) {
+    const next = { ...propOverrides, [paramId]: value }
     updateNodeProps(nodeId, { propOverrides: next })
   }
 
-  function handleParamReset(paramName: string) {
+  function handleParamReset(paramId: string) {
     const next = { ...propOverrides }
-    delete next[paramName]
+    delete next[paramId]
     updateNodeProps(nodeId, { propOverrides: next })
   }
 
@@ -92,7 +80,7 @@ export function ComponentRefView({ nodeId, componentId, propOverrides }: Compone
           variant="ghost"
           size="xs"
           onClick={handleOpenInCanvas}
-          title="Open component in canvas"
+          tooltip="Open component in canvas"
         >
           <ExternalLinkIcon size={10} color="currentColor" aria-hidden="true" />
           Open in canvas
@@ -109,49 +97,22 @@ export function ComponentRefView({ nodeId, componentId, propOverrides }: Compone
       ) : (
         <div className={styles.paramsList} role="list" aria-label="Component parameters">
           {vc.params.map((param) => {
-            const isOverridden = Object.prototype.hasOwnProperty.call(propOverrides, param.name)
-            const effectiveValue = isOverridden
-              ? propOverrides[param.name]
-              : param.defaultValue
+            const isOverridden = Object.prototype.hasOwnProperty.call(propOverrides, param.id)
+            const effectiveValue = isOverridden ? propOverrides[param.id] : param.defaultValue
 
             return (
-              <div
-                key={param.id}
-                className={`${styles.paramRow} ${isOverridden ? styles.paramRowOverridden : ''}`}
-                role="listitem"
-                data-testid={`vc-param-row-${param.name}`}
-              >
-                <span
-                  className={styles.paramName}
-                  title={param.name}
-                >
-                  {param.name}
-                </span>
-
-                {/* Type-appropriate value editor */}
-                <ParamInput
-                  param={param}
+              <div key={param.id} role="listitem" data-testid={`vc-param-row-${param.name}`}>
+                <ParamRow
+                  mode="override-edit"
+                  paramName={param.name}
+                  paramType={param.type}
+                  paramId={param.id}
                   value={effectiveValue}
-                  onChange={(v) => handleParamChange(param.name, v)}
+                  isOverridden={isOverridden}
+                  enumOptions={param.enumOptions}
+                  onValueChange={(val) => handleParamChange(param.id, val)}
+                  onReset={() => handleParamReset(param.id)}
                 />
-
-                {/* Status pill */}
-                <span className={styles.overridePill}>
-                  {isOverridden ? 'Overridden' : 'Default'}
-                </span>
-
-                {/* Reset button — only when overridden */}
-                {isOverridden && (
-                  <Button
-                    variant="ghost"
-                    size="xs"
-                    onClick={() => handleParamReset(param.name)}
-                    title="Reset to default"
-                    aria-label={`Reset ${param.name} to default`}
-                  >
-                    <UndoIcon size={10} color="currentColor" aria-hidden="true" />
-                  </Button>
-                )}
               </div>
             )
           })}
@@ -159,85 +120,4 @@ export function ComponentRefView({ nodeId, componentId, propOverrides }: Compone
       )}
     </>
   )
-}
-
-// ---------------------------------------------------------------------------
-// ParamInput — type-appropriate value editor for a single VCParam
-// ---------------------------------------------------------------------------
-
-import type { VCParam } from '@core/visualComponents/types'
-
-interface ParamInputProps {
-  param: VCParam
-  value: unknown
-  onChange: (value: unknown) => void
-}
-
-function ParamInput({ param, value, onChange }: ParamInputProps) {
-  const strVal = value === null || value === undefined ? '' : String(value)
-
-  switch (param.type) {
-    case 'boolean':
-      return (
-        <Switch
-          checked={Boolean(value)}
-          onCheckedChange={onChange}
-          switchSize="sm"
-          className={styles.paramSwitch}
-          data-testid={`vc-param-input-${param.name}`}
-        />
-      )
-
-    case 'number':
-      return (
-        <Input
-          type="number"
-          value={strVal}
-          onChange={(e) => onChange(e.target.valueAsNumber)}
-          fieldSize="xs"
-          className={styles.paramField}
-          data-testid={`vc-param-input-${param.name}`}
-        />
-      )
-
-    case 'color':
-      return (
-        <ColorInput
-          value={strVal || '#000000'}
-          onChange={(e) => onChange(e.target.value)}
-          fieldSize="xs"
-          data-testid={`vc-param-input-${param.name}`}
-        />
-      )
-
-    case 'enum':
-      return (
-        <Select
-          value={strVal}
-          onChange={(e) => onChange(e.target.value)}
-          fieldSize="xs"
-          className={styles.paramField}
-          data-testid={`vc-param-input-${param.name}`}
-        >
-          {(param.enumOptions ?? []).map((opt) => (
-            <option key={opt} value={opt}>{opt}</option>
-          ))}
-        </Select>
-      )
-
-    case 'string':
-    case 'url':
-    default:
-      return (
-        <Input
-          type={param.type === 'url' ? 'url' : 'text'}
-          value={strVal}
-          placeholder={`${param.name}…`}
-          onChange={(e) => onChange(e.target.value)}
-          fieldSize="xs"
-          className={styles.paramField}
-          data-testid={`vc-param-input-${param.name}`}
-        />
-      )
-  }
 }

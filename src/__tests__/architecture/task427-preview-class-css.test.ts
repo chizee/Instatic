@@ -126,7 +126,7 @@ function directSite(page: Page, classes: SiteDocument['classes'] = {}): SiteDocu
     name: 'Test',
     pages: [page],
     breakpoints: [{ id: 'desktop', label: 'Desktop', width: 1440, icon: 'monitor' }],
-    settings: { colorTokens: {}, typeScale: { baseSize: 16, ratio: 1.25 }, shortcuts: {} },
+    settings: { colorTokens: {}, shortcuts: {} },
     classes,
     createdAt: 0,
     updatedAt: 0,
@@ -215,7 +215,7 @@ describe('Gate 3 — collectClassCSS is defensive against missing site.classes',
       id: 'proj1', name: 'Test',
       pages: [page],
       breakpoints: [],
-      settings: { colorTokens: {}, typeScale: { baseSize: 16, ratio: 1.25 }, shortcuts: {} },
+      settings: { colorTokens: {}, shortcuts: {} },
       classes: undefined as unknown as SiteDocument['classes'],  // simulates the makeSite() gap
       createdAt: 0, updatedAt: 0,
     }
@@ -425,7 +425,7 @@ describe('Gate 8 — class breakpoint overrides emit @media blocks in published 
       id: 'proj-1', name: 'Test',
       pages: [page],
       breakpoints: [{ id: bpId, label: 'Mobile', width: 375, icon: 'smartphone' }],
-      settings: { colorTokens: {}, typeScale: { baseSize: 16, ratio: 1.25 }, shortcuts: {} },
+      settings: { colorTokens: {}, shortcuts: {} },
       classes: {
         [classId]: {
           id: classId, name: classId,
@@ -453,7 +453,7 @@ describe('Gate 8 — class breakpoint overrides emit @media blocks in published 
       id: 'proj-1', name: 'Test',
       pages: [page],
       breakpoints: [{ id: bpId, label: 'Mobile', width: 375, icon: 'smartphone' }],
-      settings: { colorTokens: {}, typeScale: { baseSize: 16, ratio: 1.25 }, shortcuts: {} },
+      settings: { colorTokens: {}, shortcuts: {} },
       classes: {
         [classId]: {
           id: classId, name: classId,

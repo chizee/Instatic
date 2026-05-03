@@ -1,6 +1,8 @@
 export type {
+  CSSClass,
   Page,
   PageNode,
+  BaseNode,
   SiteDocument,
   Breakpoint,
   SiteSettings,

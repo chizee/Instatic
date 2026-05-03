@@ -2,18 +2,18 @@ import { useEffect, useMemo, useState, type FormEvent, type KeyboardEvent, type 
 import { createPortal } from 'react-dom'
 import { selectSelectedNode, useEditorStore } from '@core/editor-store/store'
 import { cssClassSelector } from '@core/page-tree/classNames'
-import { generatedClassKindLabel, isGeneratedClassLocked } from '@core/page-tree/classUtils'
+import { generatedClassKindLabel, isGeneratedClass, isGeneratedClassLocked } from '@core/page-tree/classUtils'
 import type { CSSClass } from '@core/page-tree/types'
 import { Button } from '@ui/components/Button'
 import { ContextMenu, ContextMenuItem, ContextMenuSeparator } from '@ui/components/ContextMenu'
+import { FilterBar, type FilterBarItem } from '@ui/components/FilterBar'
 import { Input } from '@ui/components/Input'
-import { SearchBar } from '@ui/components/SearchBar'
-import { CloseIcon } from '@ui/icons/icons/close'
-import { Copy2SharpIcon } from '@ui/icons/icons/copy-2-sharp'
-import { DeleteIcon } from '@ui/icons/icons/delete'
-import { EditIcon } from '@ui/icons/icons/edit'
-import { FilePlusIcon } from '@ui/icons/icons/file-plus'
-import { PaintBucketIcon } from '@ui/icons/icons/paint-bucket'
+import { CloseIcon } from 'pixel-art-icons/icons/close'
+import { Copy2SharpIcon } from 'pixel-art-icons/icons/copy-2-sharp'
+import { DeleteIcon } from 'pixel-art-icons/icons/delete'
+import { EditIcon } from 'pixel-art-icons/icons/edit'
+import { FilePlusIcon } from 'pixel-art-icons/icons/file-plus'
+import { PaintBucketIcon } from 'pixel-art-icons/icons/paint-bucket'
 import { PanelHeader } from '../shared/PanelHeader'
 import dialogStyles from '../SiteCreateDialog/SiteCreateDialog.module.css'
 import {
@@ -27,6 +27,14 @@ import styles from './SelectorsPanel.module.css'
 interface SelectorsPanelProps {
   variant?: 'docked'
 }
+
+type SelectorFilter = 'all' | 'user' | 'utility'
+
+const SELECTOR_FILTER_ITEMS: FilterBarItem<SelectorFilter>[] = [
+  { value: 'all', label: 'All' },
+  { value: 'user', label: 'User' },
+  { value: 'utility', label: 'Utility' },
+]
 
 interface ContextMenuState {
   x: number
@@ -51,6 +59,14 @@ function selectorInputValue(className: string) {
   return className ? `.${className}` : ''
 }
 
+function getEmptyFilterMessage(filter: SelectorFilter, query: string): string {
+  const normalized = query.trim()
+  if (normalized) return `No selectors match “${normalized}”.`
+  if (filter === 'user') return 'No user selectors yet.'
+  if (filter === 'utility') return 'No utility selectors yet.'
+  return 'No selectors match the current filters.'
+}
+
 export function SelectorsPanel({ variant = 'docked' }: SelectorsPanelProps) {
   const site = useEditorStore((s) => s.site)
   const isOpen = useEditorStore((s) => s.selectorsPanelOpen)
@@ -70,6 +86,7 @@ export function SelectorsPanel({ variant = 'docked' }: SelectorsPanelProps) {
   const selectedNodeId = useEditorStore((s) => s.selectedNodeId)
 
   const [query, setQuery] = useState('')
+  const [filter, setFilter] = useState<SelectorFilter>('all')
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [renameTarget, setRenameTarget] = useState<CSSClass | null>(null)
@@ -81,9 +98,13 @@ export function SelectorsPanel({ variant = 'docked' }: SelectorsPanelProps) {
   )
   const filteredClasses = useMemo(() => {
     const normalized = query.trim().toLowerCase()
-    if (!normalized) return reusableClasses
-    return reusableClasses.filter((cls) => cls.name.toLowerCase().includes(normalized))
-  }, [query, reusableClasses])
+    return reusableClasses.filter((cls) => {
+      if (filter === 'user' && isGeneratedClass(cls)) return false
+      if (filter === 'utility' && !isGeneratedClass(cls)) return false
+      if (normalized && !cls.name.toLowerCase().includes(normalized)) return false
+      return true
+    })
+  }, [filter, query, reusableClasses])
   const selectedClass = reusableClasses.find((cls) => cls.id === selectedSelectorClassId) ?? null
   const contextClass = contextMenu ? site?.classes[contextMenu.classId] ?? null : null
 
@@ -184,7 +205,7 @@ export function SelectorsPanel({ variant = 'docked' }: SelectorsPanelProps) {
             size="xs"
             iconOnly
             aria-label="Create selector"
-            title="Create selector"
+            tooltip="Create selector"
             onClick={() => setCreateDialogOpen(true)}
           >
             <FilePlusIcon size={13} aria-hidden="true" />
@@ -192,16 +213,19 @@ export function SelectorsPanel({ variant = 'docked' }: SelectorsPanelProps) {
         </PanelHeader>
 
         <div className={styles.content}>
-          <div className={styles.toolbar}>
-            <SearchBar
-              value={query}
-              onValueChange={setQuery}
-              onClear={() => setQuery('')}
-              aria-label="Search selectors"
-              placeholder="Search selectors"
-              className={styles.search}
-            />
-          </div>
+          <FilterBar<SelectorFilter>
+            items={SELECTOR_FILTER_ITEMS}
+            value={filter}
+            onValueChange={setFilter}
+            search={{
+              value: query,
+              onValueChange: setQuery,
+              onClear: () => setQuery(''),
+              placeholder: 'Search selectors',
+              ariaLabel: 'Search selectors',
+            }}
+            groupLabel="Selector type"
+          />
 
           {reusableClasses.length === 0 ? (
             <div className={styles.emptyState}>
@@ -211,7 +235,7 @@ export function SelectorsPanel({ variant = 'docked' }: SelectorsPanelProps) {
               </Button>
             </div>
           ) : filteredClasses.length === 0 ? (
-            <div className={styles.emptyState}>No selectors match “{query}”.</div>
+            <div className={styles.emptyState}>{getEmptyFilterMessage(filter, query)}</div>
           ) : (
             <div className={styles.rows} aria-label="Reusable selectors">
               {filteredClasses.map((cls) => (

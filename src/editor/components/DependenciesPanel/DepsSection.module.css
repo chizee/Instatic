@@ -1,5 +1,4 @@
 /* DepsSection — dependency management content shared by DependenciesPanel */
-/* Migrated from SitePanel/DepsTab.module.css (Task #434) */
 
 /* ── Collapsible section ─────────────────────────────────────────────────── */
 .section {
@@ -153,7 +152,7 @@
 
 .runtimeIssuePackage {
     overflow: hidden;
-    color: #fde68a;
+    color: var(--editor-warning-text);
     font-family: monospace;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -180,7 +179,7 @@
     border: 1px solid rgba(245, 158, 11, 0.28);
     border-radius: 6px;
     background: rgba(245, 158, 11, 0.1);
-    color: #fde68a;
+    color: var(--editor-warning-text);
     font-size: 10px;
     line-height: 1.35;
 }
@@ -204,11 +203,11 @@
 }
 
 .resolveStatus[data-status='resolved'] {
-    color: #a7f3d0;
+    color: var(--editor-success-text-soft);
 }
 
 .resolveStatus[data-status='error'] {
-    color: var(--editor-danger-light, #fecaca);
+    color: var(--editor-danger-light);
 }
 
 .addRow {
@@ -288,7 +287,7 @@
 }
 
 .depLockedVersion {
-    color: #a7f3d0;
+    color: var(--editor-success-text-soft);
 }
 
 .depUsage {
@@ -297,7 +296,7 @@
     border: 1px solid rgba(99, 102, 241, 0.22);
     border-radius: 999px;
     background: rgba(99, 102, 241, 0.12);
-    color: #c4b5fd;
+    color: var(--editor-info-text);
     font-size: 9px;
     font-weight: 700;
     letter-spacing: 0.02em;
@@ -323,5 +322,5 @@
 }
 
 .depConfirmDetail {
-    color: #fecaca;
+    color: var(--editor-danger-text);
 }

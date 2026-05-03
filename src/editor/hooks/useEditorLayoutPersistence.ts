@@ -19,6 +19,8 @@ type LayoutSelection = readonly [
   siteOpen: boolean,
   selectorsOpen: boolean,
   colorsOpen: boolean,
+  typographyOpen: boolean,
+  spacingOpen: boolean,
   mediaOpen: boolean,
   dependenciesOpen: boolean,
   codeEditorOpen: boolean,
@@ -65,6 +67,8 @@ function selectLayoutState(s: EditorStore): LayoutSelection {
     s.siteExplorerPanelOpen,
     s.selectorsPanelOpen,
     s.colorsPanelOpen,
+    s.typographyPanelOpen,
+    s.spacingPanelOpen,
     s.mediaExplorerPanelOpen,
     s.dependenciesPanelOpen,
     s.codeEditorPanelOpen,
@@ -103,6 +107,8 @@ function layoutFromSelection(
     siteOpen,
     selectorsOpen,
     colorsOpen,
+    typographyOpen,
+    spacingOpen,
     mediaOpen,
     dependenciesOpen,
     codeEditorOpen,
@@ -125,6 +131,8 @@ function layoutFromSelection(
       site: mergePanel(existing?.panels?.site, siteOpen),
       selectors: mergePanel(existing?.panels?.selectors, selectorsOpen),
       colors: mergePanel(existing?.panels?.colors, colorsOpen),
+      typography: mergePanel(existing?.panels?.typography, typographyOpen),
+      spacing: mergePanel(existing?.panels?.spacing, spacingOpen),
       media: mergePanel(existing?.panels?.media, mediaOpen),
       dependencies: mergePanel(existing?.panels?.dependencies, dependenciesOpen),
       codeeditor: mergePanel(existing?.panels?.codeeditor, codeEditorOpen),
@@ -144,13 +152,27 @@ function restoreStoredLayout(layout: StoredEditorLayout) {
     const siteOpen = panelOpen(layout, 'site', state.siteExplorerPanelOpen)
     const selectorsOpen = panelOpen(layout, 'selectors', state.selectorsPanelOpen)
     const colorsOpen = panelOpen(layout, 'colors', state.colorsPanelOpen)
+    const typographyOpen = panelOpen(layout, 'typography', state.typographyPanelOpen)
+    const spacingOpen = panelOpen(layout, 'spacing', state.spacingPanelOpen)
     const mediaOpen = panelOpen(layout, 'media', state.mediaExplorerPanelOpen)
     const dependenciesOpen = panelOpen(layout, 'dependencies', state.dependenciesPanelOpen)
     const agentOpen = panelOpen(layout, 'agent', state.isAgentOpen)
-    let activeLeftPanel: 'site' | 'selectors' | 'colors' | 'media' | 'dependencies' | 'layers' | 'agent' | null = null
+    let activeLeftPanel:
+      | 'site'
+      | 'selectors'
+      | 'colors'
+      | 'typography'
+      | 'spacing'
+      | 'media'
+      | 'dependencies'
+      | 'layers'
+      | 'agent'
+      | null = null
     if (siteOpen) activeLeftPanel = 'site'
     else if (selectorsOpen) activeLeftPanel = 'selectors'
     else if (colorsOpen) activeLeftPanel = 'colors'
+    else if (typographyOpen) activeLeftPanel = 'typography'
+    else if (spacingOpen) activeLeftPanel = 'spacing'
     else if (mediaOpen) activeLeftPanel = 'media'
     else if (dependenciesOpen) activeLeftPanel = 'dependencies'
     else if (domOpen) activeLeftPanel = 'layers'
@@ -177,6 +199,8 @@ function restoreStoredLayout(layout: StoredEditorLayout) {
       siteExplorerPanelOpen: activeLeftPanel === 'site',
       selectorsPanelOpen: activeLeftPanel === 'selectors',
       colorsPanelOpen: activeLeftPanel === 'colors',
+      typographyPanelOpen: activeLeftPanel === 'typography',
+      spacingPanelOpen: activeLeftPanel === 'spacing',
       mediaExplorerPanelOpen: activeLeftPanel === 'media',
       dependenciesPanelOpen: activeLeftPanel === 'dependencies',
       codeEditorPanelOpen: panelOpen(layout, 'codeeditor', state.codeEditorPanelOpen),

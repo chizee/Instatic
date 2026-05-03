@@ -1,7 +1,15 @@
-import { describe, expect, it, beforeEach } from 'bun:test'
+import { describe, expect, it, beforeEach, afterEach } from 'bun:test'
 import { collectAgentRenderSnapshots } from '@core/agent/renderEvidence'
 
 beforeEach(() => {
+  document.body.innerHTML = ''
+})
+
+// Clear DOM after each test too — these tests inject ad-hoc elements directly
+// onto document.body (bypassing React testing-library's render+cleanup), so
+// leftover nodes (e.g. [data-breakpoint-id="mobile"]) would otherwise leak
+// into later suites that querySelector the same attributes.
+afterEach(() => {
   document.body.innerHTML = ''
 })
 

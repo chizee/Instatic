@@ -1,13 +1,13 @@
 import { useState, type KeyboardEvent, type MouseEvent } from 'react'
 import { Button } from '@ui/components/Button'
 import { cn } from '@ui/cn'
-import { BookOpenIcon } from '@ui/icons/icons/book-open'
-import { BookPlusIcon } from '@ui/icons/icons/book-plus'
-import { ExternalLinkIcon } from '@ui/icons/icons/external-link'
-import { FilePlusIcon } from '@ui/icons/icons/file-plus'
-import { FileTextIcon } from '@ui/icons/icons/file-text'
-import { SettingsIcon } from '@ui/icons/icons/settings'
-import { UploadIcon } from '@ui/icons/icons/upload'
+import { BookOpenIcon } from 'pixel-art-icons/icons/book-open'
+import { BookPlusIcon } from 'pixel-art-icons/icons/book-plus'
+import { ExternalLinkIcon } from 'pixel-art-icons/icons/external-link'
+import { FilePlusIcon } from 'pixel-art-icons/icons/file-plus'
+import { FileTextIcon } from 'pixel-art-icons/icons/file-text'
+import { Settings2Icon } from 'pixel-art-icons/icons/settings-2'
+import { UploadIcon } from 'pixel-art-icons/icons/upload'
 import type { ContentCollection, ContentEntry, UpdateContentCollectionInput } from '@core/content/types'
 import { ExplorerItemContextMenu, type ExplorerContextMenuItem } from '@editor/components/ExplorerPanelActions'
 import explorerStyles from '@editor/components/SiteExplorerPanel/SiteExplorerPanel.module.css'
@@ -107,7 +107,7 @@ export function ContentExplorerPanel({
     if (target.kind === 'collection') {
       return [{
         label: 'Collection settings',
-        icon: <SettingsIcon size={13} />,
+        icon: <Settings2Icon size={13} />,
         action: () => {
           setSettingsTarget(target.collection)
           setContextMenu(null)
@@ -207,7 +207,7 @@ export function ContentExplorerPanel({
                 iconOnly
                 onClick={onCreateCollection}
                 aria-label="New collection"
-                title="New collection"
+                tooltip="New collection"
               >
                 <BookPlusIcon size={13} aria-hidden="true" />
               </Button>
@@ -246,7 +246,7 @@ export function ContentExplorerPanel({
                 onClick={onCreateEntry}
                 disabled={!selectedCollectionId}
                 aria-label={newEntryLabel}
-                title={newEntryLabel}
+                tooltip={newEntryLabel}
               >
                 <FilePlusIcon size={13} aria-hidden="true" />
               </Button>

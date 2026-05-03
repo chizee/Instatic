@@ -94,7 +94,7 @@ describe('CMS dynamic template routes', () => {
 
     expect(res.status).toBe(200)
     expect(res.headers.get('content-type')).toContain('text/html')
-    expect(html).toContain('<h1 class="pb-text">Dynamic Post</h1>')
+    expect(html).toContain('<h1>Dynamic Post</h1>')
     expect(html).not.toContain('Static title')
   })
 

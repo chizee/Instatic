@@ -180,7 +180,7 @@ export function PagesSection() {
                       onClick={site.pages.length <= 1 ? undefined : () => setConfirmDeleteId(page.id)}
                       aria-disabled={site.pages.length <= 1 ? 'true' : undefined}
                       aria-label={`Delete page ${page.title}`}
-                      title={site.pages.length <= 1 ? 'Cannot delete the last page' : undefined}
+                      tooltip={site.pages.length <= 1 ? 'Cannot delete the last page' : undefined}
                     >
                       Delete
                     </Button>

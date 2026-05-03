@@ -1,3 +1,6 @@
+import { renderContentMarkdownToHtml } from '@core/markdown/renderContentMarkdown'
+import { escapeHtml, safeUrl } from '@core/publisher/utils'
+
 interface RenderContentDocumentInput {
   title: string
   bodyMarkdown: string
@@ -6,87 +9,11 @@ interface RenderContentDocumentInput {
   featuredMediaPath: string | null
 }
 
-const HEADING_RE = /^(#{1,6})\s+(.+)$/
-const IMAGE_RE = /^!\[([^\]]*)\]\(([^)]+)\)$/
-const VIDEO_RE = /^@\[video\]\(([^)]+)\)$/
-const LINK_RE = /\[([^\]]+)\]\(([^)]+)\)/g
-
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;')
-}
-
-function safeUrl(value: string): string {
-  const trimmed = value.trim()
-  if (/^(https?:|mailto:)/i.test(trimmed) || trimmed.startsWith('/')) {
-    return escapeHtml(trimmed)
-  }
-  return '#'
-}
-
-function renderInlineMarkdown(value: string): string {
-  return escapeHtml(value).replace(LINK_RE, (_match, label: string, href: string) => {
-    const safeHref = safeUrl(href)
-    const safeLabel = escapeHtml(label)
-    return `<a href="${safeHref}" target="_blank" rel="noopener noreferrer">${safeLabel}</a>`
-  })
-}
-
-function renderContentMarkdown(markdown: string): string {
-  const blocks: string[] = []
-  const paragraphLines: string[] = []
-
-  function flushParagraph() {
-    if (paragraphLines.length === 0) return
-    blocks.push(`<p>${renderInlineMarkdown(paragraphLines.join(' '))}</p>`)
-    paragraphLines.length = 0
-  }
-
-  for (const rawLine of markdown.split(/\r?\n/)) {
-    const line = rawLine.trim()
-    if (!line) {
-      flushParagraph()
-      continue
-    }
-
-    const image = line.match(IMAGE_RE)
-    if (image) {
-      flushParagraph()
-      blocks.push(`<img src="${safeUrl(image[2])}" alt="${escapeHtml(image[1])}" loading="lazy">`)
-      continue
-    }
-
-    const video = line.match(VIDEO_RE)
-    if (video) {
-      flushParagraph()
-      blocks.push(`<video controls src="${safeUrl(video[1])}"></video>`)
-      continue
-    }
-
-    const heading = line.match(HEADING_RE)
-    if (heading) {
-      flushParagraph()
-      const level = heading[1].length
-      blocks.push(`<h${level}>${renderInlineMarkdown(heading[2])}</h${level}>`)
-      continue
-    }
-
-    paragraphLines.push(line)
-  }
-
-  flushParagraph()
-  return blocks.join('\n')
-}
-
 export function renderContentDocumentHtml(input: RenderContentDocumentInput): string {
   const title = escapeHtml(input.title || 'Untitled')
   const seoTitle = escapeHtml(input.seoTitle || input.title || 'Untitled')
   const seoDescription = escapeHtml(input.seoDescription || '')
-  const bodyHtml = renderContentMarkdown(input.bodyMarkdown)
+  const bodyHtml = renderContentMarkdownToHtml(input.bodyMarkdown)
   const featuredMedia = input.featuredMediaPath
     ? `<img class="featured-media" src="${safeUrl(input.featuredMediaPath)}" alt="" loading="lazy">`
     : ''

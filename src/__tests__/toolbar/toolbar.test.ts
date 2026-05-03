@@ -3,7 +3,10 @@
  *
  * Tests focus on:
  *   1. UndoRedoButtons — WCAG aria-disabled pattern (Guideline #224),
- *      keyboard shortcut handler registration.
+ *      keyboard shortcut handler registration. The component lives in the
+ *      canvas notch (src/editor/components/Canvas/UndoRedoButtons.tsx) so
+ *      Undo/Redo only appears on the visual editor, not on Content / Plugins
+ *      admin pages.
  *   2. ZoomControls — zoom percentage rendering, correct store subscriptions.
  *   3. SaveIndicator — correct "Saved" / "Unsaved changes" state display.
  *   4. ModulePickerDropdown — search filter pure logic.
@@ -66,7 +69,7 @@ describe('UndoRedoButtons — WCAG aria-disabled pattern (Guideline #224)', () =
     // We assert this by checking the toolbar source uses aria-disabled, not disabled.
     const { readFileSync } = require('fs')
     const src = readFileSync(
-      new URL('../../editor/components/Toolbar/UndoRedoButtons.tsx', import.meta.url),
+      new URL('../../editor/components/Canvas/UndoRedoButtons.tsx', import.meta.url),
       'utf-8',
     )
     // Must use aria-disabled for the disabled state (Guideline #224)
@@ -82,7 +85,7 @@ describe('UndoRedoButtons — WCAG aria-disabled pattern (Guideline #224)', () =
   it('aria-keyshortcuts attributes are present for screen readers', () => {
     const { readFileSync } = require('fs')
     const src = readFileSync(
-      new URL('../../editor/components/Toolbar/UndoRedoButtons.tsx', import.meta.url),
+      new URL('../../editor/components/Canvas/UndoRedoButtons.tsx', import.meta.url),
       'utf-8',
     )
     expect(src).toContain('aria-keyshortcuts="Meta+Z"')
@@ -92,7 +95,7 @@ describe('UndoRedoButtons — WCAG aria-disabled pattern (Guideline #224)', () =
   it('keyboard shortcut handler guards against text input targets', () => {
     const { readFileSync } = require('fs')
     const src = readFileSync(
-      new URL('../../editor/components/Toolbar/UndoRedoButtons.tsx', import.meta.url),
+      new URL('../../editor/components/Canvas/UndoRedoButtons.tsx', import.meta.url),
       'utf-8',
     )
     // Shortcuts must not fire inside inputs (would break text editing)
@@ -104,7 +107,7 @@ describe('UndoRedoButtons — WCAG aria-disabled pattern (Guideline #224)', () =
   it('keyboard handler registers on document (global scope, not canvas-local)', () => {
     const { readFileSync } = require('fs')
     const src = readFileSync(
-      new URL('../../editor/components/Toolbar/UndoRedoButtons.tsx', import.meta.url),
+      new URL('../../editor/components/Canvas/UndoRedoButtons.tsx', import.meta.url),
       'utf-8',
     )
     expect(src).toContain('document.addEventListener')
@@ -114,7 +117,7 @@ describe('UndoRedoButtons — WCAG aria-disabled pattern (Guideline #224)', () =
   it('handler supports both Cmd+Z (undo) and Cmd+Shift+Z / Cmd+Y (redo)', () => {
     const { readFileSync } = require('fs')
     const src = readFileSync(
-      new URL('../../editor/components/Toolbar/UndoRedoButtons.tsx', import.meta.url),
+      new URL('../../editor/components/Canvas/UndoRedoButtons.tsx', import.meta.url),
       'utf-8',
     )
     expect(src).toContain("e.key === 'z' && !e.shiftKey")
@@ -406,15 +409,14 @@ describe('Toolbar — structural requirements', () => {
       new URL('../../editor/components/Toolbar/Toolbar.tsx', import.meta.url),
       'utf-8',
     )
-    expect(src).toContain('UndoRedoButtons')
+    // Undo/Redo lives in the canvas notch, not the toolbar — verified separately.
+    expect(src).not.toContain('UndoRedoButtons')
     expect(src).toContain('ZoomControls')
     expect(src).not.toContain('ModulePickerDropdown')
     expect(src).toContain('PublishButton')
     expect(src).not.toContain('ExportButton')
     expect(src).toContain('SettingsButton')
     expect(src).not.toContain('SaveIndicator')
-    expect(src).not.toContain('OpenPageInNewTabButton')
-    expect(src).not.toContain('PreviewButton')
     expect(src).toContain('saveStatus={saveStatus}')
   })
 
@@ -459,10 +461,10 @@ describe('Toolbar — structural requirements', () => {
     const { readFileSync } = require('fs')
     // UndoRedo testids
     const undoSrc = readFileSync(
-      new URL('../../editor/components/Toolbar/UndoRedoButtons.tsx', import.meta.url), 'utf-8',
+      new URL('../../editor/components/Canvas/UndoRedoButtons.tsx', import.meta.url), 'utf-8',
     )
-    expect(undoSrc).toContain('data-testid="toolbar-undo-btn"')
-    expect(undoSrc).toContain('data-testid="toolbar-redo-btn"')
+    expect(undoSrc).toContain('data-testid="canvas-notch-undo-btn"')
+    expect(undoSrc).toContain('data-testid="canvas-notch-redo-btn"')
 
     // ZoomControls testid
     const zoomSrc = readFileSync(
@@ -584,13 +586,14 @@ describe('Toolbar — structural requirements', () => {
     expect(src).toContain('publishEnabled')
   })
 
-  it('touch targets: all toolbar buttons have a defined height (compact density per Guideline #357)', () => {
+  it('touch targets: all toolbar buttons have a defined compact height (Guideline #357)', () => {
     // Guideline #357 (user directive #1532): WCAG 2.5.5 44px touch target requirement
-    // is explicitly waived for editor chrome. Toolbar controls now target 28px (h-7).
-    // Pattern accepts: h-7/h-8 (Tailwind compact) OR legacy 44px forms (minHeight/min-h) OR
-    // CSS module height: 28px (post-Task #399 migration — height moved to Toolbar.module.css).
+    // is explicitly waived for editor chrome. Toolbar controls target 28px (h-7).
+    // Pattern accepts: h-7/h-8 Tailwind classes OR a 24–29px height value declared in
+    // the shared Toolbar.module.css (post-Task #399 — height moved to CSS module).
+    // UndoRedoButtons lives in the canvas notch and uses the notch chrome
+    // styling, not the toolbar shared CSS — covered by canvasNotch.test.ts.
     const files = [
-      'UndoRedoButtons.tsx',
       'ZoomControls.tsx',
       'PublishButton.tsx',
       'PublishActionGroup.tsx',
@@ -605,10 +608,9 @@ describe('Toolbar — structural requirements', () => {
         new URL(`../../editor/components/Toolbar/${file}`, import.meta.url),
         'utf-8',
       )
-      // Combine TSX source + shared CSS so both Tailwind classes and CSS module height are found
       const src = tsx + '\n' + sharedCss
-      // Accept compact (h-7, h-8, height: 28) OR legacy 44px forms
-      const hasHeight = /h-7|h-8|height:\s*2[4-9]|minHeight:\s*\d+|min-h-\[\d+px\]/.test(src)
+      // Compact only — h-7/h-8 Tailwind utility OR 24–29px height in the CSS module.
+      const hasHeight = /h-7|h-8|height:\s*2[4-9]/.test(src)
       expect(hasHeight).toBe(true)
     }
   })

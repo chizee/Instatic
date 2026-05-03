@@ -36,6 +36,7 @@ import {
   updateContentEntryStatus,
 } from './contentRepository'
 import { normalizeContentCollectionFields } from '@core/content/fields'
+import { slugFromTitle } from '@core/utils/slug'
 import {
   createMediaAsset,
   deleteMediaAsset,
@@ -120,16 +121,6 @@ function readNullableString(body: Record<string, unknown>, key: string): string 
   return typeof value === 'string' && value.trim() ? value.trim() : null
 }
 
-function slugify(input: string): string {
-  return input
-    .trim()
-    .toLowerCase()
-    .replace(/['"]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    || 'untitled'
-}
-
 function sessionCookie(token: string, expires: Date): string {
   return `${SESSION_COOKIE_NAME}=${token}; Path=/; Expires=${expires.toUTCString()}; HttpOnly; SameSite=Lax`
 }
@@ -148,13 +139,23 @@ async function getSessionHash(req: Request): Promise<string> {
   return token ? hashSessionToken(token) : ''
 }
 
-async function getAuthenticatedAdmin(
+/**
+ * Resolve the admin user attached to the request session, or return a 401
+ * response. Call sites do:
+ *
+ *   const admin = await requireAdmin(req, db)
+ *   if (admin instanceof Response) return admin
+ *
+ * which narrows `admin` to `AdminUserRow` for the rest of the handler.
+ */
+async function requireAdmin(
   req: Request,
   db: DbClient,
-): Promise<AdminUserRow | null> {
+): Promise<AdminUserRow | Response> {
   const idHash = await getSessionHash(req)
-  if (!idHash) return null
-  return findAdminBySessionHash(db, idHash)
+  const admin = idHash ? await findAdminBySessionHash(db, idHash) : null
+  if (!admin) return jsonResponse({ error: 'Unauthorized' }, { status: 401 })
+  return admin
 }
 
 function isAcceptedMediaType(mimeType: string): boolean {
@@ -395,8 +396,8 @@ export async function handleCmsRequest(
   }
 
   if (url.pathname === '/api/cms/site') {
-    const admin = await getAuthenticatedAdmin(req, db)
-    if (!admin) return jsonResponse({ error: 'Unauthorized' }, { status: 401 })
+    const admin = await requireAdmin(req, db)
+    if (admin instanceof Response) return admin
 
     if (req.method === 'GET') {
       const site = await loadDraftSite(db)
@@ -420,8 +421,8 @@ export async function handleCmsRequest(
   }
 
   if (url.pathname === '/api/cms/runtime/dependencies/resolve') {
-    const admin = await getAuthenticatedAdmin(req, db)
-    if (!admin) return jsonResponse({ error: 'Unauthorized' }, { status: 401 })
+    const admin = await requireAdmin(req, db)
+    if (admin instanceof Response) return admin
     if (req.method !== 'POST') return methodNotAllowed()
 
     const body = await readJsonObject(req)
@@ -435,8 +436,8 @@ export async function handleCmsRequest(
   }
 
   if (url.pathname === '/api/cms/runtime/preview') {
-    const admin = await getAuthenticatedAdmin(req, db)
-    if (!admin) return jsonResponse({ error: 'Unauthorized' }, { status: 401 })
+    const admin = await requireAdmin(req, db)
+    if (admin instanceof Response) return admin
     if (req.method !== 'POST') return methodNotAllowed()
 
     const body = await readJsonObject(req)
@@ -482,8 +483,8 @@ export async function handleCmsRequest(
   }
 
   if (url.pathname === '/api/cms/media') {
-    const admin = await getAuthenticatedAdmin(req, db)
-    if (!admin) return jsonResponse({ error: 'Unauthorized' }, { status: 401 })
+    const admin = await requireAdmin(req, db)
+    if (admin instanceof Response) return admin
 
     if (req.method === 'GET') {
       return jsonResponse({ assets: await listMediaAssets(db) })
@@ -525,8 +526,8 @@ export async function handleCmsRequest(
 
   const mediaItemMatch = url.pathname.match(/^\/api\/cms\/media\/([^/]+)$/)
   if (mediaItemMatch) {
-    const admin = await getAuthenticatedAdmin(req, db)
-    if (!admin) return jsonResponse({ error: 'Unauthorized' }, { status: 401 })
+    const admin = await requireAdmin(req, db)
+    if (admin instanceof Response) return admin
 
     const assetId = decodeURIComponent(mediaItemMatch[1])
 
@@ -556,8 +557,8 @@ export async function handleCmsRequest(
   }
 
   if (url.pathname === '/api/cms/plugins') {
-    const admin = await getAuthenticatedAdmin(req, db)
-    if (!admin) return jsonResponse({ error: 'Unauthorized' }, { status: 401 })
+    const admin = await requireAdmin(req, db)
+    if (admin instanceof Response) return admin
 
     if (req.method === 'GET') {
       return jsonResponse(await pluginsPayload(db))
@@ -582,8 +583,8 @@ export async function handleCmsRequest(
   }
 
   if (url.pathname === '/api/cms/plugins/inspect-package') {
-    const admin = await getAuthenticatedAdmin(req, db)
-    if (!admin) return jsonResponse({ error: 'Unauthorized' }, { status: 401 })
+    const admin = await requireAdmin(req, db)
+    if (admin instanceof Response) return admin
     if (req.method !== 'POST') return methodNotAllowed()
 
     const { file } = await readPluginPackageForm(req)
@@ -597,8 +598,8 @@ export async function handleCmsRequest(
   }
 
   if (url.pathname === '/api/cms/plugins/package') {
-    const admin = await getAuthenticatedAdmin(req, db)
-    if (!admin) return jsonResponse({ error: 'Unauthorized' }, { status: 401 })
+    const admin = await requireAdmin(req, db)
+    if (admin instanceof Response) return admin
     if (req.method !== 'POST') return methodNotAllowed()
     if (!options.uploadsDir) return jsonResponse({ error: 'Uploads directory is not configured' }, { status: 500 })
 
@@ -632,8 +633,8 @@ export async function handleCmsRequest(
 
   const pluginItemMatch = url.pathname.match(/^\/api\/cms\/plugins\/([^/]+)$/)
   if (pluginItemMatch) {
-    const admin = await getAuthenticatedAdmin(req, db)
-    if (!admin) return jsonResponse({ error: 'Unauthorized' }, { status: 401 })
+    const admin = await requireAdmin(req, db)
+    if (admin instanceof Response) return admin
 
     const pluginId = decodeURIComponent(pluginItemMatch[1])
 
@@ -681,8 +682,8 @@ export async function handleCmsRequest(
 
   const pluginRecordsMatch = url.pathname.match(/^\/api\/cms\/plugins\/([^/]+)\/resources\/([^/]+)\/records$/)
   if (pluginRecordsMatch) {
-    const admin = await getAuthenticatedAdmin(req, db)
-    if (!admin) return jsonResponse({ error: 'Unauthorized' }, { status: 401 })
+    const admin = await requireAdmin(req, db)
+    if (admin instanceof Response) return admin
 
     const pluginId = decodeURIComponent(pluginRecordsMatch[1])
     const resourceId = decodeURIComponent(pluginRecordsMatch[2])
@@ -717,16 +718,16 @@ export async function handleCmsRequest(
 
   const pluginRuntimeMatch = url.pathname.match(/^\/api\/cms\/plugins\/([^/]+)\/runtime(?:\/.*)?$/)
   if (pluginRuntimeMatch) {
-    const admin = await getAuthenticatedAdmin(req, db)
-    if (!admin) return jsonResponse({ error: 'Unauthorized' }, { status: 401 })
+    const admin = await requireAdmin(req, db)
+    if (admin instanceof Response) return admin
     return await handleServerPluginRuntimeRequest(req, db)
       ?? jsonResponse({ error: 'Plugin route not found' }, { status: 404 })
   }
 
   const pluginRecordItemMatch = url.pathname.match(/^\/api\/cms\/plugins\/([^/]+)\/resources\/([^/]+)\/records\/([^/]+)$/)
   if (pluginRecordItemMatch) {
-    const admin = await getAuthenticatedAdmin(req, db)
-    if (!admin) return jsonResponse({ error: 'Unauthorized' }, { status: 401 })
+    const admin = await requireAdmin(req, db)
+    if (admin instanceof Response) return admin
 
     const pluginId = decodeURIComponent(pluginRecordItemMatch[1])
     const resourceId = decodeURIComponent(pluginRecordItemMatch[2])
@@ -765,8 +766,8 @@ export async function handleCmsRequest(
   }
 
   if (url.pathname === '/api/cms/content/collections') {
-    const admin = await getAuthenticatedAdmin(req, db)
-    if (!admin) return jsonResponse({ error: 'Unauthorized' }, { status: 401 })
+    const admin = await requireAdmin(req, db)
+    if (admin instanceof Response) return admin
 
     if (req.method === 'GET') {
       return jsonResponse({ collections: await listContentCollections(db) })
@@ -779,7 +780,7 @@ export async function handleCmsRequest(
 
       const singularLabel = readString(body, 'singularLabel') || name.replace(/s$/i, '') || name
       const pluralLabel = readString(body, 'pluralLabel') || name
-      const slug = slugify(readString(body, 'slug') || pluralLabel)
+      const slug = slugFromTitle(readString(body, 'slug') || pluralLabel)
       const routeBase = readString(body, 'routeBase') || slug
       const collection = await createContentCollection(db, {
         name,
@@ -797,8 +798,8 @@ export async function handleCmsRequest(
 
   const collectionItemMatch = url.pathname.match(/^\/api\/cms\/content\/collections\/([^/]+)$/)
   if (collectionItemMatch) {
-    const admin = await getAuthenticatedAdmin(req, db)
-    if (!admin) return jsonResponse({ error: 'Unauthorized' }, { status: 401 })
+    const admin = await requireAdmin(req, db)
+    if (admin instanceof Response) return admin
 
     const collectionId = decodeURIComponent(collectionItemMatch[1])
     if (req.method === 'PATCH') {
@@ -811,7 +812,7 @@ export async function handleCmsRequest(
         update.name = name
       }
       if ('slug' in body) {
-        const slug = slugify(readString(body, 'slug'))
+        const slug = slugFromTitle(readString(body, 'slug'))
         if (!slug) return badRequest('Collection slug is required')
         update.slug = slug
       }
@@ -851,8 +852,8 @@ export async function handleCmsRequest(
 
   const collectionEntriesMatch = url.pathname.match(/^\/api\/cms\/content\/collections\/([^/]+)\/entries$/)
   if (collectionEntriesMatch) {
-    const admin = await getAuthenticatedAdmin(req, db)
-    if (!admin) return jsonResponse({ error: 'Unauthorized' }, { status: 401 })
+    const admin = await requireAdmin(req, db)
+    if (admin instanceof Response) return admin
 
     const collectionId = decodeURIComponent(collectionEntriesMatch[1])
     if (req.method === 'GET') {
@@ -865,7 +866,7 @@ export async function handleCmsRequest(
       const entry = await createContentEntry(db, {
         collectionId,
         title,
-        slug: slugify(readString(body, 'slug') || title),
+        slug: slugFromTitle(readString(body, 'slug') || title),
         bodyMarkdown: readString(body, 'bodyMarkdown'),
         featuredMediaId: readNullableString(body, 'featuredMediaId'),
         seoTitle: readString(body, 'seoTitle'),
@@ -879,8 +880,8 @@ export async function handleCmsRequest(
 
   const contentEntryMatch = url.pathname.match(/^\/api\/cms\/content\/entries\/([^/]+)$/)
   if (contentEntryMatch) {
-    const admin = await getAuthenticatedAdmin(req, db)
-    if (!admin) return jsonResponse({ error: 'Unauthorized' }, { status: 401 })
+    const admin = await requireAdmin(req, db)
+    if (admin instanceof Response) return admin
 
     const entryId = decodeURIComponent(contentEntryMatch[1])
     if (req.method === 'GET') {
@@ -894,7 +895,7 @@ export async function handleCmsRequest(
       const title = readString(body, 'title') || 'Untitled'
       const entry = await saveContentEntryDraft(db, entryId, {
         title,
-        slug: slugify(readString(body, 'slug') || title),
+        slug: slugFromTitle(readString(body, 'slug') || title),
         bodyMarkdown: readString(body, 'bodyMarkdown'),
         featuredMediaId: readNullableString(body, 'featuredMediaId'),
         seoTitle: readString(body, 'seoTitle'),
@@ -915,8 +916,8 @@ export async function handleCmsRequest(
 
   const publishContentEntryMatch = url.pathname.match(/^\/api\/cms\/content\/entries\/([^/]+)\/publish$/)
   if (publishContentEntryMatch) {
-    const admin = await getAuthenticatedAdmin(req, db)
-    if (!admin) return jsonResponse({ error: 'Unauthorized' }, { status: 401 })
+    const admin = await requireAdmin(req, db)
+    if (admin instanceof Response) return admin
     if (req.method !== 'POST') return methodNotAllowed()
 
     const entryId = decodeURIComponent(publishContentEntryMatch[1])
@@ -925,8 +926,8 @@ export async function handleCmsRequest(
 
   const contentEntryStatusMatch = url.pathname.match(/^\/api\/cms\/content\/entries\/([^/]+)\/status$/)
   if (contentEntryStatusMatch) {
-    const admin = await getAuthenticatedAdmin(req, db)
-    if (!admin) return jsonResponse({ error: 'Unauthorized' }, { status: 401 })
+    const admin = await requireAdmin(req, db)
+    if (admin instanceof Response) return admin
     if (req.method !== 'PATCH') return methodNotAllowed()
 
     const body = await readJsonObject(req)
@@ -943,8 +944,8 @@ export async function handleCmsRequest(
 
   const contentEntryCollectionMatch = url.pathname.match(/^\/api\/cms\/content\/entries\/([^/]+)\/collection$/)
   if (contentEntryCollectionMatch) {
-    const admin = await getAuthenticatedAdmin(req, db)
-    if (!admin) return jsonResponse({ error: 'Unauthorized' }, { status: 401 })
+    const admin = await requireAdmin(req, db)
+    if (admin instanceof Response) return admin
     if (req.method !== 'PATCH') return methodNotAllowed()
 
     const body = await readJsonObject(req)
@@ -964,16 +965,16 @@ export async function handleCmsRequest(
   }
 
   if (url.pathname === '/api/cms/publish') {
-    const admin = await getAuthenticatedAdmin(req, db)
-    if (!admin) return jsonResponse({ error: 'Unauthorized' }, { status: 401 })
+    const admin = await requireAdmin(req, db)
+    if (admin instanceof Response) return admin
     if (req.method !== 'POST') return methodNotAllowed()
 
     return jsonResponse(await publishDraftSite(db, admin.id))
   }
 
   if (url.pathname === '/api/cms/publish/status') {
-    const admin = await getAuthenticatedAdmin(req, db)
-    if (!admin) return jsonResponse({ error: 'Unauthorized' }, { status: 401 })
+    const admin = await requireAdmin(req, db)
+    if (admin instanceof Response) return admin
     if (req.method !== 'GET') return methodNotAllowed()
 
     return jsonResponse(await getDraftPublishStatus(db))

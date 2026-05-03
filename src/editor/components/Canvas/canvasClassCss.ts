@@ -1,16 +1,33 @@
 import { bagToCSS } from '@core/publisher/classCss'
 import { generateFrameworkColorRootCss } from '@core/framework/colors'
+import { generateFrameworkTypographyRootCss } from '@core/framework/typography'
+import { generateFrameworkSpacingRootCss } from '@core/framework/spacing'
+import { resolveFrameworkPreferences } from '@core/framework/preferences'
 import { cssClassSelector } from '@core/page-tree/classNames'
-import type { CSSClass, FrameworkColorSettings } from '@core/page-tree/types'
+import type {
+  CSSClass,
+  FrameworkColorSettings,
+  FrameworkPreferencesSettings,
+  FrameworkSpacingSettings,
+  FrameworkTypographySettings,
+} from '@core/page-tree/types'
 
 export function generateCanvasClassCSS(
   classes: Record<string, CSSClass>,
   breakpoints: Array<{ id: string; width: number }>,
   frameworkColors?: FrameworkColorSettings | null,
+  frameworkTypography?: FrameworkTypographySettings | null,
+  frameworkSpacing?: FrameworkSpacingSettings | null,
+  frameworkPreferences?: FrameworkPreferencesSettings | null,
 ): string {
   const blocks: string[] = []
+  const preferences = resolveFrameworkPreferences(frameworkPreferences)
   const frameworkColorCss = generateFrameworkColorRootCss(frameworkColors)
   if (frameworkColorCss) blocks.push(frameworkColorCss)
+  const frameworkTypographyCss = generateFrameworkTypographyRootCss(frameworkTypography, preferences)
+  if (frameworkTypographyCss) blocks.push(frameworkTypographyCss)
+  const frameworkSpacingCss = generateFrameworkSpacingRootCss(frameworkSpacing, preferences)
+  if (frameworkSpacingCss) blocks.push(frameworkSpacingCss)
 
   for (const cls of Object.values(classes)) {
     const baseDecls = bagToCSS(cls.styles)

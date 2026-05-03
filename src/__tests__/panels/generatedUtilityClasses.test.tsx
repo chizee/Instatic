@@ -102,6 +102,24 @@ describe('generated utility classes in editor panels', () => {
     expect(within(panel).queryByRole('searchbox', { name: /search class style properties to add/i })).toBeNull()
   })
 
+  it('shows the locked state when a generated utility is opened from the selectors panel', () => {
+    // Reproduces the regression where clicking a utility class in the
+    // SelectorsPanel routes through `SelectorInspector` and previously
+    // rendered an editable ClassComposer instead of the locked state.
+    useEditorStore.setState({
+      selectedNodeId: null,
+      activeClassId: GENERATED_CLASS_ID,
+      selectedSelectorClassId: GENERATED_CLASS_ID,
+    } as Parameters<typeof useEditorStore.setState>[0])
+
+    render(<PropertiesPanel variant="docked" />)
+
+    const panel = screen.getByTestId('properties-panel')
+    expect(within(panel).getByText('Generated utility')).toBeDefined()
+    expect(within(panel).getByText(/managed by the framework color settings/i)).toBeDefined()
+    expect(within(panel).queryByRole('searchbox', { name: /search class style properties to add/i })).toBeNull()
+  })
+
   it('marks generated utilities in the selectors panel and disables editing actions', () => {
     useEditorStore.setState({
       selectorsPanelOpen: true,

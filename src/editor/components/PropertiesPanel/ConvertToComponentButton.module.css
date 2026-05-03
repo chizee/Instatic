@@ -1,0 +1,40 @@
+/**
+ * ConvertToComponentButton — inline strip for converting a page node to a Visual Component.
+ *
+ * Achromatic palette (Guideline #376). CSS Modules only (Constraint #402/#403).
+ * Token-only colours — no hardcoded hex/rgb/hsl.
+ */
+
+/* ── Outer wrapper ────────────────────────────────────────────────────────── */
+
+.root {
+  padding: 8px 12px 4px;
+}
+
+/* ── Editing strip ────────────────────────────────────────────────────────── */
+
+.editingStrip {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.inputRow {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+/* Input takes all remaining width */
+.inputRow > :first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ── Error alert ──────────────────────────────────────────────────────────── */
+
+.errorAlert {
+  font-size: 10px;
+  color: var(--editor-danger-text);
+  line-height: 1.4;
+}

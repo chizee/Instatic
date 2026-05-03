@@ -87,6 +87,17 @@ function loadSiteWithSelectors() {
         }),
         'cta-button': makeClass('cta-button', 'cta-button', { padding: '12px' }),
         'unused-card': makeClass('unused-card', 'unused-card'),
+        'text-m': makeClass('text-m', 'text-m', { fontSize: '16px' }, {
+          generated: {
+            origin: 'framework',
+            family: 'typography',
+            sourceId: 'group-1',
+            generatorId: 'gen-1',
+            tokenName: 'text',
+            step: 'm',
+            locked: true,
+          },
+        }),
         'internal-style': makeClass('internal-style', 'Text instance text-1', { color: '#333' }, {
           scope: { type: 'node', nodeId: 'text-1', role: 'module-style' },
           tags: ['module-instance'],
@@ -109,6 +120,7 @@ describe('selectorUsage helpers', () => {
       'hero-title',
       'cta-button',
       'unused-card',
+      'text-m',
     ])
     expect(getSelectorUsage(state.site, 'hero-title')).toBe(2)
     expect(getSelectorUsage(state.site, 'unused-card')).toBe(0)
@@ -134,12 +146,72 @@ describe('SelectorsPanel', () => {
     expect(within(panel).getByRole('button', { name: /edit selector \.hero-title/i })).toBeDefined()
     expect(within(panel).getByRole('button', { name: /edit selector \.cta-button/i })).toBeDefined()
     expect(within(panel).getByRole('button', { name: /edit selector \.unused-card/i })).toBeDefined()
+    expect(within(panel).getByRole('button', { name: /edit selector \.text-m/i })).toBeDefined()
     expect(within(panel).getByText('.hero-title')).toBeDefined()
     expect(within(panel).getByText('.cta-button')).toBeDefined()
     expect(within(panel).getByText('.unused-card')).toBeDefined()
     expect(within(panel).queryByText('Text instance text-1')).toBeNull()
     expect(within(panel).getByText('Used 2 times')).toBeDefined()
     expect(within(panel).getByText('2 props · 1 breakpoint')).toBeDefined()
+  })
+
+  it('filters selectors by All / User / Utility', () => {
+    loadSiteWithSelectors()
+    render(<SelectorsPanel variant="docked" />)
+
+    const panel = screen.getByTestId('selectors-panel')
+    const filterGroup = within(panel).getByRole('group', { name: /selector type/i })
+    const allButton = within(filterGroup).getByRole('button', { name: /^all$/i })
+    const userButton = within(filterGroup).getByRole('button', { name: /^user$/i })
+    const utilityButton = within(filterGroup).getByRole('button', { name: /^utility$/i })
+
+    expect(allButton.getAttribute('aria-pressed')).toBe('true')
+    expect(within(panel).getByRole('button', { name: /edit selector \.hero-title/i })).toBeDefined()
+    expect(within(panel).getByRole('button', { name: /edit selector \.text-m/i })).toBeDefined()
+
+    fireEvent.click(userButton)
+    expect(within(panel).getByRole('button', { name: /edit selector \.hero-title/i })).toBeDefined()
+    expect(within(panel).getByRole('button', { name: /edit selector \.cta-button/i })).toBeDefined()
+    expect(within(panel).getByRole('button', { name: /edit selector \.unused-card/i })).toBeDefined()
+    expect(within(panel).queryByRole('button', { name: /edit selector \.text-m/i })).toBeNull()
+
+    fireEvent.click(utilityButton)
+    expect(within(panel).getByRole('button', { name: /edit selector \.text-m/i })).toBeDefined()
+    expect(within(panel).queryByRole('button', { name: /edit selector \.hero-title/i })).toBeNull()
+    expect(within(panel).queryByRole('button', { name: /edit selector \.cta-button/i })).toBeNull()
+    expect(within(panel).queryByRole('button', { name: /edit selector \.unused-card/i })).toBeNull()
+
+    fireEvent.click(allButton)
+    expect(within(panel).getByRole('button', { name: /edit selector \.hero-title/i })).toBeDefined()
+    expect(within(panel).getByRole('button', { name: /edit selector \.text-m/i })).toBeDefined()
+  })
+
+  it('combines the User filter with the search query', () => {
+    loadSiteWithSelectors()
+    render(<SelectorsPanel variant="docked" />)
+
+    const panel = screen.getByTestId('selectors-panel')
+    fireEvent.click(within(panel).getByRole('button', { name: /^user$/i }))
+    fireEvent.change(within(panel).getByRole('searchbox', { name: /search selectors/i }), {
+      target: { value: 'cta' },
+    })
+
+    expect(within(panel).getByRole('button', { name: /edit selector \.cta-button/i })).toBeDefined()
+    expect(within(panel).queryByRole('button', { name: /edit selector \.hero-title/i })).toBeNull()
+    expect(within(panel).queryByRole('button', { name: /edit selector \.text-m/i })).toBeNull()
+  })
+
+  it('shows an empty utility message when no utility classes exist', () => {
+    loadSiteWithSelectors()
+    const { 'text-m': _utility, ...rest } = useEditorStore.getState().site!.classes
+    void _utility
+    useEditorStore.setState({
+      site: makeSite({ pages: useEditorStore.getState().site!.pages, classes: rest }),
+    } as Parameters<typeof useEditorStore.setState>[0])
+
+    render(<SelectorsPanel variant="docked" />)
+    fireEvent.click(screen.getByRole('button', { name: /^utility$/i }))
+    expect(screen.getByText(/no utility selectors yet/i)).toBeDefined()
   })
 
   it('shows empty and search-empty states', () => {

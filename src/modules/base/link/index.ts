@@ -1,20 +1,20 @@
 /**
  * base.link — anchor element.
+ *
+ * Emits a bare `<a>` with no default class or default CSS.
+ * Visual styling is opt-in via user classes (mcClassName / multi-class system).
  */
 import React from 'react'
 import { type ModuleDefinition, type ModuleComponentProps } from '@core/module-engine/types'
 import { registry } from '@core/module-engine/registry'
+import { LinkIcon } from 'pixel-art-icons/icons/link'
 import { safeUrl } from '../utils/escape'
-import styles from './link.module.css'
-import { cn } from '@ui/cn'
 
 interface LinkProps extends Record<string, unknown> {
   href: string
   text: string
   target: '_blank' | '_self' | '_parent'
 }
-
-const MODULE_CLASS = 'pb-link'
 
 const LinkEditor: React.FC<ModuleComponentProps<LinkProps>> = ({ props, children, mcClassName }) => {
   const rel = props.target === '_blank' ? 'noopener noreferrer' : undefined
@@ -24,7 +24,7 @@ const LinkEditor: React.FC<ModuleComponentProps<LinkProps>> = ({ props, children
       href: props.href || '#',
       target: props.target,
       rel,
-      className: cn(styles.link, mcClassName),
+      className: mcClassName,
     },
     children ?? props.text ?? 'Link text',
   )
@@ -36,7 +36,7 @@ export const LinkModule: ModuleDefinition<LinkProps> = {
   description: 'An anchor element.',
   category: 'Interactive',
   version: '2.0.0',
-  icon: 'Link',
+  icon: LinkIcon,
   trusted: true,
   canHaveChildren: true,
 
@@ -68,8 +68,7 @@ export const LinkModule: ModuleDefinition<LinkProps> = {
     const targetAttr = ` target="${String(props.target)}"`
     const content = renderedChildren.length > 0 ? renderedChildren.join('') : String(props.text ?? '')
     return {
-      html: `<a class="${MODULE_CLASS}" href="${href}"${targetAttr}${rel}>${content}</a>`,
-      css: `.${MODULE_CLASS}{color:#6366f1;text-decoration:none;display:inline;font-weight:400;font-size:16px}`,
+      html: `<a href="${href}"${targetAttr}${rel}>${content}</a>`,
     }
   },
 }

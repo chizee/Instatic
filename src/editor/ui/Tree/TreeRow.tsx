@@ -4,8 +4,8 @@ import {
   type HTMLAttributes,
   type ReactNode,
 } from 'react'
-import type { IconComponent } from '@ui/icons/types'
-import { ChevronRightIcon } from '@ui/icons/icons/chevron-right'
+import type { IconComponent } from 'pixel-art-icons/types'
+import { ChevronRightIcon } from 'pixel-art-icons/icons/chevron-right'
 import { cn } from '@ui/cn'
 import styles from './TreeRow.module.css'
 

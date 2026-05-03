@@ -1,9 +1,9 @@
-import { CheckIcon } from '@ui/icons/icons/check'
-import { CircleAlertIcon } from '@ui/icons/icons/circle-alert'
-import { ExternalLinkIcon } from '@ui/icons/icons/external-link'
-import { LoaderIcon } from '@ui/icons/icons/loader'
-import { SaveIcon } from '@ui/icons/icons/save'
-import { SendIcon } from '@ui/icons/icons/send'
+import { CheckIcon } from 'pixel-art-icons/icons/check'
+import { CircleAlertIcon } from 'pixel-art-icons/icons/circle-alert'
+import { ExternalLinkIcon } from 'pixel-art-icons/icons/external-link'
+import { LoaderIcon } from 'pixel-art-icons/icons/loader'
+import { SaveIcon } from 'pixel-art-icons/icons/save'
+import { SendIcon } from 'pixel-art-icons/icons/send'
 import type { ContentCollection, ContentEntry } from '@core/content/types'
 import {
   PublishActionGroup,

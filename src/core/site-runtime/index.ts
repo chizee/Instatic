@@ -1,5 +1,4 @@
 export type {
-  CollectRuntimeScriptsInput,
   LockedSiteDependency,
   RuntimeScriptEntry,
   PublishedPageRuntimeAssets,
@@ -19,6 +18,7 @@ export type {
   SiteScriptScope,
   SiteScriptTiming,
 } from './types'
+export type { CollectRuntimeScriptsInput } from './scriptConfig'
 export {
   DEFAULT_SCRIPT_RUNTIME_CONFIG,
   DEFAULT_SITE_DEPENDENCY_LOCK,

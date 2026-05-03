@@ -4,12 +4,25 @@
  *
  * Adds a structural shell for data-testid/state attributes while the concrete
  * control component owns its own row layout via controls.module.css.
+ *
+ * Row layout:
+ *   - The schema-level `layout` field on a PropertyControl ('inline' | 'stacked')
+ *     wins when present.
+ *   - Otherwise, the renderer falls back to a sensible per-type default
+ *     (`image`, `media`, `textarea`, `richtext` are stacked; everything
+ *     else is inline). See `defaultLayoutFor`.
+ *   - The resolved layout is forwarded to each concrete control component
+ *     so individual controls don't need to repeat the resolution logic.
  */
 import { useState } from 'react'
-import type { PropertyControl, PropertySchema } from '@core/module-engine/types'
+import type {
+  PropertyControl,
+  PropertyControlLayout,
+  PropertySchema,
+} from '@core/module-engine/types'
 import type { DynamicPropBinding } from '@core/page-tree'
 import { sanitizeRichtext } from '@core/sanitize'
-import { ChevronRightIcon } from '@ui/icons/icons/chevron-right'
+import { ChevronRightIcon } from 'pixel-art-icons/icons/chevron-right'
 import { TextControl } from './TextControl'
 import { TextareaControl } from './TextareaControl'
 import { NumberControl } from './NumberControl'
@@ -40,6 +53,29 @@ interface RenderControlOptions {
 }
 
 /**
+ * Per-control-type default row layout. A control that is fundamentally
+ * unsuited to a 100px label column (media pickers with their own internal
+ * layout, multi-line text areas) defaults to `stacked`; everything else
+ * defaults to `inline`. The schema-level `layout` field overrides this.
+ */
+function defaultLayoutFor(controlType: PropertyControl['type']): PropertyControlLayout {
+  switch (controlType) {
+    case 'image':
+    case 'media':
+    case 'textarea':
+    case 'richtext':
+      return 'stacked'
+    default:
+      return 'inline'
+  }
+}
+
+/** Resolve the effective layout: explicit schema field beats per-type default. */
+function resolveControlLayout(control: PropertyControl): PropertyControlLayout {
+  return control.layout ?? defaultLayoutFor(control.type)
+}
+
+/**
  * Render a single property control wrapped in the test/accessibility shell.
  * Returns null for unknown or unimplemented control types.
  */
@@ -52,6 +88,8 @@ export function PropertyControlRenderer({
   disabled = false,
   dynamicBinding,
 }: RenderControlOptions) {
+  const layout = resolveControlLayout(control)
+
   const shared = {
     propKey,
     value,
@@ -59,6 +97,7 @@ export function PropertyControlRenderer({
     label: control.label,
     isOverride,
     disabled,
+    layout,
   }
 
   let inner: React.ReactNode
@@ -182,6 +221,7 @@ export function PropertyControlRenderer({
       propKey={propKey}
       label={control.label ?? propKey}
       control={control}
+      layout={layout}
       binding={dynamicBinding.binding}
       onSet={dynamicBinding.onSet}
       onClear={dynamicBinding.onClear}
@@ -195,6 +235,7 @@ export function PropertyControlRenderer({
       data-testid={`property-control-${propKey}`}
       data-disabled={disabled ? 'true' : undefined}
       data-override={isOverride ? 'true' : undefined}
+      data-layout={layout}
     >
       {content}
     </div>

@@ -70,7 +70,6 @@ export function FilterBar<TValue = string>({
           onClear={search.onClear}
           placeholder={search.placeholder}
           aria-label={search.ariaLabel}
-          fieldSize="xs"
           className={styles.search}
         />
       )}

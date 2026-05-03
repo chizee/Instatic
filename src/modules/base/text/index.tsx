@@ -3,13 +3,12 @@
  * base.text — unified semantic text module.
  *
  * Content and semantic tag are module settings; visual typography belongs to
- * class styles.
+ * class styles. Emits a bare semantic element with no default class or CSS.
  */
 import React from 'react'
 import { type ModuleDefinition, type ModuleComponentProps } from '@core/module-engine/types'
 import { registry } from '@core/module-engine/registry'
-import styles from './text.module.css'
-import { cn } from '@ui/cn'
+import { TextStartTIcon } from 'pixel-art-icons/icons/text-start-t'
 
 type TextTag =
   | 'p'
@@ -29,8 +28,6 @@ interface TextProps extends Record<string, unknown> {
   text: string
   tag: TextTag
 }
-
-const MODULE_CLASS = 'pb-text'
 
 const TEXT_TAGS = new Set<TextTag>([
   'p',
@@ -54,7 +51,7 @@ function normalizeTag(tag: unknown): TextTag {
 
 const TextEditor: React.FC<ModuleComponentProps<TextProps>> = ({ props, mcClassName }) => {
   const Tag = normalizeTag(props.tag) as React.ElementType
-  return React.createElement(Tag, { className: cn(styles.text, mcClassName) }, props.text || 'Text')
+  return React.createElement(Tag, { className: mcClassName }, props.text || 'Text')
 }
 
 export const TextModule: ModuleDefinition<TextProps> = {
@@ -63,7 +60,7 @@ export const TextModule: ModuleDefinition<TextProps> = {
   description: 'A semantic text element.',
   category: 'Typography',
   version: '2.0.0',
-  icon: 'type',
+  icon: TextStartTIcon,
   trusted: true,
   canHaveChildren: false,
 
@@ -99,8 +96,7 @@ export const TextModule: ModuleDefinition<TextProps> = {
   render: (props) => {
     const tag = normalizeTag(props.tag)
     return {
-      html: `<${tag} class="${MODULE_CLASS}">${String(props.text)}</${tag}>`,
-      css: `.${MODULE_CLASS}{margin:0;color:inherit;font:inherit}`,
+      html: `<${tag}>${String(props.text)}</${tag}>`,
     }
   },
 }

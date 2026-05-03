@@ -27,16 +27,17 @@ import {
 import { FilterBar, type FilterBarItem } from "@ui/components/FilterBar";
 import { Input } from "@ui/components/Input";
 import { Switch } from "@ui/components/Switch";
-import { ChevronDownIcon } from "@ui/icons/icons/chevron-down";
-import { ChevronUpIcon } from "@ui/icons/icons/chevron-up";
-import { CloseIcon } from "@ui/icons/icons/close";
-import { Copy2SharpIcon } from "@ui/icons/icons/copy-2-sharp";
-import { DeleteIcon } from "@ui/icons/icons/delete";
-import { FilePlusIcon } from "@ui/icons/icons/file-plus";
-import { MinusIcon } from "@ui/icons/icons/minus";
-import { PlusIcon } from "@ui/icons/icons/plus";
+import { ChevronDownIcon } from "pixel-art-icons/icons/chevron-down";
+import { ChevronUpIcon } from "pixel-art-icons/icons/chevron-up";
+import { CloseIcon } from "pixel-art-icons/icons/close";
+import { Copy2SharpIcon } from "pixel-art-icons/icons/copy-2-sharp";
+import { DeleteIcon } from "pixel-art-icons/icons/delete";
+import { FilePlusIcon } from "pixel-art-icons/icons/file-plus";
+import { MinusIcon } from "pixel-art-icons/icons/minus";
+import { PlusIcon } from "pixel-art-icons/icons/plus";
 import { TokenizedColorField } from "../PropertyControls/TokenizedColorField";
 import { PanelHeader } from "../shared/PanelHeader";
+import { useFrameworkChangeConfirm } from "../shared/FrameworkChangeConfirmDialog";
 import dialogStyles from "../SiteCreateDialog/SiteCreateDialog.module.css";
 import styles from "./ColorsPanel.module.css";
 
@@ -74,6 +75,70 @@ interface TokenContextMenuState {
  * alphabetically (case-insensitive), forms the filter bar and autocomplete
  * suggestions. When no token references a category label, it ceases to exist.
  */
+/**
+ * Apply a token patch to a draft site for the *preview* path. Mirrors the
+ * field-level effect that `applyFrameworkColorTokenPatch` has in the slice
+ * for everything that changes class generation (utilities, transparent,
+ * shades, tints, slug). Side-effect-free fields (color values, category,
+ * darkValue, order) are intentionally left out — they don't affect which
+ * classes the framework will generate, so the preview can skip them.
+ */
+function applyColorTokenPatchPreview(
+  draft: import("@core/page-tree/types").SiteDocument,
+  tokenId: string,
+  patch: ColorTokenPatch,
+): void {
+  const token = draft.settings.framework?.colors?.tokens.find(
+    (t) => t.id === tokenId,
+  );
+  if (!token) return;
+  if (patch.slug !== undefined) token.slug = patch.slug;
+  if (patch.generateUtilities) {
+    token.generateUtilities = {
+      ...token.generateUtilities,
+      ...patch.generateUtilities,
+    };
+  }
+  if (patch.generateTransparent !== undefined) {
+    token.generateTransparent = patch.generateTransparent;
+  }
+  if (patch.generateShades) {
+    token.generateShades = { ...token.generateShades, ...patch.generateShades };
+  }
+  if (patch.generateTints) {
+    token.generateTints = { ...token.generateTints, ...patch.generateTints };
+  }
+}
+
+/**
+ * Pick a short, human-readable action label for the confirmation dialog,
+ * given a color-token patch. Falls back to a generic label when the patch
+ * doesn't match a known destructive shape.
+ */
+function deriveColorPatchActionLabel(
+  patch: ColorTokenPatch,
+  token: FrameworkColorToken,
+): string {
+  if (patch.generateTints?.enabled === false) return `Disable "${token.slug}" tints`;
+  if (patch.generateShades?.enabled === false) return `Disable "${token.slug}" shades`;
+  if (patch.generateTransparent === false) {
+    return `Disable "${token.slug}" transparent steps`;
+  }
+  if (patch.generateTints?.count !== undefined) return `Update "${token.slug}" tint count`;
+  if (patch.generateShades?.count !== undefined) return `Update "${token.slug}" shade count`;
+  if (patch.generateUtilities) {
+    const disabled = (Object.entries(patch.generateUtilities) as Array<
+      [FrameworkColorUtilityType, boolean | undefined]
+    >)
+      .filter(([, v]) => v === false)
+      .map(([k]) => k);
+    if (disabled.length === 1) return `Disable "${token.slug}" ${disabled[0]} utility`;
+    if (disabled.length > 1) return `Disable "${token.slug}" utilities`;
+  }
+  if (patch.slug !== undefined) return `Rename token to "${patch.slug}"`;
+  return `Update token "${token.slug}"`;
+}
+
 function deriveCategoryLabels(tokens: FrameworkColorToken[]): string[] {
   const seen = new Set<string>();
   const result: string[] = [];
@@ -107,6 +172,7 @@ export function ColorsPanel({ variant = "docked" }: ColorsPanelProps) {
   const deleteFrameworkColorToken = useEditorStore(
     (s) => s.deleteFrameworkColorToken,
   );
+  const confirmFrameworkChange = useFrameworkChangeConfirm();
 
   const [query, setQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
@@ -182,9 +248,27 @@ export function ColorsPanel({ variant = "docked" }: ColorsPanelProps) {
   }
 
   function handleDeleteToken(token: FrameworkColorToken) {
-    deleteFrameworkColorToken(token.id);
-    if (expandedTokenId === token.id) setExpandedTokenId(null);
     setContextMenu(null);
+    confirmFrameworkChange({
+      actionLabel: `Delete token "${token.slug}"`,
+      applyChange: (draft) => {
+        const colors = draft.settings.framework?.colors;
+        if (!colors) return;
+        colors.tokens = colors.tokens.filter((t) => t.id !== token.id);
+      },
+      commit: () => {
+        deleteFrameworkColorToken(token.id);
+        if (expandedTokenId === token.id) setExpandedTokenId(null);
+      },
+    });
+  }
+
+  function handlePatchToken(token: FrameworkColorToken, patch: ColorTokenPatch) {
+    confirmFrameworkChange({
+      actionLabel: deriveColorPatchActionLabel(patch, token),
+      applyChange: (draft) => applyColorTokenPatchPreview(draft, token.id, patch),
+      commit: () => updateFrameworkColorToken(token.id, patch),
+    });
   }
 
   return (
@@ -264,9 +348,7 @@ export function ColorsPanel({ variant = "docked" }: ColorsPanelProps) {
                       expandedTokenId === token.id ? null : token.id,
                     )
                   }
-                  onPatch={(patch) =>
-                    updateFrameworkColorToken(token.id, patch)
-                  }
+                  onPatch={(patch) => handlePatchToken(token, patch)}
                   onContextMenu={(event) =>
                     openTokenContextMenu(token.id, event)
                   }

@@ -7,7 +7,7 @@
  * Changes vs. ClassesTab:
  *   - Pill cascade order badges (¹²³) — PP-7
  *   - Pill right-click context menu owns reorder/rename/remove actions — PP-8
- *   - Pill × has title="Remove from this element" — PP-9
+ *   - Pill × has tooltip="Remove from this element" — PP-9
  *   - Class assignment UI lives directly under the selected element header
  *   - Uses reorderNodeClass store action (new in classSlice — Task #456)
  *
@@ -15,7 +15,7 @@
  *   - Always mounted when a node is selected (PropertiesPanel renders it unconditionally)
  *   - Active class styling is rendered by PropertiesPanel below the header class strip
  *   - Guideline #242: reorderNodeClass no-ops at array boundaries
- *   - Guideline #350: @motion/icons only; CloseIcon for × button
+ *   - Guideline #350: pixel-art-icons only; CloseIcon for × button
  *   - Constraint #451: X/Twitter logo icon is prohibited (use CloseIcon for × buttons)
  */
 
@@ -29,7 +29,7 @@ import {
   type MouseEvent,
 } from 'react'
 import { createPortal } from 'react-dom'
-import { useEditorStore } from '@core/editor-store/store'
+import { useEditorStore, selectActiveCanvasPage } from '@core/editor-store/store'
 import {
   readClassHoverPreviewPreference,
   subscribeToEditorPrefsChanged,
@@ -41,10 +41,10 @@ import {
   ContextMenuSeparator,
 } from '@ui/components/ContextMenu'
 import { Input } from '@ui/components/Input'
-import { ChevronUpIcon } from '@ui/icons/icons/chevron-up'
-import { ChevronDownIcon } from '@ui/icons/icons/chevron-down'
-import { CloseIcon } from '@ui/icons/icons/close'
-import { EditIcon } from '@ui/icons/icons/edit'
+import { ChevronUpIcon } from 'pixel-art-icons/icons/chevron-up'
+import { ChevronDownIcon } from 'pixel-art-icons/icons/chevron-down'
+import { CloseIcon } from 'pixel-art-icons/icons/close'
+import { EditIcon } from 'pixel-art-icons/icons/edit'
 import { cn } from '@ui/cn'
 import {
   generatedClassKindLabel,
@@ -100,7 +100,7 @@ export function ClassPicker({ nodeId }: ClassPickerProps) {
   const site = useEditorStore((s) => s.site)
   const node = useEditorStore(
     useCallback(
-      (s) => s.site?.pages.find((p) => p.nodes[nodeId])?.nodes[nodeId] ?? null,
+      (s) => selectActiveCanvasPage(s)?.nodes[nodeId] ?? null,
       [nodeId],
     ),
   )
@@ -315,7 +315,7 @@ export function ClassPicker({ nodeId }: ClassPickerProps) {
                     removeAssignedClass(id)
                   }}
                   aria-label={`Remove class ${cls.name}`}
-                  title="Remove from this element"
+                  tooltip="Remove from this element"
                   dangerHover
                   className={styles.pillRemoveBtn}
                 >

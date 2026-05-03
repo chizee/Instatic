@@ -1,6 +1,6 @@
 import type { ControlProps } from './shared'
 import { Input } from '@ui/components/Input'
-import { cn } from '@ui/cn'
+import { ControlRow } from './ControlRow'
 import styles from './controls.module.css'
 
 interface NumberControlProps extends ControlProps<number> {
@@ -21,20 +21,17 @@ export function NumberControl({
   unit,
   isOverride,
   disabled,
+  layout,
 }: NumberControlProps) {
   return (
-    <div className={cn(styles.controlWrapper, disabled && styles.controlWrapperDisabled)}>
-      <div className={styles.labelRow}>
-        <label
-          htmlFor={`ctrl-${propKey}`}
-          className={isOverride ? styles.labelOverride : undefined}
-        >
-          {label ?? propKey}
-        </label>
-        {unit && (
-          <span className={styles.labelUnit}>{unit}</span>
-        )}
-      </div>
+    <ControlRow
+      propKey={propKey}
+      label={label}
+      layout={layout}
+      isOverride={isOverride}
+      disabled={disabled}
+      labelSuffix={unit ? <span className={styles.labelUnit}>{unit}</span> : undefined}
+    >
       <Input
         id={`ctrl-${propKey}`}
         type="number"
@@ -49,6 +46,6 @@ export function NumberControl({
           if (!isNaN(v)) onChange(propKey, v)
         }}
       />
-    </div>
+    </ControlRow>
   )
 }

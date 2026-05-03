@@ -28,28 +28,28 @@
 }
 
 .railButton[data-accent="mint"] {
-    --rail-icon-color: #8ee6c8;
+    --rail-icon-color: var(--rail-tint-mint);
     --rail-icon-active-bg: rgba(142, 230, 200, 0.16);
     --rail-icon-hover-bg: rgba(142, 230, 200, 0.1);
     --rail-icon-glow: rgba(142, 230, 200, 0.28);
 }
 
 .railButton[data-accent="lilac"] {
-    --rail-icon-color: #c8b6ff;
+    --rail-icon-color: var(--rail-tint-lilac);
     --rail-icon-active-bg: rgba(200, 182, 255, 0.16);
     --rail-icon-hover-bg: rgba(200, 182, 255, 0.1);
     --rail-icon-glow: rgba(200, 182, 255, 0.28);
 }
 
 .railButton[data-accent="sky"] {
-    --rail-icon-color: #9bdcff;
+    --rail-icon-color: var(--rail-tint-sky);
     --rail-icon-active-bg: rgba(155, 220, 255, 0.15);
     --rail-icon-hover-bg: rgba(155, 220, 255, 0.09);
     --rail-icon-glow: rgba(155, 220, 255, 0.26);
 }
 
 .railButton[data-accent="peach"] {
-    --rail-icon-color: #ffc7a8;
+    --rail-icon-color: var(--rail-tint-peach);
     --rail-icon-active-bg: rgba(255, 199, 168, 0.15);
     --rail-icon-hover-bg: rgba(255, 199, 168, 0.09);
     --rail-icon-glow: rgba(255, 199, 168, 0.26);

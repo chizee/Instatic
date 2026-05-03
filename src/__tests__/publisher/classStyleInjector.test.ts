@@ -285,7 +285,6 @@ function makeSite(
     breakpoints: [{ id: 'mobile', label: 'Mobile', width: 375, icon: 'smartphone' }],
     settings: {
       colorTokens: {},
-      typeScale: { baseSize: 16, ratio: 1.25 },
       shortcuts: {},
     },
     classes,

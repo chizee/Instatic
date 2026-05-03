@@ -34,8 +34,9 @@ import {
   type RuntimePreviewBuildState,
   type RuntimePreviewStatus,
 } from './useRuntimePreviewBuild'
-import { PlusBoxIcon } from '@ui/icons/icons/plus-box'
+import { PlusBoxIcon } from 'pixel-art-icons/icons/plus-box'
 import { Button } from '@ui/components/Button'
+import { Tooltip } from '@ui/components/Tooltip'
 import { cn } from '@ui/cn'
 import styles from './BreakpointFrame.module.css'
 
@@ -163,20 +164,21 @@ function RuntimePreviewChromeStatus({ build }: RuntimePreviewChromeStatusProps) 
       <span className={styles.runtimePreviewStatusLabel}>
         {statusLabel(build.status, build)}
       </span>
-      <button
-        type="button"
-        className={styles.runtimePreviewRefresh}
-        onClick={(e) => {
-          e.stopPropagation()
-          build.refresh()
-        }}
-        disabled={build.status === 'building'}
-        data-testid="canvas-runtime-preview-refresh"
-        title="Rebuild preview from current site state"
-        aria-label="Refresh preview"
-      >
-        Refresh
-      </button>
+      <Tooltip content="Rebuild preview from current site state">
+        <button
+          type="button"
+          className={styles.runtimePreviewRefresh}
+          onClick={(e) => {
+            e.stopPropagation()
+            build.refresh()
+          }}
+          disabled={build.status === 'building'}
+          data-testid="canvas-runtime-preview-refresh"
+          aria-label="Refresh preview"
+        >
+          Refresh
+        </button>
+      </Tooltip>
     </div>
   )
 }

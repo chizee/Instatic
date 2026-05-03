@@ -1,17 +1,8 @@
 /**
- * base.image — default editor styles.
- * These defaults are overridden by user-applied CSS classes (cascade order wins).
+ * base.image — editor-only chrome.
+ * No published-output styles: <img> renders bare, with browser defaults
+ * unless the user attaches a class.
  */
-
-.image {
-  width: 100%;
-  height: auto;
-  object-fit: cover;
-  object-position: center;
-  border-radius: 0;
-  display: block;
-  max-width: 100%;
-}
 
 /* Editor-only placeholder shown when no src is set */
 .placeholder {

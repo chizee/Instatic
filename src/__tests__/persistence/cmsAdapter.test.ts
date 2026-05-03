@@ -30,7 +30,6 @@ function site(): SiteDocument {
     ],
     settings: {
       colorTokens: {},
-      typeScale: { baseSize: 16, ratio: 1.25 },
       shortcuts: {},
     },
     classes: {},

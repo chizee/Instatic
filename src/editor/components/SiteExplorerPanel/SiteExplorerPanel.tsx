@@ -1,17 +1,19 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react'
+import { useDraggable } from '@dnd-kit/core'
 import { useEditorStore } from '@core/editor-store/store'
 import type { SiteFile } from '@core/files/types'
 import type { Page } from '@core/page-tree'
+import type { VisualComponent } from '@core/visualComponents/types'
 import { createUniquePageSlug, pagePublicPath } from '@core/page-tree/slugs'
 import { PanelHeader } from '../shared/PanelHeader'
 import { Button } from '@ui/components/Button'
-import type { IconComponent } from '@ui/icons/types'
-import { FilePlusIcon } from '@ui/icons/icons/file-plus'
-import { FileTextIcon } from '@ui/icons/icons/file-text'
-import { BracesIcon } from '@ui/icons/icons/braces'
-import { PaintBucketIcon } from '@ui/icons/icons/paint-bucket'
-import { CodeIcon } from '@ui/icons/icons/code'
-import { ExternalLinkIcon } from '@ui/icons/icons/external-link'
+import type { IconComponent } from 'pixel-art-icons/types'
+import { FilePlusIcon } from 'pixel-art-icons/icons/file-plus'
+import { FileTextIcon } from 'pixel-art-icons/icons/file-text'
+import { BracesIcon } from 'pixel-art-icons/icons/braces'
+import { PaintBucketIcon } from 'pixel-art-icons/icons/paint-bucket'
+import { CodeIcon } from 'pixel-art-icons/icons/code'
+import { ExternalLinkIcon } from 'pixel-art-icons/icons/external-link'
 import { cn } from '@ui/cn'
 import {
   SiteCreateDialog,
@@ -357,14 +359,11 @@ export function SiteExplorerPanel({
                 onAction={() => setCreateKind('component')}
               >
                 {components.map((component) => (
-                  <ExplorerRow
+                  <DraggableComponentRow
                     key={component.id}
-                    icon={BracesIcon}
-                    label={component.name}
-                    meta={`${component.params.length} props`}
+                    component={component}
                     active={activeDocument?.kind === 'visualComponent' && activeDocument.vcId === component.id}
-                    ariaLabel={`Open component ${component.name}`}
-                    onClick={() => setActiveDocument({ kind: 'visualComponent', vcId: component.id })}
+                    onOpen={() => setActiveDocument({ kind: 'visualComponent', vcId: component.id })}
                     onContextMenu={(event) => openContextMenu({
                       kind: 'component',
                       id: component.id,
@@ -493,6 +492,53 @@ export function SiteExplorerPanel({
   )
 }
 
+// ─── DraggableComponentRow ────────────────────────────────────────────────────
+// Wraps ExplorerRow with a dnd-kit draggable so the component row can be
+// dragged onto the canvas. Payload: { kind: 'visualComponentRef', componentId }.
+// A DndContext ancestor (provided by the canvas layer) is required for the
+// drag to activate — without it, the row still renders and clicks work normally.
+
+interface DraggableComponentRowProps {
+  component: VisualComponent
+  active: boolean
+  onOpen: () => void
+  onContextMenu: (event: MouseEvent<HTMLButtonElement>) => void
+  onKeyDown: (event: KeyboardEvent<HTMLButtonElement>) => void
+}
+
+function DraggableComponentRow({
+  component,
+  active,
+  onOpen,
+  onContextMenu,
+  onKeyDown,
+}: DraggableComponentRowProps) {
+  const { listeners, setNodeRef, isDragging } = useDraggable({
+    id: `site-explorer-vc-${component.id}`,
+    data: { kind: 'visualComponentRef', componentId: component.id },
+  })
+
+  return (
+    <div
+      ref={setNodeRef}
+      data-testid="site-explorer-component-drag-handle"
+      className={isDragging ? styles.draggingComponent : undefined}
+      {...listeners}
+    >
+      <ExplorerRow
+        icon={BracesIcon}
+        label={component.name}
+        meta={`${component.params.length} props`}
+        active={active}
+        ariaLabel={`Open component ${component.name}`}
+        onClick={onOpen}
+        onContextMenu={onContextMenu}
+        onKeyDown={onKeyDown}
+      />
+    </div>
+  )
+}
+
 interface ExplorerSectionProps {
   title: string
   count: number
@@ -525,7 +571,7 @@ function ExplorerSection({
           size="xs"
           iconOnly
           aria-label={actionLabel}
-          title={actionLabel}
+          tooltip={actionLabel}
           onClick={onAction}
         >
           <ActionIcon size={13} />

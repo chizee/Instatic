@@ -18,7 +18,7 @@ import { TextControl } from '../PropertyControls/TextControl'
 import { ColorControl } from '../PropertyControls/ColorControl'
 import { SelectControl } from '../PropertyControls/SelectControl'
 import { Button } from '@ui/components/Button'
-import { CloseIcon } from '@ui/icons/icons/close'
+import { CloseIcon } from 'pixel-art-icons/icons/close'
 import { cn } from '@ui/cn'
 import {
   getCSSPropertyControlType,
@@ -136,7 +136,7 @@ export function ClassPropertyRow({
           iconOnly
           onClick={() => onRemove(property)}
           aria-label={`Remove ${label} property`}
-          title={`Remove ${label}`}
+          tooltip={`Remove ${label}`}
           className={styles.removeBtn}
         >
           <CloseIcon size={16} color="currentColor" aria-hidden="true" />

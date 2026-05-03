@@ -8,7 +8,7 @@ import {
 } from '@core/page-tree/slugs'
 import { Button } from '@ui/components/Button'
 import { Input } from '@ui/components/Input'
-import { CloseIcon } from '@ui/icons/icons/close'
+import { CloseIcon } from 'pixel-art-icons/icons/close'
 import styles from '../SiteCreateDialog/SiteCreateDialog.module.css'
 
 export interface ExplorerRenamePayload {

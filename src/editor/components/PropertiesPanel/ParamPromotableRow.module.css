@@ -1,0 +1,82 @@
+/**
+ * ParamPromotableRow — expose affordance for VC property controls.
+ *
+ * Achromatic palette (Guideline #376). CSS Modules only (Constraint #402/#403).
+ * Token-only colors — no hardcoded hex/rgb/hsl.
+ */
+
+/* ── Exposable row wrapper ───────────────────────────────────────────────── */
+
+.exposableRow {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+}
+
+.controlArea {
+  flex: 1;
+  min-width: 0;
+}
+
+.exposeButton {
+  flex-shrink: 0;
+  margin-top: 3px;
+}
+
+/* ── Expose popover menu ─────────────────────────────────────────────────── */
+
+.exposeMenu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 10;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--panel-radius);
+  padding: 6px;
+  min-width: 200px;
+  max-width: 280px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.exposeMenuSection {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.exposeMenuLabel {
+  font-size: 10px;
+  color: var(--editor-text-subtle);
+  padding: 2px 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.exposeMenuDivider {
+  height: 1px;
+  background: var(--editor-border);
+  margin: 2px 0;
+}
+
+/* ── Create param form ───────────────────────────────────────────────────── */
+
+.createParamForm {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 2px 0;
+}
+
+.createParamError {
+  font-size: 10px;
+  color: var(--editor-danger-text);
+  padding: 0 4px;
+}
+
+.createParamActions {
+  display: flex;
+  justify-content: flex-end;
+}

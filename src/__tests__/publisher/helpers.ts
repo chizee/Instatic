@@ -4,11 +4,19 @@
  */
 import type { Page, PageNode, SiteDocument, Breakpoint } from '@core/page-tree/types'
 import type { ModuleDefinition, IModuleRegistry, AnyModuleDefinition } from '@core/module-engine/types'
+import { SquareIcon } from 'pixel-art-icons/icons/square'
 import {
   DEFAULT_COLOR_TOKENS,
-  DEFAULT_TYPE_SCALE,
   DEFAULT_SITE_SETTINGS,
 } from '@core/page-tree/types'
+
+// Re-exported because legacy publisher tests still reference these.
+export { DEFAULT_COLOR_TOKENS, DEFAULT_SITE_SETTINGS }
+
+const DEFAULT_SITE_RUNTIME: SiteDocument['runtime'] = {
+  dependencyLock: { version: 1, packages: {}, updatedAt: 0 },
+  scripts: {},
+}
 
 // ---------------------------------------------------------------------------
 // Module fixture factory
@@ -23,6 +31,7 @@ export function makeModule(
     name: id,
     category: 'test',
     version: '1.0.0',
+    icon: SquareIcon,
     trusted: true,
     canHaveChildren: false,
     schema: {},
@@ -114,6 +123,9 @@ export function makeSite(overrides: Partial<SiteDocument> = {}): SiteDocument {
     name: 'Test SiteDocument',
     pages: [],
     files: [],
+    visualComponents: [],
+    packageJson: { dependencies: {}, devDependencies: {} },
+    runtime: DEFAULT_SITE_RUNTIME,
     breakpoints: DEFAULT_BREAKPOINTS,
     settings: structuredClone(DEFAULT_SITE_SETTINGS),
     classes: {},

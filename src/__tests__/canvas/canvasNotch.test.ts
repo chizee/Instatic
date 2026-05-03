@@ -5,6 +5,7 @@ const CANVAS_ROOT = new URL('../../editor/components/Canvas/CanvasRoot.tsx', imp
 const CANVAS_NOTCH = new URL('../../editor/components/Canvas/CanvasNotch.tsx', import.meta.url)
 const CANVAS_NOTCH_CSS = new URL('../../editor/components/Canvas/CanvasNotch.module.css', import.meta.url)
 const TOOLBAR = new URL('../../editor/components/Toolbar/Toolbar.tsx', import.meta.url)
+const MODULE_PICKER = new URL('../../editor/components/Toolbar/ModulePickerDropdown.tsx', import.meta.url)
 
 describe('CanvasNotch', () => {
   it('is rendered by CanvasRoot as fixed canvas chrome', () => {
@@ -17,18 +18,26 @@ describe('CanvasNotch', () => {
   it('exposes the approved quick insert actions', () => {
     const src = readFileSync(CANVAS_NOTCH, 'utf-8')
 
-    expect(src).toContain("import { CheckboxSharpIcon } from '@ui/icons/icons/checkbox-sharp'")
-    expect(src).toContain("import { TypeIcon } from '@ui/icons/icons/type'")
-    expect(src).toContain("import { ImageIcon } from '@ui/icons/icons/image'")
-    expect(src).toContain("import { BoxIcon } from '@ui/icons/icons/box'")
-    expect(src).toContain("moduleId: 'base.container'")
-    expect(src).toContain('icon: CheckboxSharpIcon')
-    expect(src).toContain("moduleId: 'base.text'")
-    expect(src).toContain('icon: TypeIcon')
-    expect(src).toContain("moduleId: 'base.image'")
-    expect(src).toContain('icon: ImageIcon')
-    expect(src).toContain("moduleId: 'base.button'")
-    expect(src).toContain('icon: BoxIcon')
+    // Quote style (single vs double) is owned by Prettier — match either.
+    const quotedModule = (id: string) =>
+      new RegExp(`['"]${id.replace('.', '\\.')}['"]`)
+
+    // Icons come from each module's own declaration via the shared ModuleIcon
+    // resolver — the notch must not duplicate the icon mapping locally.
+    expect(src).toContain('ModuleIcon')
+    expect(src).not.toContain('pixel-art-icons/icons/checkbox-sharp')
+    expect(src).not.toContain('pixel-art-icons/icons/text-start-t')
+    expect(src).not.toContain('pixel-art-icons/icons/image')
+
+    // Approved quick-insert module IDs (Container / Text / Image).
+    expect(src).toMatch(quotedModule('base.container'))
+    expect(src).toMatch(quotedModule('base.text'))
+    expect(src).toMatch(quotedModule('base.image'))
+    // The "Button" quick insert lives under the Add (+) dropdown — the notch
+    // intentionally does not surface it as a standalone quick action so the
+    // chip stays compact and avoids overlap with the Add picker.
+    expect(src).not.toMatch(quotedModule('base.button'))
+
     expect(src).toContain('canvas-notch-add-btn')
   })
 
@@ -47,5 +56,32 @@ describe('CanvasNotch', () => {
 
     expect(src).not.toContain('ModulePickerDropdown')
     expect(src).not.toContain('toolbar-add-module-btn')
+  })
+
+  it('hosts the Undo/Redo controls so they only appear on the visual editor canvas', () => {
+    const src = readFileSync(CANVAS_NOTCH, 'utf-8')
+    const toolbar = readFileSync(TOOLBAR, 'utf-8')
+
+    // Undo/Redo lives next to the quick-insert icons, separated by a divider.
+    expect(src).toContain('UndoRedoButtons')
+    expect(src).toContain('styles.divider')
+    expect(src).toContain('showHistoryControls')
+
+    // The shared admin toolbar must NOT render undo/redo — those controls
+    // make no sense on Content / Plugins admin pages where there is no
+    // editor page tree to mutate.
+    expect(toolbar).not.toContain('UndoRedoButtons')
+  })
+
+  it('moves the Add picker trigger to an icon-only chip (no "Add" label text)', () => {
+    const picker = readFileSync(MODULE_PICKER, 'utf-8')
+
+    // The trigger is icon-only — only the PlusIcon is rendered, no text node.
+    expect(picker).toContain('iconOnly')
+    expect(picker).toContain('<PlusIcon size={13} />')
+    // The literal "Add" text inside the trigger button is gone (aria-label
+    // and tooltip still describe the action for screen readers).
+    expect(picker).toContain('aria-label="Add"')
+    expect(picker).not.toMatch(/<PlusIcon[^>]*\/>\s*Add\s*<\/Button>/)
   })
 })

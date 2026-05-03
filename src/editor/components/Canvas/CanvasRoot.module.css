@@ -8,7 +8,7 @@
     position: relative;
     overflow: hidden;
     background: var(--editor-surface-2);
-    border-top-left-radius: 12px;
+    border-top-left-radius: 16px;
     cursor: default;
     user-select: none;
     /* Required by @use-gesture/react to intercept trackpad pinch gestures.
@@ -16,4 +16,10 @@
      first and zooms the entire viewport instead of the canvas only. */
     touch-action: none;
     outline: none;
+}
+
+/* B1 — VC edit mode accent frame: inset ring using the canvas selection token.
+   Achromatic only — uses existing --canvas-selection-ring; no new colors. */
+.canvas[data-vc-mode='true'] {
+    box-shadow: inset 0 0 0 2px var(--canvas-selection-ring);
 }

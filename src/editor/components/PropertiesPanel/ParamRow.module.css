@@ -1,0 +1,187 @@
+/**
+ * ParamRow — layout styles for the three-mode param row primitive.
+ *
+ * Achromatic palette (Guideline #376). CSS Modules only (Constraint #402/#403).
+ * Token-only colors — no hardcoded hex/rgb/hsl.
+ */
+
+/* ── Outer wrapper ────────────────────────────────────────────────────────── */
+
+.rowWrapper {
+  display: flex;
+  flex-direction: column;
+  border-bottom: 1px solid var(--editor-border);
+}
+
+.rowWrapper:last-child {
+  border-bottom: none;
+}
+
+/* ── Main row: label | value | chips ─────────────────────────────────────── */
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  min-height: 28px;
+}
+
+/* ── Label slot ──────────────────────────────────────────────────────────── */
+
+.labelSlot {
+  flex: 0 0 88px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.nameInput {
+  width: 100%;
+}
+
+/* override-edit: fixed-width chip, non-editable */
+.paramNameChip {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--editor-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+  padding: 2px 0;
+}
+
+/* plain: secondary label */
+.paramLabel {
+  font-size: 11px;
+  color: var(--editor-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+  padding: 2px 0;
+}
+
+/* ── Value slot ──────────────────────────────────────────────────────────── */
+
+.valueSlot {
+  flex: 1;
+  min-width: 0;
+}
+
+/* slot type caption — no interactive value control */
+.slotCaption {
+  font-size: 11px;
+  color: var(--editor-text-subtle);
+  font-style: italic;
+  display: block;
+}
+
+/* ── Chip / action slot ───────────────────────────────────────────────────── */
+
+.chipSlot {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* "Param" type badge — default-edit mode */
+.paramChip {
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: var(--editor-radius-sm);
+  background: var(--editor-surface-4);
+  color: var(--editor-text-secondary);
+  white-space: nowrap;
+  line-height: 1.6;
+}
+
+/* Override status pill — override-edit mode */
+.overridePill {
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: var(--editor-radius-sm);
+  background: var(--editor-surface-4);
+  color: var(--editor-text-secondary);
+  white-space: nowrap;
+  line-height: 1.6;
+}
+
+/* ── Validation error ─────────────────────────────────────────────────────── */
+
+.nameError {
+  font-size: 10px;
+  color: var(--editor-danger-text);
+  padding: 2px 8px 4px;
+  line-height: 1.4;
+}
+
+/* ── Origin caption (default-edit only) ──────────────────────────────────── */
+
+.originCaption {
+  font-size: 10px;
+  color: var(--editor-text-subtle);
+  padding: 0 8px 4px;
+  display: block;
+  line-height: 1.4;
+}
+
+/* ── Advanced disclosure section ─────────────────────────────────────────── */
+
+.advanced {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px 8px 8px;
+  background: var(--editor-surface-2);
+  border-top: 1px solid var(--editor-border);
+}
+
+.advancedRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.advancedLabel {
+  font-size: 10px;
+  color: var(--editor-text-secondary);
+  flex: 0 0 64px;
+  padding-top: 4px;
+  line-height: 1.4;
+}
+
+/* ── Enum options chips (advanced disclosure) ────────────────────────────── */
+
+.enumOptions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+.chipList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 2px 1px 6px;
+  background: var(--editor-bg-subtle);
+  border-radius: var(--editor-radius-sm);
+}
+
+.chipText {
+  font-size: 10px;
+  font-family: monospace;
+  color: var(--editor-text);
+  line-height: 1.6;
+}

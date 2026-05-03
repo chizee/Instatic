@@ -27,15 +27,17 @@ import {
   useEffect,
   useRef,
 } from 'react'
-import { useEditorStore } from '@core/editor-store/store'
+import { useEditorStore, selectActivePage } from '@core/editor-store/store'
 import type { Page } from '@core/page-tree/types'
+import type { VisualComponent } from '@core/visualComponents/types'
 import { registry } from '@core/module-engine/registry'
 import type { AnyModuleDefinition } from '@core/module-engine/types'
-import { PlusIcon } from '@ui/icons/icons/plus'
-import { FilePlusIcon } from '@ui/icons/icons/file-plus'
-import { BracesIcon } from '@ui/icons/icons/braces'
+import { PlusIcon } from 'pixel-art-icons/icons/plus'
+import { FilePlusIcon } from 'pixel-art-icons/icons/file-plus'
+import { BracesIcon } from 'pixel-art-icons/icons/braces'
 import { Button } from '@ui/components/Button'
 import { SearchBar } from '@ui/components/SearchBar'
+import { ModuleIcon } from '../../ui/ModuleIcon'
 import {
   SiteCreateDialog,
   slugifySiteItemName,
@@ -46,9 +48,12 @@ import {
 import { useInsertModule } from '../../hooks/useInsertModule'
 import styles from './Toolbar.module.css'
 
+const COMPONENTS_CATEGORY = 'Components'
+
 type ToolbarCreateKind = Extract<SiteCreateKind, 'page' | 'component'>
 
 const EMPTY_PAGES: Page[] = []
+const EMPTY_VCS: VisualComponent[] = []
 
 interface ModulePickerDropdownProps {
   triggerClassName?: string
@@ -71,6 +76,11 @@ export function ModulePickerDropdown({
   const openPageInCanvas = useEditorStore((s) => s.openPageInCanvas)
   const createVisualComponent = useEditorStore((s) => s.createVisualComponent)
   const setActiveDocument = useEditorStore((s) => s.setActiveDocument)
+  const activeDocument = useEditorStore((s) => s.activeDocument)
+  const visualComponents = useEditorStore((s) => s.site?.visualComponents ?? EMPTY_VCS)
+  const insertComponentRef = useEditorStore((s) => s.insertComponentRef)
+  const selectedNodeId = useEditorStore((s) => s.selectedNodeId)
+  const page = useEditorStore(selectActivePage)
   const insertModule = useInsertModule()
 
   // ─── Open / close ─────────────────────────────────────────────────────────
@@ -105,15 +115,24 @@ export function ModulePickerDropdown({
 
   // ─── Module list + search filter ──────────────────────────────────────────
 
+  const isVCMode = activeDocument?.kind === 'visualComponent'
+
   const grouped = useMemo<Record<string, AnyModuleDefinition[]>>(() => {
     const all = registry.listByCategory()
     const filtered: Record<string, AnyModuleDefinition[]> = {}
     for (const [cat, mods] of Object.entries(all)) {
-      const visible = mods.filter((m) => m.id !== 'base.root')
+      const visible = mods.filter((m) => {
+        if (m.id === 'base.root') return false
+        // base.visual-component-ref is always hidden — VCs are listed directly
+        if (m.id === 'base.visual-component-ref') return false
+        // base.slot-outlet is only useful when authoring a Visual Component
+        if (m.id === 'base.slot-outlet') return isVCMode
+        return true
+      })
       if (visible.length > 0) filtered[cat] = visible
     }
     return filtered
-  }, [])
+  }, [isVCMode])
 
   const filteredGrouped = useMemo<Record<string, AnyModuleDefinition[]>>(() => {
     const q = query.trim().toLowerCase()
@@ -131,9 +150,20 @@ export function ModulePickerDropdown({
     return result
   }, [grouped, query])
 
+  // VCs filtered by the search query
+  const filteredVcs = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!q) return visualComponents
+    return visualComponents.filter(
+      (vc) => vc.name.toLowerCase().includes(q),
+    )
+  }, [visualComponents, query])
+
   const totalResults = useMemo(
-    () => Object.values(filteredGrouped).reduce((s, arr) => s + arr.length, 0),
-    [filteredGrouped],
+    () =>
+      Object.values(filteredGrouped).reduce((s, arr) => s + arr.length, 0) +
+      filteredVcs.length,
+    [filteredGrouped, filteredVcs],
   )
 
   // ─── Arrow-key navigation within the menu ─────────────────────────────────
@@ -159,13 +189,46 @@ export function ModulePickerDropdown({
     }
   }, [])
 
-  // ─── Insert handler ───────────────────────────────────────────────────────
+  // ─── Insert handlers ──────────────────────────────────────────────────────
 
   const handleInsert = useCallback(
     (mod: AnyModuleDefinition) => {
       if (insertModule(mod)) handleClose()
     },
     [insertModule, handleClose],
+  )
+
+  const handleInsertVc = useCallback(
+    (vcId: string) => {
+      if (activeDocument?.kind === 'visualComponent') {
+        // In VC edit mode: try selectedNodeId as parent first, else VC rootNode
+        const vc = visualComponents.find((v) => v.id === activeDocument.vcId)
+        if (!vc) { handleClose(); return }
+        const parentId = selectedNodeId ?? vc.rootNode.id
+        insertComponentRef(parentId, vcId)
+      } else {
+        // Page mode: mirror useInsertModule parent resolution
+        if (!page) { handleClose(); return }
+        let parentId = page.rootNodeId
+        if (selectedNodeId) {
+          const selectedNode = page.nodes[selectedNodeId]
+          if (selectedNode) {
+            const def = registry.get(selectedNode.moduleId)
+            if (def?.canHaveChildren) {
+              parentId = selectedNodeId
+            } else {
+              const parentNode = Object.values(page.nodes).find(
+                (node) => node.children.includes(selectedNodeId),
+              )
+              if (parentNode) parentId = parentNode.id
+            }
+          }
+        }
+        insertComponentRef(parentId, vcId)
+      }
+      handleClose()
+    },
+    [activeDocument, visualComponents, page, selectedNodeId, insertComponentRef, handleClose],
   )
 
   const openCreateAction = useCallback((kind: ToolbarCreateKind) => {
@@ -199,7 +262,12 @@ export function ModulePickerDropdown({
     ],
   )
 
-  const categories = Object.keys(filteredGrouped).sort()
+  // Include 'Components' even when there are no matching base modules but there are VCs
+  const categories = useMemo(() => {
+    const cats = new Set(Object.keys(filteredGrouped))
+    if (filteredVcs.length > 0) cats.add(COMPONENTS_CATEGORY)
+    return Array.from(cats).sort()
+  }, [filteredGrouped, filteredVcs])
 
   return (
     <div className={styles.pickerWrapper}>
@@ -208,17 +276,17 @@ export function ModulePickerDropdown({
         ref={triggerRef}
         variant="primary"
         size="sm"
+        iconOnly
         accentFill
         className={triggerClassName}
         aria-label="Add"
         aria-haspopup="dialog"
         aria-expanded={open}
-        title="Add page, component, or module"
+        tooltip="Add page, component, or module"
         onClick={handleOpen}
         data-testid={triggerTestId}
       >
         <PlusIcon size={13} />
-        Add
       </Button>
 
       {/* Dropdown panel */}
@@ -301,12 +369,21 @@ export function ModulePickerDropdown({
                       {cat}
                     </div>
 
-                    {/* Module options */}
-                    {filteredGrouped[cat].map((mod) => (
+                    {/* Base module options */}
+                    {(filteredGrouped[cat] ?? []).map((mod) => (
                       <ModuleOption
                         key={mod.id}
                         mod={mod}
                         onSelect={handleInsert}
+                      />
+                    ))}
+
+                    {/* Site Visual Component options (Components category only) */}
+                    {cat === COMPONENTS_CATEGORY && filteredVcs.map((vc) => (
+                      <VCOption
+                        key={vc.id}
+                        vc={vc}
+                        onSelect={handleInsertVc}
                       />
                     ))}
                   </div>
@@ -367,9 +444,47 @@ function ModuleOption({ mod, onSelect }: ModuleOptionProps) {
         aria-hidden="true"
         className={styles.pickerOptionBadge}
       >
-        {mod.name[0]}
+        <ModuleIcon module={mod} size={14} />
       </span>
       <span>{mod.name}</span>
+    </div>
+  )
+}
+
+// ─── VCOption — site Visual Component menu item ────────────────────────────────
+
+interface VCOptionProps {
+  vc: VisualComponent
+  onSelect: (vcId: string) => void
+}
+
+function VCOption({ vc, onSelect }: VCOptionProps) {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      onSelect(vc.id)
+    }
+  }
+
+  return (
+    <div
+      role="menuitem"
+      tabIndex={-1}
+      onClick={() => onSelect(vc.id)}
+      onKeyDown={handleKeyDown}
+      data-vc-id={vc.id}
+      className={styles.pickerOption}
+    >
+      <span
+        aria-hidden="true"
+        className={styles.pickerOptionBadge}
+      >
+        <BracesIcon size={14} />
+      </span>
+      <span className={styles.pickerOptionLabel}>
+        <span>{vc.name}</span>
+        <span className={styles.pickerOptionMeta}>{vc.params.length} props</span>
+      </span>
     </div>
   )
 }

@@ -66,7 +66,6 @@ function site(): SiteDocument {
     breakpoints: [{ id: 'desktop', label: 'Desktop', width: 1440, icon: 'monitor' }],
     settings: {
       colorTokens: {},
-      typeScale: { baseSize: 16, ratio: 1.25 },
       shortcuts: {},
     },
     classes: {},

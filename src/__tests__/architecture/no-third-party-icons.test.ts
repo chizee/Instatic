@@ -2,10 +2,11 @@
  * Architecture Source-Scan — Constraint #348
  *
  * No file under `src/` may import from any third-party icon library.
- * All icons must come from the MotionPageMaster icon set vendored at
- * `src/ui/icons/icons/` and consumed via:
+ * All icons must come from the `pixel-art-icons` npm package (developed as a
+ * sibling project, published to npm so multiple projects share it), consumed
+ * via:
  *
- *   import { ArrowRightIcon } from '@ui/icons/icons/arrow-right'
+ *   import { ArrowRightIcon } from 'pixel-art-icons/icons/arrow-right'
  *
  * Banned packages (non-exhaustive — covers all known icon ecosystems):
  *   - lucide-react
@@ -19,17 +20,14 @@
  *
  * WHY THIS MATTERS
  * ----------------
- * User directive (messages #1490/#1495): "use icon package from our
- * MotionPageMaster repo" / "You can just copy it over to this repo."
- *
- * All 2,216 MotionPageMaster pixel-art icons are vendored directly in
- * `src/ui/icons/icons/`. Using third-party icon libraries:
+ * The full pixel-art catalog (4,052 icons) ships as `pixel-art-icons`. Using
+ * third-party icon libraries:
  *   - Breaks visual design system consistency (Guideline #252)
  *   - Adds unnecessary npm dependencies (supply-chain risk)
- *   - Violates the user's explicit directive
+ *   - Violates the in-house icon-set directive
  *
- * @see Constraint #348 — All icons must use the MotionPageMaster set
- * @see Guideline #350 — @motion/icons accessibility requirements
+ * @see Constraint #348 — All icons must use the in-house pixel-art set
+ * @see Guideline #350 — pixel-art-icons accessibility requirements
  * @see Guideline #252 — Phase B Design System (Vercel/Linear dark aesthetic)
  * @see Task #349     — Remove lucide-react dead dependency from package.json
  */
@@ -124,7 +122,7 @@ describe('Constraint #348 — No third-party icon libraries in production src/',
       const rel = violations.map((f) => f.replace(SRC_ROOT, 'src/'))
       throw new Error(
         `[Constraint #348] "${bannedPkg.name}" found in production source.\n` +
-        `Use MotionPageMaster icons from '@ui/icons/icons/<name>'.\n` +
+        `Use pixel-art-icons from 'pixel-art-icons/icons/<name>'.\n` +
         `Violating files:\n` +
         rel.map((f) => `  ${f}`).join('\n')
       )
@@ -152,8 +150,8 @@ describe('Constraint #348 — No third-party icon libraries in production src/',
       const lines = allViolations.map((v) => `  ${v.file}  [imports: ${v.pkg}]`)
       throw new Error(
         `[Constraint #348] Third-party icon library imports found in production source.\n` +
-        `All icons must come from the MotionPageMaster set at 'src/ui/icons/icons/'.\n` +
-        `Use: import { <Name>Icon } from '@ui/icons/icons/<kebab-name>'\n` +
+        `All icons must come from the 'pixel-art-icons' package.\n` +
+        `Use: import { <Name>Icon } from 'pixel-art-icons/icons/<kebab-name>'\n` +
         `Violating files:\n` +
         lines.join('\n')
       )

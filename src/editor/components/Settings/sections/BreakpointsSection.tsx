@@ -6,12 +6,12 @@
  */
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { useEditorStore } from '@core/editor-store/store'
-import { SmartphoneIcon } from '@ui/icons/icons/smartphone'
-import { TabletIcon } from '@ui/icons/icons/tablet'
-import { MonitorIcon } from '@ui/icons/icons/monitor'
-import { LaptopIcon } from '@ui/icons/icons/laptop'
-import { TvIcon } from '@ui/icons/icons/tv'
-import { PlusIcon } from '@ui/icons/icons/plus'
+import { SmartphoneIcon } from 'pixel-art-icons/icons/smartphone'
+import { TabletIcon } from 'pixel-art-icons/icons/tablet'
+import { MonitorIcon } from 'pixel-art-icons/icons/monitor'
+import { LaptopIcon } from 'pixel-art-icons/icons/laptop'
+import { TvIcon } from 'pixel-art-icons/icons/tv'
+import { PlusIcon } from 'pixel-art-icons/icons/plus'
 import { Button } from '@ui/components/Button'
 import { Input } from '@ui/components/Input'
 import { Select } from '@ui/components/Select'
@@ -154,7 +154,7 @@ export function BreakpointsSection() {
                     onClick={bp.id === activeBreakpointId ? undefined : () => setActiveBreakpoint(bp.id)}
                     aria-disabled={bp.id === activeBreakpointId ? 'true' : undefined}
                     aria-label={`Set ${bp.label} as active breakpoint`}
-                    title={bp.id === activeBreakpointId ? 'Already the active breakpoint' : undefined}
+                    tooltip={bp.id === activeBreakpointId ? 'Already the active breakpoint' : undefined}
                   >
                     Activate
                   </Button>
@@ -193,7 +193,7 @@ export function BreakpointsSection() {
                       onClick={site.breakpoints.length <= 1 ? undefined : () => setConfirmRemoveId(bp.id)}
                       aria-disabled={site.breakpoints.length <= 1 ? 'true' : undefined}
                       aria-label={`Remove ${bp.label} breakpoint`}
-                      title={site.breakpoints.length <= 1 ? 'Cannot remove the last breakpoint' : undefined}
+                      tooltip={site.breakpoints.length <= 1 ? 'Cannot remove the last breakpoint' : undefined}
                     >
                       Remove
                     </Button>

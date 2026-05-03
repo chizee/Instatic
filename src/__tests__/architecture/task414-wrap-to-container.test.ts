@@ -16,15 +16,20 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test'
+import type { ComponentType } from 'react'
 import { useEditorStore } from '@core/editor-store/store'
 import { registry } from '@core/module-engine/registry'
-import type { AnyModuleDefinition } from '@core/module-engine/types'
+import type { AnyModuleDefinition, ModuleComponentProps } from '@core/module-engine/types'
+import { SquareIcon } from 'pixel-art-icons/icons/square'
 
 // ---------------------------------------------------------------------------
 // Test helpers
 // ---------------------------------------------------------------------------
 
 const TEST_MODULE_ID = 'test.container'
+
+// Inert component stub for the registry — props are unused, output is null.
+const NullComponent: ComponentType<ModuleComponentProps<Record<string, unknown>>> = () => null
 
 /** Minimal module definition with 'tag' and other required defaults. */
 const testContainerModule: AnyModuleDefinition = {
@@ -33,7 +38,7 @@ const testContainerModule: AnyModuleDefinition = {
   description: 'Container module used for Task #414 regression tests',
   category: 'Layout',
   version: '1.0.0',
-  icon: 'Square',
+  icon: SquareIcon,
   trusted: true,
   canHaveChildren: true,
   schema: {
@@ -46,8 +51,7 @@ const testContainerModule: AnyModuleDefinition = {
     gap: 16,
     padding: 16,
   },
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  component: (() => null) as any,
+  component: NullComponent,
   render: () => ({ html: '' }),
 }
 

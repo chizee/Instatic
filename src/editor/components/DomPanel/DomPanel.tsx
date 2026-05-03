@@ -36,7 +36,7 @@ import {
   type DragEndEvent,
 } from '@dnd-kit/core'
 import { createPortal } from 'react-dom'
-import { useEditorStore, selectActivePage } from '@core/editor-store/store'
+import { useEditorStore, selectActiveCanvasPage } from '@core/editor-store/store'
 import { flattenSubtree } from '@core/page-tree/selectors'
 import { getAncestorIds } from '../../hooks/useTreeWalkOrder'
 import { registry } from '@core/module-engine/registry'
@@ -50,15 +50,15 @@ import { SearchBar } from '@ui/components/SearchBar'
 import { PanelHeader } from '../shared/PanelHeader'
 import { useDraggablePanel } from '../../hooks/useDraggablePanel'
 import { cn } from '@ui/cn'
-import type { IconComponent } from '@ui/icons/types'
-import { LayoutIcon } from '@ui/icons/icons/layout'
-import { TypeIcon } from '@ui/icons/icons/type'
-import { ImageIcon } from '@ui/icons/icons/image'
-import { SquareIcon } from '@ui/icons/icons/square'
-import { LinkIcon } from '@ui/icons/icons/link'
-import { ListBoxIcon } from '@ui/icons/icons/list-box'
-import { FileTextIcon } from '@ui/icons/icons/file-text'
-import { VideoIcon } from '@ui/icons/icons/video'
+import type { IconComponent } from 'pixel-art-icons/types'
+import { LayoutIcon } from 'pixel-art-icons/icons/layout'
+import { TextStartTIcon } from 'pixel-art-icons/icons/text-start-t'
+import { ImageIcon } from 'pixel-art-icons/icons/image'
+import { SquareIcon } from 'pixel-art-icons/icons/square'
+import { LinkIcon } from 'pixel-art-icons/icons/link'
+import { ListBoxIcon } from 'pixel-art-icons/icons/list-box'
+import { FileTextIcon } from 'pixel-art-icons/icons/file-text'
+import { VideoIcon } from 'pixel-art-icons/icons/video'
 import styles from './DomPanel.module.css'
 
 const PANEL_STORAGE_KEY = 'pb-dom-panel'
@@ -116,7 +116,7 @@ function SearchResults({ rows, onSelect }: SearchResultsProps) {
 // ─── Inner panel (needs context from DomTreeProvider) ─────────────────────────
 
 function DomPanelInner({ variant = 'floating' }: { variant?: PanelVariant }) {
-  const page = useEditorStore(selectActivePage)
+  const page = useEditorStore(selectActiveCanvasPage)
   const panelState = useEditorStore((s) => s.domTreePanel)
   const setDomTreePanel = useEditorStore((s) => s.setDomTreePanel)
   const toggleDomTreePanel = useEditorStore((s) => s.toggleDomTreePanel)
@@ -232,13 +232,18 @@ function DomPanelInner({ variant = 'floating' }: { variant?: PanelVariant }) {
       const target = dnd.handleDragEnd(event)
       if (!target) return
 
+      // TODO(Phase-N): wire DnD reordering inside VC mode.
+      // moveNode operates on page.nodes; VC nodes live in vc.rootNode and require
+      // a dedicated moveNodeInVc store action that mutates the nested VCNode tree.
+      if (page?.id.startsWith('vc-virtual:')) return
+
       try {
         useEditorStore.getState().moveNode(target.draggedId, target.parentId, target.index)
       } catch (err) {
         console.warn('[DomPanel] Ignored stale drag/drop target:', err)
       }
     },
-    [dnd],
+    [dnd, page],
   )
 
   // ─── Search: flat filtered list of matching nodes ─────────────────────────
@@ -320,6 +325,7 @@ function DomPanelInner({ variant = 'floating' }: { variant?: PanelVariant }) {
           onValueChange={setSearchQuery}
           placeholder="Search layers…"
           aria-label="Search layers"
+          className={styles.searchBar}
         />
 
         {/* ── Tree / search results — scrollable area ───────────────────── */}
@@ -389,7 +395,7 @@ function getModuleIcon(moduleId: string): IconComponent {
     case 'base.container':
       return LayoutIcon
     case 'base.text':
-      return TypeIcon
+      return TextStartTIcon
     case 'base.image':
       return ImageIcon
     case 'base.link':

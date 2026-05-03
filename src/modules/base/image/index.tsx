@@ -1,13 +1,17 @@
 /* eslint-disable react-refresh/only-export-components */
 /**
  * base.image — image content.
+ *
+ * Emits a bare `<img>` with no default class or default CSS.
+ * Visual styling is opt-in via user classes (mcClassName / multi-class system).
  */
 import React from 'react'
 import { type ModuleDefinition, type ModuleComponentProps } from '@core/module-engine/types'
 import { registry } from '@core/module-engine/registry'
+import { ImageIcon } from 'pixel-art-icons/icons/image'
 import { safeUrl } from '../utils/escape'
-import styles from './image.module.css'
 import { cn } from '@ui/cn'
+import styles from './image.module.css'
 
 interface ImageProps extends Record<string, unknown> {
   src: string
@@ -15,11 +19,9 @@ interface ImageProps extends Record<string, unknown> {
   loading: 'lazy' | 'eager'
 }
 
-const MODULE_CLASS = 'pb-image'
-
 const ImageEditor: React.FC<ModuleComponentProps<ImageProps>> = ({ props, mcClassName }) => {
   if (props.src) {
-    return <img src={props.src} alt={props.alt || ''} className={cn(styles.image, mcClassName)} loading={props.loading} />
+    return <img src={props.src} alt={props.alt || ''} className={mcClassName} loading={props.loading} />
   }
   return <div className={cn(styles.placeholder, mcClassName)}>No image selected</div>
 }
@@ -30,13 +32,17 @@ export const ImageModule: ModuleDefinition<ImageProps> = {
   description: 'A responsive image.',
   category: 'Media',
   version: '2.0.0',
-  icon: 'Image',
+  icon: ImageIcon,
   trusted: true,
   canHaveChildren: false,
 
   schema: {
+    // Image picker is wide by nature (library list, URL preview, etc.) — it
+    // already gets `layout: 'stacked'` from the per-type default. The alt
+    // text input reads better stacked too, since it sits visually next to
+    // the image and frequently holds long descriptive sentences.
     src: { type: 'image', label: 'Image' },
-    alt: { type: 'text', label: 'Alt text', placeholder: 'Describe the image...' },
+    alt: { type: 'text', label: 'Alt text', placeholder: 'Describe the image…', layout: 'stacked' },
     loading: {
       type: 'select',
       label: 'Loading',
@@ -61,8 +67,7 @@ export const ImageModule: ModuleDefinition<ImageProps> = {
     const loading = props.loading === 'eager' ? 'eager' : 'lazy'
     if (!src) return { html: '' }
     return {
-      html: `<img class="${MODULE_CLASS}" src="${src}" alt="${alt}" loading="${loading}">`,
-      css: `.${MODULE_CLASS}{display:block;width:100%;height:auto;max-width:100%;border-radius:0}`,
+      html: `<img src="${src}" alt="${alt}" loading="${loading}">`,
     }
   },
 }

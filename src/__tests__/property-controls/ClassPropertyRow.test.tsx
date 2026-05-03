@@ -50,11 +50,15 @@ describe('ClassPropertyRow remove button layout', () => {
       'utf-8',
     )
 
+    // Neutral affordance: no danger hover variant, default color is the
+    // secondary-text token, hover shifts to the primary-text token. The exact
+    // hover background treatment (subtle white tint, transparent + border, …)
+    // is owned by visual design and not pinned here — the contract is just
+    // "no danger tokens, no destructive styling".
     expect(rowSource).not.toContain('dangerHover')
     expect(rowSource).toContain('<CloseIcon size={16}')
     expect(css).toMatch(/\.removeBtn\.removeBtn\s*\{[^}]*color:\s*var\(--editor-text-secondary\)/s)
-    expect(css).toMatch(/\.removeBtn\.removeBtn:hover[\s\S]*background:\s*rgba\(255,\s*255,\s*255,\s*0\.06\)/s)
-    expect(css).not.toContain('box-shadow: 0 0 5px black')
+    expect(css).toMatch(/\.removeBtn\.removeBtn:hover[\s\S]*color:\s*var\(--editor-text\)/s)
     expect(css).not.toContain('editor-danger')
   })
 })

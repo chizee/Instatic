@@ -97,7 +97,6 @@ function validSite(overrides: Partial<SiteDocument> = {}): SiteDocument {
     settings: {
       metaTitle: 'Example',
       colorTokens: { '--color-primary': '#111111' },
-      typeScale: { baseSize: 16, ratio: 1.25 },
       shortcuts: {},
     },
     classes: {

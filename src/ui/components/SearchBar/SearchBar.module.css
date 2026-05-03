@@ -3,12 +3,42 @@
     align-items: center;
     flex-shrink: 0;
     gap: 6px;
+    box-sizing: border-box;
+    min-height: 28px;
     padding: 5px 8px;
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
+    border-radius: var(--input-radius);
 }
 
-.input {
+.searchBar:hover {
+    border-color: var(--input-border-hover);
+}
+
+.searchBar:focus-within {
+    background: var(--input-bg-focus);
+    border-color: var(--input-border-focus);
+}
+
+/* The inner Input primitive carries its own chrome by default. Inside the
+   SearchBar the wrapper owns the chrome so the icon sits visually inside the
+   field — strip the input's own border/background/padding via descendant
+   specificity. */
+.searchBar .input {
+    background: transparent;
+    border: none;
+    padding: 0;
+    min-height: 0;
+    border-radius: 0;
     flex: 1;
     min-width: 0;
+}
+
+.searchBar .input:hover,
+.searchBar .input:focus,
+.searchBar .input:focus-within {
+    background: transparent;
+    border-color: transparent;
 }
 
 .input::-webkit-search-cancel-button,

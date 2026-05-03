@@ -19,17 +19,41 @@
  */
 
 import type { SiteDocument } from '../page-tree/types'
+import type { VCNode } from '../visualComponents/types'
 import { generateClassCSS } from './classCss'
 
 /**
- * Collect all CSS class declarations for the classes referenced across a
- * site's pages. Used by the publisher to include class styles inline in
+ * Recursively collect all classIds from a VCNode tree (nested childNodes structure).
+ *
+ * VC trees use a nested representation (childNodes) rather than the flat-map
+ * structure of Page.nodes. Both the node itself and its VC-level classIds are
+ * collected so that any CSS class rules referenced inside a VC are included in
  * the published HTML `<style>` block.
+ */
+function collectVCNodeClassIds(node: VCNode, ids: Set<string>): void {
+  if (node.classIds) {
+    for (const id of node.classIds) {
+      ids.add(id)
+    }
+  }
+  if (node.childNodes) {
+    for (const child of node.childNodes) {
+      collectVCNodeClassIds(child, ids)
+    }
+  }
+}
+
+/**
+ * Collect all CSS class declarations for the classes referenced across a
+ * site's pages and VC trees. Used by the publisher to include class styles
+ * inline in the published HTML `<style>` block.
  *
  * Only emits CSS for classes actually used by at least one node (tree-shaking).
+ * Traverses both page nodes (flat map) and VisualComponent rootNode trees
+ * (nested childNodes) so that classes used inside VCs are also included.
  * Sanitised via sanitizeModuleCSS (Constraint #228).
  *
- * @param site The site containing the class registry and page nodes.
+ * @param site The site containing the class registry, page nodes, and VCs.
  * @returns A CSS string of all used class-name rules, or empty string if none.
  */
 export function collectClassCSS(site: SiteDocument): string {
@@ -45,6 +69,22 @@ export function collectClassCSS(site: SiteDocument): string {
           usedClassIds.add(id)
         }
       }
+    }
+  }
+
+  // Also collect classIds from all VisualComponent trees. VC nodes are rendered
+  // inline by the publisher (renderVisualComponentRef) but live outside page.nodes —
+  // their classIds must be collected separately so the CSS rules are included.
+  if (site.visualComponents) {
+    for (const vc of site.visualComponents) {
+      // VC-level classIds (the component container)
+      if (vc.classIds) {
+        for (const id of vc.classIds) {
+          usedClassIds.add(id)
+        }
+      }
+      // Recursively collect from the VC node tree
+      collectVCNodeClassIds(vc.rootNode, usedClassIds)
     }
   }
 

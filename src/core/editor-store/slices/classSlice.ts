@@ -17,7 +17,7 @@
 import { produce } from 'immer'
 import { nanoid } from 'nanoid'
 import type { StateCreator } from 'zustand'
-import type { EditorStore } from '../store'
+import type { EditorStore } from '../types'
 import type { CSSClass, CSSPropertyBag } from '@core/page-tree/types'
 import { isGeneratedClassLocked, isUserVisibleClass } from '@core/page-tree/classUtils'
 import { assertValidCssClassName } from '@core/page-tree/classNames'

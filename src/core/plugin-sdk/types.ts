@@ -1,4 +1,4 @@
-import type { EditorStore } from '../editor-store/store'
+import type { EditorStore } from '../editor-store/types'
 
 export const PLUGIN_API_VERSION = 1
 export type PluginApiVersion = typeof PLUGIN_API_VERSION

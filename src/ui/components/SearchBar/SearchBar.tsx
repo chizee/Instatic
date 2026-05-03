@@ -1,8 +1,8 @@
 import { forwardRef, type InputHTMLAttributes } from "react";
 import { Button } from "@ui/components/Button";
 import { Input } from "@ui/components/Input";
-import { CloseIcon } from "@ui/icons/icons/close";
-import { SearchIcon } from "@ui/icons/icons/search";
+import { CloseIcon } from "pixel-art-icons/icons/close";
+import { SearchIcon } from "pixel-art-icons/icons/search";
 import { cn } from "@ui/cn";
 import styles from "./SearchBar.module.css";
 
@@ -13,9 +13,7 @@ interface SearchBarProps extends Omit<
   value: string;
   onValueChange: (value: string) => void;
   onClear?: () => void;
-  fieldSize?: "xs" | "sm" | "md";
   clearLabel?: string;
-  inputClassName?: string;
 }
 
 export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(
@@ -24,10 +22,8 @@ export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(
       value,
       onValueChange,
       onClear,
-      fieldSize = "sm",
       clearLabel = "Clear search",
       className,
-      inputClassName,
       ...inputProps
     },
     ref,
@@ -47,10 +43,9 @@ export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(
         <Input
           ref={ref}
           type="search"
-          fieldSize={fieldSize}
           value={value}
           onChange={(event) => onValueChange(event.target.value)}
-          className={cn(styles.input, inputClassName)}
+          className={styles.input}
           {...inputProps}
         />
         {value && (

@@ -1,8 +1,9 @@
 import { useMemo, useState, type ReactNode } from 'react'
-import type { PropertyControl } from '@core/module-engine/types'
+import type { PropertyControl, PropertyControlLayout } from '@core/module-engine/types'
 import type { DynamicPropBinding } from '@core/page-tree'
 import { Button } from '@ui/components/Button'
-import { CloseIcon } from '@ui/icons/icons/close'
+import { CloseIcon } from 'pixel-art-icons/icons/close'
+import { cn } from '@ui/cn'
 import styles from './controls.module.css'
 
 interface BindingOption {
@@ -14,6 +15,12 @@ interface DynamicBindingControlProps {
   propKey: string
   label: string
   control: PropertyControl
+  /**
+   * Resolved layout for the bound state. Forwards the parent renderer's
+   * layout decision so a stacked image binding doesn't snap back into the
+   * 100px label column when a binding is set.
+   */
+  layout?: PropertyControlLayout
   binding?: DynamicPropBinding
   onSet: (binding: DynamicPropBinding) => void
   onClear: () => void
@@ -85,6 +92,7 @@ export function DynamicBindingControl({
   propKey,
   label,
   control,
+  layout = 'inline',
   binding,
   onSet,
   onClear,
@@ -96,7 +104,13 @@ export function DynamicBindingControl({
 
   if (binding) {
     return (
-      <div className={styles.boundControlWrapper} data-bound="true">
+      <div
+        className={cn(
+          styles.boundControlWrapper,
+          layout === 'stacked' && styles.boundControlWrapperStacked,
+        )}
+        data-bound="true"
+      >
         <div className={styles.labelRow}>
           <label>{label}</label>
         </div>
@@ -109,7 +123,7 @@ export function DynamicBindingControl({
             size="xs"
             iconOnly
             aria-label={`Remove binding for ${label}`}
-            title={`Remove binding for ${label}`}
+            tooltip={`Remove binding for ${label}`}
             onClick={onClear}
           >
             <CloseIcon size={11} />

@@ -11,7 +11,7 @@ import type { ContentCollection } from '@core/content/types'
 import { Button } from '@ui/components/Button'
 import { Input } from '@ui/components/Input'
 import { Select } from '@ui/components/Select'
-import { CloseIcon } from '@ui/icons/icons/close'
+import { CloseIcon } from 'pixel-art-icons/icons/close'
 import dialogStyles from '../SiteCreateDialog/SiteCreateDialog.module.css'
 
 export interface TemplateSettingsPayload {
@@ -177,16 +177,17 @@ export const TemplateSettingsDialog = memo(function TemplateSettingsDialog({
             />
           </div>
 
-          <label className={dialogStyles.field}>
+          <div className={dialogStyles.field}>
             <span className={dialogStyles.label}>Priority</span>
             <Input
+              aria-label="Priority"
               fieldSize="sm"
               type="number"
               value={priority}
               onChange={(event) => setPriority(event.target.value)}
               invalid={priorityInvalid}
             />
-          </label>
+          </div>
 
           <div className={dialogStyles.actions}>
             <Button variant="secondary" size="sm" type="button" onClick={onCancel}>

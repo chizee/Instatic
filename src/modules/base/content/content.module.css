@@ -1,8 +1,8 @@
-.content {
-  display: block;
-  width: 100%;
-  color: inherit;
-}
+/**
+ * base.content — editor-only chrome.
+ * No published-output styles: <article> renders bare unless the user attaches
+ * a class.
+ */
 
 .placeholder {
   display: grid;

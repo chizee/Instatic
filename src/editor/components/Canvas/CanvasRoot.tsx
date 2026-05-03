@@ -7,7 +7,7 @@
  * - Handles canvas-level keyboard shortcuts (Delete, Ctrl+D, Escape)
  * - Renders CanvasTransformLayer inside the gesture-capture area
  * - Renders CanvasNotch (position: absolute, not in transform layer)
- * - Handles double-click on base.visualComponentRef → enters VC canvas mode
+ * - Handles double-click on base.visual-component-ref → enters VC canvas mode
  *
  * Performance architecture:
  * - Pan/zoom writes go directly to CanvasTransformLayer's style.transform via ref
@@ -22,6 +22,7 @@
 
 import { useRef, useCallback, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { useDroppable } from '@dnd-kit/core'
 import { useEditorStore, selectActiveCanvasPage, selectRightSidebarExpanded } from '@core/editor-store/store'
 import type { Breakpoint } from '@core/page-tree/types'
 import { registry } from '@core/module-engine/registry'
@@ -45,10 +46,30 @@ import styles from './CanvasRoot.module.css'
  */
 const EMPTY_BREAKPOINTS: Breakpoint[] = []
 
+/**
+ * B2 — dnd-kit droppable ID for the canvas root.
+ * The AdminLayout's canvas-level DndContext uses this to detect when a
+ * visualComponentRef drag is released over the canvas.
+ */
+export const CANVAS_ROOT_DROPPABLE_ID = 'canvas-root'
+
 export function CanvasRoot() {
   const transformLayerRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLDivElement>(null)
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; nodeId: string } | null>(null)
+
+  // B2 — Register canvas root as a drop target for visualComponentRef drags.
+  // The AdminLayout DndContext's onDragEnd checks event.over.id against CANVAS_ROOT_DROPPABLE_ID.
+  const { setNodeRef: setCanvasDropRef } = useDroppable({ id: CANVAS_ROOT_DROPPABLE_ID })
+
+  // Merged callback ref: satisfies both useCanvas (canvasRef) and useDroppable (setCanvasDropRef).
+  const mergedCanvasRef = useCallback(
+    (el: HTMLDivElement | null) => {
+      canvasRef.current = el
+      setCanvasDropRef(el)
+    },
+    [setCanvasDropRef],
+  )
 
   // Store subscriptions
   const canvasPage = useEditorStore(selectActiveCanvasPage)
@@ -116,7 +137,7 @@ export function CanvasRoot() {
 
   /**
    * Double-click on a canvas node (Task #438 — Deliverable 3).
-   * When the double-clicked node is a base.visualComponentRef, enter VC canvas mode.
+   * When the double-clicked node is a base.visual-component-ref, enter VC canvas mode.
    * For all other nodes, double-click is a no-op (handled by individual module components).
    */
   const onNodeDoubleClick = useCallback(
@@ -126,7 +147,7 @@ export function CanvasRoot() {
       const node = selectActiveCanvasPage(state)?.nodes[nodeId]
       if (!node) return
 
-      if (node.moduleId === 'base.visualComponentRef') {
+      if (node.moduleId === 'base.visual-component-ref') {
         const componentId = node.props.componentId
         if (typeof componentId === 'string' && componentId) {
           setActiveDocument({ kind: 'visualComponent', vcId: componentId })
@@ -215,12 +236,13 @@ export function CanvasRoot() {
   return (
     <CanvasSelectionContext.Provider value={selectionContextValue}>
       <div
-        ref={canvasRef}
+        ref={mergedCanvasRef}
         role="region"
         aria-label="Canvas — infinite editing surface"
         tabIndex={0}
         data-testid="canvas-root"
         data-canvas-state={canvasPage ? 'canvas-ready' : 'canvas-empty'}
+        data-vc-mode={activeDocument?.kind === 'visualComponent' ? 'true' : undefined}
         onKeyDown={handleKeyDown}
         onClick={handleCanvasClick}
         onFocus={() => setFocusedPanel('canvas')}

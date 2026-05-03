@@ -1,51 +1,80 @@
-import { useCallback, type ReactNode, type SyntheticEvent } from 'react'
-import { registry } from '@core/module-engine/registry'
-import { useInsertModule } from '../../hooks/useInsertModule'
-import { ModulePickerDropdown } from '../Toolbar/ModulePickerDropdown'
-import type { IconComponent } from '@ui/icons/types'
-import { CheckboxSharpIcon } from '@ui/icons/icons/checkbox-sharp'
-import { TypeIcon } from '@ui/icons/icons/type'
-import { ImageIcon } from '@ui/icons/icons/image'
-import { BoxIcon } from '@ui/icons/icons/box'
-import { Button } from '@ui/components/Button'
-import styles from './CanvasNotch.module.css'
+import { useCallback, type ReactNode, type SyntheticEvent } from "react";
+import { registry } from "@core/module-engine/registry";
+import { useInsertModule } from "../../hooks/useInsertModule";
+import { ModulePickerDropdown } from "../Toolbar/ModulePickerDropdown";
+import { ModuleIcon } from "../../ui/ModuleIcon";
+import type { IconComponent } from "pixel-art-icons/types";
+import { Button } from "@ui/components/Button";
+import { UndoRedoButtons } from "./UndoRedoButtons";
+import styles from "./CanvasNotch.module.css";
 
-const QUICK_ACTIONS = [
-  { moduleId: 'base.container', label: 'Container', icon: CheckboxSharpIcon },
-  { moduleId: 'base.text', label: 'Text', icon: TypeIcon },
-  { moduleId: 'base.image', label: 'Image', icon: ImageIcon },
-  { moduleId: 'base.button', label: 'Button', icon: BoxIcon },
-] as const
+const QUICK_ACTION_MODULE_IDS = [
+  "base.container",
+  "base.text",
+  "base.image",
+] as const;
 
-const ADD_TRIGGER_TEST_ID = 'canvas-notch-add-btn'
+const ADD_TRIGGER_TEST_ID = "canvas-notch-add-btn";
 
-export interface CanvasNotchAction {
-  id: string
-  label: string
-  icon: IconComponent
-  onClick: () => void
-}
+/**
+ * Notch action — supplies either a `moduleId` (icon resolved through the
+ * module registry via `ModuleIcon`) or a literal `icon` component. Module
+ * actions should always pass `moduleId` so the icon stays in sync with the
+ * module declaration; ad-hoc actions (e.g. content-document blocks) supply
+ * `icon` directly.
+ */
+export type CanvasNotchAction = {
+  id: string;
+  label: string;
+  onClick: () => void;
+} & (
+  | { moduleId: string; icon?: never }
+  | { icon: IconComponent; moduleId?: never }
+);
 
 interface CanvasNotchProps {
-  actions?: CanvasNotchAction[]
-  addControl?: ReactNode
+  actions?: CanvasNotchAction[];
+  addControl?: ReactNode;
+  /**
+   * Show the Undo/Redo group on the left side of the notch.
+   * Defaults to true. Disable for canvases that don't drive the editor
+   * page tree (e.g. the content document canvas, which has its own
+   * draft-management lifecycle).
+   */
+  showHistoryControls?: boolean;
 }
 
-export function CanvasNotch({ actions, addControl }: CanvasNotchProps = {}) {
-  const insertModule = useInsertModule()
+export function CanvasNotch({
+  actions,
+  addControl,
+  showHistoryControls = true,
+}: CanvasNotchProps = {}) {
+  const insertModule = useInsertModule();
 
   const stopCanvasInteraction = useCallback((event: SyntheticEvent) => {
-    event.stopPropagation()
-  }, [])
+    event.stopPropagation();
+  }, []);
 
   const handleQuickInsert = useCallback(
-    (moduleId: (typeof QUICK_ACTIONS)[number]['moduleId']) => {
-      const mod = registry.get(moduleId)
-      if (!mod) return
-      insertModule(mod)
+    (moduleId: string) => {
+      const mod = registry.get(moduleId);
+      if (!mod) return;
+      insertModule(mod);
     },
     [insertModule],
-  )
+  );
+
+  const defaultActions: CanvasNotchAction[] = [];
+  for (const moduleId of QUICK_ACTION_MODULE_IDS) {
+    const mod = registry.get(moduleId);
+    if (!mod) continue;
+    defaultActions.push({
+      id: mod.id,
+      label: mod.name,
+      moduleId: mod.id,
+      onClick: () => handleQuickInsert(mod.id),
+    });
+  }
 
   return (
     <div
@@ -55,12 +84,15 @@ export function CanvasNotch({ actions, addControl }: CanvasNotchProps = {}) {
       onClick={stopCanvasInteraction}
     >
       <div className={styles.notch}>
-        {(actions ?? QUICK_ACTIONS.map((action) => ({
-          ...action,
-          id: action.moduleId,
-          onClick: () => handleQuickInsert(action.moduleId),
-        }))).map((action) => {
-          const ActionIcon = action.icon
+        {showHistoryControls && (
+          <>
+            <UndoRedoButtons />
+            <div aria-hidden="true" className={styles.divider} />
+          </>
+        )}
+
+        {(actions ?? defaultActions).map((action) => {
+          const ActionIcon = action.icon;
           return (
             <Button
               key={action.id}
@@ -70,15 +102,21 @@ export function CanvasNotch({ actions, addControl }: CanvasNotchProps = {}) {
               className={styles.quickButton}
               onClick={action.onClick}
               aria-label={`Add ${action.label}`}
-              title={`Add ${action.label}`}
+              tooltip={`Add ${action.label}`}
               data-testid={`canvas-notch-${action.label.toLowerCase()}-btn`}
             >
-              <ActionIcon size={14} aria-hidden="true" />
+              {ActionIcon ? (
+                <ActionIcon size={14} aria-hidden="true" />
+              ) : (
+                <ModuleIcon
+                  moduleId={action.moduleId}
+                  size={14}
+                  aria-hidden="true"
+                />
+              )}
             </Button>
-          )
+          );
         })}
-
-        <span className={styles.divider} aria-hidden="true" />
 
         {addControl ?? (
           <ModulePickerDropdown
@@ -88,5 +126,5 @@ export function CanvasNotch({ actions, addControl }: CanvasNotchProps = {}) {
         )}
       </div>
     </div>
-  )
+  );
 }

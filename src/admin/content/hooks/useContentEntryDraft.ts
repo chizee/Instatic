@@ -10,7 +10,7 @@ import {
   serializeMarkdownBlocks,
 } from '@core/content/markdown'
 import type { ContentBlock, ContentEntry, ContentEntryStatus } from '@core/content/types'
-import { slugFromTitle } from '../utils/contentEntryUtils'
+import { slugFromTitle } from '@core/utils/slug'
 
 export type SaveMessage = 'idle' | 'saving' | 'saved' | 'publishing' | 'published' | 'error'
 

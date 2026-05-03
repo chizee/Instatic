@@ -13,9 +13,9 @@ import { useEditorStore } from '@core/editor-store/store'
 import { useEffect, useState } from 'react'
 import { Button } from '@ui/components/Button'
 import { cn } from '@ui/cn'
-import { CircleAlertIcon } from '@ui/icons/icons/circle-alert'
-import { LoaderIcon } from '@ui/icons/icons/loader'
-import { SaveIcon } from '@ui/icons/icons/save'
+import { CircleAlertIcon } from 'pixel-art-icons/icons/circle-alert'
+import { LoaderIcon } from 'pixel-art-icons/icons/loader'
+import { SaveIcon } from 'pixel-art-icons/icons/save'
 import {
   readAutoSavePreference,
   subscribeToEditorPrefsChanged,
@@ -60,7 +60,7 @@ export function SaveIndicator({ onSave, saveStatus }: SaveIndicatorProps) {
           variant="destructive"
           size="sm"
           aria-label="Retry save"
-          title={saveError}
+          tooltip={saveError}
           onClick={handleManualSave}
           disabled={!onSave || isSaving || isStatusSaving}
           data-testid="save-indicator"
@@ -86,7 +86,7 @@ export function SaveIndicator({ onSave, saveStatus }: SaveIndicatorProps) {
         size="sm"
         aria-label={isStatusSaving ? 'Saving site' : 'Save site'}
         aria-busy={isSaving || isStatusSaving}
-        title="Save changes"
+        tooltip="Save changes"
         onClick={handleManualSave}
         disabled={!onSave || isStatusSaving}
         data-testid="save-indicator"

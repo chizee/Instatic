@@ -1,7 +1,6 @@
 import type { ControlProps } from './shared'
 import { Select } from '@ui/components/Select'
-import { cn } from '@ui/cn'
-import styles from './controls.module.css'
+import { ControlRow } from './ControlRow'
 
 interface SelectOption {
   label: string
@@ -22,17 +21,16 @@ export function SelectControl({
   placeholder,
   isOverride,
   disabled,
+  layout,
 }: SelectControlProps) {
   return (
-    <div className={cn(styles.controlWrapper, disabled && styles.controlWrapperDisabled)}>
-      <div className={styles.labelRow}>
-        <label
-          htmlFor={`ctrl-${propKey}`}
-          className={isOverride ? styles.labelOverride : undefined}
-        >
-          {label ?? propKey}
-        </label>
-      </div>
+    <ControlRow
+      propKey={propKey}
+      label={label}
+      layout={layout}
+      isOverride={isOverride}
+      disabled={disabled}
+    >
       <Select
         id={`ctrl-${propKey}`}
         value={String(value ?? '')}
@@ -51,6 +49,6 @@ export function SelectControl({
           </option>
         ))}
       </Select>
-    </div>
+    </ControlRow>
   )
 }

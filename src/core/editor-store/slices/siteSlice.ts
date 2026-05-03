@@ -1,10 +1,13 @@
 import { produce } from 'immer'
 import { nanoid } from 'nanoid'
 import type { StateCreator } from 'zustand'
-import type { EditorStore } from '../store'
+import type { EditorStore } from '../types'
 import { renderCache } from '@core/engine/renderCache'
 import { registry } from '@core/module-engine/registry'
+import type { VCNode } from '@core/visualComponents/types'
+import { VisualComponentRecursionError } from './visualComponentsSlice'
 import {
+  type CSSClass,
   type SiteDocument,
   type Page,
   type PageNode,
@@ -56,6 +59,10 @@ import {
 import { generateFrameworkTypographyUtilityClasses } from '@core/framework/typography'
 import { generateFrameworkSpacingUtilityClasses } from '@core/framework/spacing'
 import {
+  previewFrameworkClassRemovals,
+  type FrameworkChangeImpact,
+} from '@core/framework/changeImpact'
+import {
   buildDefaultSpacingGroup,
   buildDefaultTypographyGroup,
   makeFreshSpacingGroup,
@@ -86,6 +93,16 @@ export interface SiteSlice {
 
   // Node mutations (operate on the active page)
   insertNode: (moduleId: string, defaults: Record<string, unknown>, parentId: string, index?: number) => string
+
+  /**
+   * Insert a `base.visual-component-ref` node into the active document.
+   *
+   * - In VC mode: delegates to `addNodeToVc`. Returns `null` (instead of throwing)
+   *   if the insertion would create a cycle.
+   * - In page mode: delegates to `insertNode`. Returns `null` if `componentId` is empty.
+   * - Returns the new node's id on success, or `null` on no-op / cycle prevented.
+   */
+  insertComponentRef: (parentId: string, componentId: string) => string | null
   deleteNode: (nodeId: string) => void
   updateNodeProps: (nodeId: string, patch: Record<string, unknown>) => void
   setBreakpointOverride: (nodeId: string, breakpointId: string, patch: Record<string, unknown>) => void
@@ -145,6 +162,21 @@ export interface SiteSlice {
     patch: Partial<FrameworkScaleManualSize>,
   ) => void
   setFrameworkSpacingClassGenerators: (classes: FrameworkSpacingClassGenerator[]) => void
+
+  /**
+   * Preview the destructive impact of a framework-related change without
+   * committing it. Returns the list of framework classes that would be
+   * removed and every place those classes are still assigned, or `null`
+   * if the change removes nothing-in-use (silent commit is fine).
+   *
+   * The caller writes a small mutation function that mirrors what the
+   * actual store action would do at the framework-settings level. This
+   * function clones the current site, applies the mutation to the clone,
+   * runs every framework reconciler, then diffs.
+   */
+  previewFrameworkChange: (
+    applyChange: (site: SiteDocument) => void,
+  ) => FrameworkChangeImpact | null
 
   // ─── Undo / Redo ──────────────────────────────────────────────────────────
   /** Snapshots of previous site states — most recent last */
@@ -419,32 +451,133 @@ function reorderFrameworkColorTokenInGroup(
   }
 }
 
-function isGeneratedColorClassId(id: string, site: SiteDocument): boolean {
-  return site.classes[id]?.generated?.origin === 'framework' && site.classes[id]?.generated?.family === 'color'
+// ---------------------------------------------------------------------------
+// Framework class reconciliation
+//
+// Three families (color, typography, spacing) each generate a deterministic
+// set of locked utility classes (`text-primary`, `bg-primary-l-2`, `text-xs`,
+// `padding-md`, etc.) keyed by stable framework IDs of the form
+// `framework:<family>:<...>`.
+//
+// Reconciliation rules — same for every family:
+//   1. CLAIM — any non-framework class whose name collides with a framework
+//      class of this family is replaced by the framework version. Existing
+//      assignments are remapped to the framework ID and the colliding class
+//      is deleted. This keeps the lock invariant: a framework name is always
+//      backed by the framework class, never by a leftover class with the
+//      same name (which would silently lose the locked state and badge).
+//   2. PRUNE — every class whose ID lives in this framework family's
+//      namespace but is not in the desired set is deleted and stripped
+//      from every assignment list. Detection is by ID prefix, not by
+//      `generated` metadata, so orphans whose metadata was somehow lost
+//      in a prior round-trip are still cleaned up — no leftover "ghost"
+//      classes that look editable because their lock marker disappeared.
+//   3. UPSERT — desired framework classes are written, preserving the
+//      previously-recorded createdAt timestamp when the same ID already
+//      existed (so timestamps don't churn on every reconcile).
+// ---------------------------------------------------------------------------
+
+type FrameworkFamily = 'color' | 'typography' | 'spacing'
+
+const FRAMEWORK_ID_PREFIX = 'framework:'
+
+function frameworkFamilyIdPrefix(family: FrameworkFamily): string {
+  return `${FRAMEWORK_ID_PREFIX}${family}:`
 }
 
-function pruneClassIdFromNodes(site: SiteDocument, classId: string): void {
+/**
+ * Visit every node-like value in the site that holds a `classIds: string[]`
+ * list and let `mutator` produce a new list. Covers Page nodes, the
+ * VisualComponent itself, and every VCNode in the rootNode tree.
+ */
+function mutateAllClassIdLists(
+  site: SiteDocument,
+  mutator: (classIds: string[]) => string[],
+): void {
+  const apply = (target: { classIds?: string[] }) => {
+    if (!target.classIds) return
+    target.classIds = mutator(target.classIds)
+  }
+
   for (const page of site.pages) {
-    for (const node of Object.values(page.nodes)) {
-      if (node.classIds?.includes(classId)) {
-        node.classIds = node.classIds.filter((id) => id !== classId)
-      }
-    }
+    for (const node of Object.values(page.nodes)) apply(node)
+  }
+
+  for (const vc of site.visualComponents) {
+    apply(vc as { classIds?: string[] })
+    walkVCNodeTree(vc.rootNode, apply)
   }
 }
 
-function reconcileFrameworkColorClasses(site: SiteDocument): void {
-  const colors = ensureFrameworkColors(site)
-  const nextClasses = generateFrameworkColorUtilityClasses(colors)
-  const nextClassIds = new Set(Object.keys(nextClasses))
+function walkVCNodeTree(node: VCNode, fn: (node: VCNode) => void): void {
+  fn(node)
+  if (!node.childNodes) return
+  for (const child of node.childNodes) walkVCNodeTree(child, fn)
+}
 
+function pruneClassIdFromSite(site: SiteDocument, classId: string): void {
+  mutateAllClassIdLists(site, (ids) =>
+    ids.includes(classId) ? ids.filter((id) => id !== classId) : ids,
+  )
+}
+
+function remapClassIdInSite(
+  site: SiteDocument,
+  fromId: string,
+  toId: string,
+): void {
+  mutateAllClassIdLists(site, (ids) => {
+    if (!ids.includes(fromId)) return ids
+    const seen = new Set<string>()
+    const out: string[] = []
+    for (const id of ids) {
+      const next = id === fromId ? toId : id
+      if (seen.has(next)) continue
+      seen.add(next)
+      out.push(next)
+    }
+    return out
+  })
+}
+
+function reconcileFrameworkClassFamily(
+  site: SiteDocument,
+  family: FrameworkFamily,
+  nextClasses: Record<string, CSSClass>,
+): void {
+  const nextClassIds = new Set(Object.keys(nextClasses))
+  const familyPrefix = frameworkFamilyIdPrefix(family)
+  const frameworkIdByName = new Map<string, string>()
+  for (const [classId, cls] of Object.entries(nextClasses)) {
+    frameworkIdByName.set(cls.name, classId)
+  }
+
+  // 1. CLAIM — replace non-framework classes whose name collides with a
+  //    framework class of this family. Node-scoped classes (module-style
+  //    instance layers) are off-limits; their names live in a different
+  //    namespace.
+  for (const [classId, cls] of Object.entries(site.classes)) {
+    if (cls.scope) continue
+    if (classId.startsWith(FRAMEWORK_ID_PREFIX)) continue
+    const frameworkId = frameworkIdByName.get(cls.name)
+    if (!frameworkId) continue
+    remapClassIdInSite(site, classId, frameworkId)
+    delete site.classes[classId]
+  }
+
+  // 2. PRUNE — delete every class whose ID lives in this family's
+  //    namespace but isn't in the desired set. Recognising by ID prefix
+  //    means orphans whose `generated` metadata was lost (e.g. through a
+  //    prior persistence round-trip) are still cleaned up rather than
+  //    silently downgraded into editable user classes.
   for (const classId of Object.keys(site.classes)) {
-    if (!isGeneratedColorClassId(classId, site)) continue
+    if (!classId.startsWith(familyPrefix)) continue
     if (nextClassIds.has(classId)) continue
     delete site.classes[classId]
-    pruneClassIdFromNodes(site, classId)
+    pruneClassIdFromSite(site, classId)
   }
 
+  // 3. UPSERT — write the desired classes, preserving prior createdAt.
   for (const [classId, nextClass] of Object.entries(nextClasses)) {
     const existing = site.classes[classId]
     site.classes[classId] = {
@@ -452,6 +585,11 @@ function reconcileFrameworkColorClasses(site: SiteDocument): void {
       createdAt: existing?.createdAt ?? nextClass.createdAt,
     }
   }
+}
+
+function reconcileFrameworkColorClasses(site: SiteDocument): void {
+  const colors = ensureFrameworkColors(site)
+  reconcileFrameworkClassFamily(site, 'color', generateFrameworkColorUtilityClasses(colors))
 }
 
 function ensureFrameworkTypography(
@@ -518,60 +656,14 @@ function applyFrameworkSpacingGroupPatch(
   group.updatedAt = Date.now()
 }
 
-function isGeneratedTypographyClassId(id: string, site: SiteDocument): boolean {
-  return (
-    site.classes[id]?.generated?.origin === 'framework' &&
-    site.classes[id]?.generated?.family === 'typography'
-  )
-}
-
-function isGeneratedSpacingClassId(id: string, site: SiteDocument): boolean {
-  return (
-    site.classes[id]?.generated?.origin === 'framework' &&
-    site.classes[id]?.generated?.family === 'spacing'
-  )
-}
-
 function reconcileFrameworkTypographyClasses(site: SiteDocument): void {
   const typography = ensureFrameworkTypography(site)
-  const nextClasses = generateFrameworkTypographyUtilityClasses(typography)
-  const nextClassIds = new Set(Object.keys(nextClasses))
-
-  for (const classId of Object.keys(site.classes)) {
-    if (!isGeneratedTypographyClassId(classId, site)) continue
-    if (nextClassIds.has(classId)) continue
-    delete site.classes[classId]
-    pruneClassIdFromNodes(site, classId)
-  }
-
-  for (const [classId, nextClass] of Object.entries(nextClasses)) {
-    const existing = site.classes[classId]
-    site.classes[classId] = {
-      ...nextClass,
-      createdAt: existing?.createdAt ?? nextClass.createdAt,
-    }
-  }
+  reconcileFrameworkClassFamily(site, 'typography', generateFrameworkTypographyUtilityClasses(typography))
 }
 
 function reconcileFrameworkSpacingClasses(site: SiteDocument): void {
   const spacing = ensureFrameworkSpacing(site)
-  const nextClasses = generateFrameworkSpacingUtilityClasses(spacing)
-  const nextClassIds = new Set(Object.keys(nextClasses))
-
-  for (const classId of Object.keys(site.classes)) {
-    if (!isGeneratedSpacingClassId(classId, site)) continue
-    if (nextClassIds.has(classId)) continue
-    delete site.classes[classId]
-    pruneClassIdFromNodes(site, classId)
-  }
-
-  for (const [classId, nextClass] of Object.entries(nextClasses)) {
-    const existing = site.classes[classId]
-    site.classes[classId] = {
-      ...nextClass,
-      createdAt: existing?.createdAt ?? nextClass.createdAt,
-    }
-  }
+  reconcileFrameworkClassFamily(site, 'spacing', generateFrameworkSpacingUtilityClasses(spacing))
 }
 
 function clearDynamicBindingsFromNode(node: PageNode): void {
@@ -811,6 +903,44 @@ export const createSiteSlice: StateCreator<EditorStore, [], [], SiteSlice> = (se
       return newNode.id
     },
 
+    insertComponentRef: (parentId, componentId) => {
+      const { activeDocument } = get()
+
+      if (activeDocument?.kind === 'visualComponent') {
+        // Defensive: empty componentId is a no-op (can't insert an unresolved ref)
+        if (!componentId) return null
+
+        const vcId = activeDocument.vcId
+        const newNode: VCNode = {
+          id: nanoid(),
+          moduleId: 'base.visual-component-ref',
+          props: { componentId, propOverrides: {}, slotContent: {} },
+          children: [],
+          breakpointOverrides: {},
+          classIds: [],
+        }
+
+        try {
+          get().addNodeToVc(vcId, parentId, newNode)
+          return newNode.id
+        } catch (err) {
+          if (err instanceof VisualComponentRecursionError) {
+            console.warn('[component-system] cycle prevented by recursion guard:', err)
+            return null
+          }
+          throw err
+        }
+      }
+
+      // Page mode (activeDocument is null or kind === 'page')
+      if (!componentId) return null
+      return get().insertNode(
+        'base.visual-component-ref',
+        { componentId, propOverrides: {}, slotContent: {} },
+        parentId,
+      )
+    },
+
     deleteNode: (nodeId) => {
       mutatePage((page) => deleteNode(page, nodeId))
       if (get().selectedNodeId === nodeId) set({ selectedNodeId: null })
@@ -976,6 +1106,17 @@ export const createSiteSlice: StateCreator<EditorStore, [], [], SiteSlice> = (se
         colors.tokens = colors.tokens.filter((token) => token.id !== tokenId)
         reconcileFrameworkColorClasses(site)
       })
+    },
+
+    previewFrameworkChange: (applyChange) => {
+      const { site } = get()
+      if (!site) return null
+      const draft = structuredClone(site)
+      applyChange(draft)
+      reconcileFrameworkColorClasses(draft)
+      reconcileFrameworkTypographyClasses(draft)
+      reconcileFrameworkSpacingClasses(draft)
+      return previewFrameworkClassRemovals(site, draft)
     },
 
     // ─── Framework preferences ───────────────────────────────────────────────

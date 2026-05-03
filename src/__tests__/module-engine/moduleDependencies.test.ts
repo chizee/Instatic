@@ -5,8 +5,8 @@ import {
   getSiteModuleDependencyUsage,
   normalizeModuleDependencies,
 } from '@core/module-engine/dependencies'
-import type { PageNode } from '@core/page-tree/types'
 import type { AnyModuleDefinition, IModuleRegistry } from '@core/module-engine/types'
+import { makeNode } from '../fixtures'
 
 function makeModule(dependencies: AnyModuleDefinition['dependencies']): AnyModuleDefinition {
   return {
@@ -83,8 +83,8 @@ describe('module dependency metadata', () => {
         pages: [
           {
             nodes: {
-              a: { moduleId: mod.id } as PageNode,
-              b: { moduleId: mod.id } as PageNode,
+              a: makeNode({ moduleId: mod.id }),
+              b: makeNode({ moduleId: mod.id }),
             },
           },
         ],

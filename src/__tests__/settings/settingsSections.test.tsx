@@ -109,13 +109,15 @@ describe('PagesSection — Delete button aria-disabled pattern', () => {
     expect(deleteBtn.getAttribute('tabindex')).not.toBe('-1')
   })
 
-  it('Delete button has a title tooltip explaining the restriction when aria-disabled', () => {
+  it('Delete button shows a Tooltip explaining the restriction when aria-disabled', () => {
     loadSiteWithPages(1)
     render(<PagesSection />)
     const deleteBtn = screen.getByRole('button', { name: /delete page/i })
-    const title = deleteBtn.getAttribute('title')
-    expect(title).not.toBeNull()
-    expect(title!.toLowerCase()).toContain('last page')
+    // Tooltip is shown on hover via the Tooltip primitive (not native title=)
+    fireEvent.mouseEnter(deleteBtn)
+    const tooltip = screen.getByRole('tooltip')
+    expect(tooltip).toBeDefined()
+    expect(tooltip.textContent!.toLowerCase()).toContain('last page')
   })
 
   it('clicking the aria-disabled Delete button does NOT open the confirm UI', () => {
@@ -197,13 +199,15 @@ describe('BreakpointsSection — Activate button aria-disabled pattern', () => {
     expect(activateBtn.getAttribute('tabindex')).not.toBe('-1')
   })
 
-  it('Activate button has a title tooltip for the already-active breakpoint', () => {
+  it('Activate button shows a Tooltip for the already-active breakpoint', () => {
     loadSiteWithBreakpoints('desktop')
     render(<BreakpointsSection />)
     const activateBtn = screen.getByRole('button', { name: /set desktop as active/i })
-    const title = activateBtn.getAttribute('title')
-    expect(title).not.toBeNull()
-    expect(title!.length).toBeGreaterThan(0)
+    // Tooltip is shown on hover via the Tooltip primitive (not native title=)
+    fireEvent.mouseEnter(activateBtn)
+    const tooltip = screen.getByRole('tooltip')
+    expect(tooltip).toBeDefined()
+    expect(tooltip.textContent!.length).toBeGreaterThan(0)
   })
 
   it('clicking the aria-disabled Activate button does NOT change the active breakpoint', () => {
@@ -375,13 +379,15 @@ describe('BreakpointsSection — minimum breakpoint guard (Task #241)', () => {
     expect(removeBtn.hasAttribute('disabled')).toBe(false)
   })
 
-  it('Remove button has a title tooltip when only 1 breakpoint remains', () => {
+  it('Remove button shows a Tooltip when only 1 breakpoint remains', () => {
     loadSiteWithOneBreakpoint()
     render(<BreakpointsSection />)
     const removeBtn = screen.getByRole('button', { name: /remove desktop breakpoint/i })
-    const title = removeBtn.getAttribute('title')
-    expect(title).not.toBeNull()
-    expect(title!.toLowerCase()).toContain('last breakpoint')
+    // Tooltip is shown on hover via the Tooltip primitive (not native title=)
+    fireEvent.mouseEnter(removeBtn)
+    const tooltip = screen.getByRole('tooltip')
+    expect(tooltip).toBeDefined()
+    expect(tooltip.textContent!.toLowerCase()).toContain('last breakpoint')
   })
 
   it('clicking the aria-disabled Remove button does NOT open the confirm UI', () => {

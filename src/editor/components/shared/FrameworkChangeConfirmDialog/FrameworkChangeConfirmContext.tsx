@@ -1,0 +1,81 @@
+/**
+ * FrameworkChangeConfirmProvider — single-instance dialog host.
+ *
+ * Provides `confirmFrameworkChange()` to any descendant component. The
+ * caller passes a small mutation function describing the framework
+ * change plus a commit callback that performs the actual store action.
+ * The provider asks the editor store to preview the impact, and:
+ *   - if no framework class becomes orphaned (or all orphans are
+ *     unused), commits immediately;
+ *   - otherwise mounts <FrameworkChangeConfirmDialog/>, lets the user
+ *     review per-element usage, and commits only on explicit confirm.
+ *
+ * One provider mounted near the editor root replaces N ad-hoc dialog
+ * states across panels (Colors, Typography, Spacing).
+ *
+ * The hook + types + context object live next door in
+ * `frameworkChangeConfirmHook.ts` so this file remains a pure component
+ * module (Fast Refresh requires component files to export only
+ * components).
+ */
+
+import {
+  useCallback,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react'
+import { useEditorStore } from '@core/editor-store/store'
+import { FrameworkChangeConfirmDialog } from './FrameworkChangeConfirmDialog'
+import {
+  FrameworkChangeConfirmContext,
+  type ConfirmFrameworkChangeRequest,
+  type FrameworkChangeConfirmContextValue,
+  type PendingDialogState,
+} from './frameworkChangeConfirmHook'
+
+export function FrameworkChangeConfirmProvider({ children }: { children: ReactNode }) {
+  const previewFrameworkChange = useEditorStore((s) => s.previewFrameworkChange)
+  const [pending, setPending] = useState<PendingDialogState | null>(null)
+
+  const confirm = useCallback(
+    (request: ConfirmFrameworkChangeRequest) => {
+      const impact = previewFrameworkChange(request.applyChange)
+      if (!impact) {
+        request.commit()
+        return
+      }
+      setPending({ request, impact })
+    },
+    [previewFrameworkChange],
+  )
+
+  const value = useMemo<FrameworkChangeConfirmContextValue>(
+    () => ({ confirm }),
+    [confirm],
+  )
+
+  const handleCancel = useCallback(() => {
+    setPending(null)
+  }, [])
+
+  const handleConfirm = useCallback(() => {
+    if (!pending) return
+    pending.request.commit()
+    setPending(null)
+  }, [pending])
+
+  return (
+    <FrameworkChangeConfirmContext.Provider value={value}>
+      {children}
+      {pending && (
+        <FrameworkChangeConfirmDialog
+          impact={pending.impact}
+          actionLabel={pending.request.actionLabel}
+          onCancel={handleCancel}
+          onConfirm={handleConfirm}
+        />
+      )}
+    </FrameworkChangeConfirmContext.Provider>
+  )
+}

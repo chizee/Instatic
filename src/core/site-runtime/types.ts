@@ -1,5 +1,4 @@
 import type { SiteFile } from '../files/types'
-import type { Page } from '../page-tree/types'
 
 export interface LockedSiteDependency {
   name: string
@@ -56,13 +55,6 @@ export interface PublishedRuntimeScriptAsset {
 
 export interface PublishedPageRuntimeAssets {
   scripts: PublishedRuntimeScriptAsset[]
-}
-
-export interface CollectRuntimeScriptsInput {
-  files: SiteFile[]
-  runtime: SiteRuntimeConfig
-  page: Page
-  target: SiteRuntimeTarget
 }
 
 export type SiteRuntimeDiagnosticSeverity = 'error' | 'warning' | 'info'

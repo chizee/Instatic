@@ -1,11 +1,11 @@
 import { useCallback, type ChangeEvent, type SyntheticEvent } from "react";
 import type { Breakpoint } from "@core/page-tree/types";
 import { Select } from "@ui/components/Select";
-import { SmartphoneIcon } from "@ui/icons/icons/smartphone";
-import { TabletIcon } from "@ui/icons/icons/tablet";
-import { MonitorIcon } from "@ui/icons/icons/monitor";
-import { LaptopIcon } from "@ui/icons/icons/laptop";
-import { TvIcon } from "@ui/icons/icons/tv";
+import { SmartphoneIcon } from "pixel-art-icons/icons/smartphone";
+import { TabletIcon } from "pixel-art-icons/icons/tablet";
+import { MonitorIcon } from "pixel-art-icons/icons/monitor";
+import { LaptopIcon } from "pixel-art-icons/icons/laptop";
+import { TvIcon } from "pixel-art-icons/icons/tv";
 import styles from "./CanvasBreakpointSelector.module.css";
 
 interface CanvasBreakpointSelectorProps {

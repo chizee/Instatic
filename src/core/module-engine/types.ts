@@ -1,4 +1,5 @@
 import type { ComponentType, ReactNode } from 'react'
+import type { IconComponent } from 'pixel-art-icons/types'
 import type { CSSPropertyBag } from '../page-tree/types'
 
 // ---------------------------------------------------------------------------
@@ -18,10 +19,34 @@ export type PropertyCondition =
 // Property Controls — drive the Properties Panel UI
 // ---------------------------------------------------------------------------
 
+/**
+ * Row layout for a single property control inside the Properties Panel.
+ *
+ *   `inline`  — default for compact controls. Label sits in a 100px column on
+ *               the left, the value control fills the remaining width. Best
+ *               for short numeric, select, color, toggle, and short-text fields.
+ *
+ *   `stacked` — label sits on its own line above a full-width value control.
+ *               Best for controls that need horizontal room: media pickers,
+ *               textareas, richtext, multi-step pickers with their own internal
+ *               layout. Image / media / textarea / richtext default to this.
+ *
+ * The `layout` field on a control overrides the per-type default, so a module
+ * author can opt any field in or out (e.g. an `alt text` field next to an
+ * image picker often reads better stacked even though it's a `text` control).
+ */
+export type PropertyControlLayout = 'inline' | 'stacked'
+
 type PropertyControlBase = {
   label: string
   description?: string
   condition?: PropertyCondition
+  /**
+   * Optional row layout override. When omitted, the renderer uses a sensible
+   * default based on the control type: `image`, `media`, `textarea`, and
+   * `richtext` default to `stacked`; everything else defaults to `inline`.
+   */
+  layout?: PropertyControlLayout
 }
 
 export type PropertyControl = PropertyControlBase &
@@ -169,8 +194,16 @@ export interface ModuleDefinition<
   /** Category for grouping in the Module Library */
   category: string
 
-  /** Lucide icon name or inline SVG string */
-  icon?: string
+  /**
+   * Module icon — concrete icon component from `pixel-art-icons`.
+   *
+   * Single source of truth for the icon shown next to a module everywhere in
+   * the editor: layer tree rows, the canvas notch quick actions, the
+   * Properties Panel "Module settings" header, and the module picker popover.
+   * Use the shared `ModuleIcon` resolver (see `src/editor/ui/ModuleIcon`)
+   * instead of consuming `icon` directly when rendering against a moduleId.
+   */
+  icon: IconComponent
 
   /** Semver string e.g. "1.0.0" */
   version: string

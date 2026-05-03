@@ -1,10 +1,17 @@
 import { describe, expect, it, beforeEach } from 'bun:test'
+import React from 'react'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { readFileSync } from 'fs'
+import { DndContext } from '@dnd-kit/core'
 import { CanvasRoot } from '../../editor/components/Canvas/CanvasRoot'
 import { useEditorStore } from '@core/editor-store/store'
 import { makeNode, makePage, makeSite } from '../fixtures'
 import '../../modules/base'
+
+/** CanvasRoot uses useDroppable and must be rendered inside a DndContext. */
+function renderCanvas() {
+  return render(<DndContext><CanvasRoot /></DndContext>)
+}
 
 const CANVAS_BREAKPOINT_SELECTOR_CSS = new URL(
   '../../editor/components/Canvas/CanvasBreakpointSelector.module.css',
@@ -64,7 +71,7 @@ function loadCanvasWithSelectedText() {
 describe('CanvasBreakpointSelector', () => {
   it('renders as top-right canvas chrome only when docked properties are open', () => {
     loadCanvasWithSelectedText()
-    const { rerender } = render(<CanvasRoot />)
+    const { rerender } = renderCanvas()
 
     expect(screen.getByTestId('canvas-breakpoint-selector')).toBeDefined()
     expect((screen.getByRole('combobox', { name: /canvas breakpoint/i }) as HTMLInputElement).value).toBe('Mobile')
@@ -74,7 +81,7 @@ describe('CanvasBreakpointSelector', () => {
         propertiesPanelMode: 'floating',
       } as Parameters<typeof useEditorStore.setState>[0])
     })
-    rerender(<CanvasRoot />)
+    rerender(<DndContext><CanvasRoot /></DndContext>)
     expect(screen.queryByTestId('canvas-breakpoint-selector')).toBeNull()
 
     act(() => {
@@ -83,13 +90,13 @@ describe('CanvasBreakpointSelector', () => {
         propertiesPanel: { collapsed: true, x: 0, y: 0, width: 360 },
       } as Parameters<typeof useEditorStore.setState>[0])
     })
-    rerender(<CanvasRoot />)
+    rerender(<DndContext><CanvasRoot /></DndContext>)
     expect(screen.queryByTestId('canvas-breakpoint-selector')).toBeNull()
   })
 
   it('changes the active canvas breakpoint without clearing the selected node', () => {
     const { nodeId } = loadCanvasWithSelectedText()
-    render(<CanvasRoot />)
+    renderCanvas()
 
     fireEvent.click(screen.getByRole('combobox', { name: /canvas breakpoint/i }))
     fireEvent.click(screen.getByRole('option', { name: /tablet 768px/i }))
@@ -101,7 +108,7 @@ describe('CanvasBreakpointSelector', () => {
 
   it('keeps the closed trigger compact while opening a wider breakpoint menu', () => {
     loadCanvasWithSelectedText()
-    render(<CanvasRoot />)
+    renderCanvas()
 
     fireEvent.click(screen.getByRole('combobox', { name: /canvas breakpoint/i }))
 
@@ -114,9 +121,10 @@ describe('CanvasBreakpointSelector', () => {
     const css = readFileSync(CANVAS_BREAKPOINT_SELECTOR_CSS, 'utf-8')
     const tsx = readFileSync(CANVAS_BREAKPOINT_SELECTOR_TSX, 'utf-8')
 
+    // Inverted-corner notch chrome — structural assertions (no border, vertical
+    // stack, borderless combobox input, mint accent surface). The actual radius
+    // and width values live in the CSS module and are free to be tuned.
     expect(css).toContain('border: 0')
-    expect(css).toContain('--breakpoint-notch-radius: 13px')
-    expect(css).toContain('min-width: 42px')
     expect(css).toContain('flex-direction: column')
     expect(css).toContain('flex: 0 0 0')
     expect(css).toContain('width: 0')
@@ -124,7 +132,7 @@ describe('CanvasBreakpointSelector', () => {
     expect(css).toContain('border-radius: 0 0 0 var(--breakpoint-notch-radius)')
     expect(css).toContain('left: calc(1px - var(--breakpoint-notch-corner))')
     expect(css).toContain('bottom: calc(1px - var(--breakpoint-notch-corner))')
-    expect(css).toContain('rgba(142, 230, 200')
+    expect(css).toContain('var(--editor-mint-surface)')
     expect(tsx).toContain('menuPlacement="left-start"')
   })
 })

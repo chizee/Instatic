@@ -14,9 +14,10 @@
  */
 import { useCallback, type SyntheticEvent } from 'react'
 import { useEditorStore } from '@core/editor-store/store'
-import { CursorMinimalIcon } from '@ui/icons/icons/cursor-minimal'
-import { EyeIcon } from '@ui/icons/icons/eye'
+import { CursorMinimalIcon } from 'pixel-art-icons/icons/cursor-minimal'
+import { EyeIcon } from 'pixel-art-icons/icons/eye'
 import { cn } from '@ui/cn'
+import { Tooltip } from '@ui/components/Tooltip'
 import styles from './CanvasModeToggle.module.css'
 
 export function CanvasModeToggle() {
@@ -38,30 +39,32 @@ export function CanvasModeToggle() {
       data-testid="canvas-mode-toggle"
       onClick={stopCanvasInteraction}
     >
-      <button
-        type="button"
-        role="tab"
-        aria-selected={view === 'design'}
-        data-testid="canvas-mode-toggle-design"
-        className={cn(styles.tab, view === 'design' && styles.tabActive)}
-        onClick={() => setView('design')}
-        title="Design mode (edit page visually)"
-      >
-        <CursorMinimalIcon size={12} aria-hidden="true" />
-        <span>Design</span>
-      </button>
-      <button
-        type="button"
-        role="tab"
-        aria-selected={view === 'preview'}
-        data-testid="canvas-mode-toggle-preview"
-        className={cn(styles.tab, view === 'preview' && styles.tabActive)}
-        onClick={() => setView('preview')}
-        title="Preview mode (run site scripts in sandboxed iframe)"
-      >
-        <EyeIcon size={12} aria-hidden="true" />
-        <span>Preview</span>
-      </button>
+      <Tooltip content="Design mode (edit page visually)">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={view === 'design'}
+          aria-label="Design"
+          data-testid="canvas-mode-toggle-design"
+          className={cn(styles.tab, view === 'design' && styles.tabActive)}
+          onClick={() => setView('design')}
+        >
+          <CursorMinimalIcon size={14} aria-hidden="true" />
+        </button>
+      </Tooltip>
+      <Tooltip content="Preview mode (run site scripts in sandboxed iframe)">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={view === 'preview'}
+          aria-label="Preview"
+          data-testid="canvas-mode-toggle-preview"
+          className={cn(styles.tab, view === 'preview' && styles.tabActive)}
+          onClick={() => setView('preview')}
+        >
+          <EyeIcon size={14} aria-hidden="true" />
+        </button>
+      </Tooltip>
     </div>
   )
 }

@@ -1,8 +1,8 @@
 import { useRef, type CSSProperties, type ReactNode } from 'react'
 import { Button } from '@ui/components/Button'
-import { BookOpenIcon } from '@ui/icons/icons/book-open'
-import { ImagesIcon } from '@ui/icons/icons/images'
-import type { IconComponent } from '@ui/icons/types'
+import { BookOpenIcon } from 'pixel-art-icons/icons/book-open'
+import { ImagesIcon } from 'pixel-art-icons/icons/images'
+import type { IconComponent } from 'pixel-art-icons/types'
 import { useEditorStore } from '@core/editor-store/store'
 import leftSidebarStyles from '@editor/components/LeftSidebar/LeftSidebar.module.css'
 import panelRailStyles from '@editor/components/PanelRail/PanelRail.module.css'
@@ -120,7 +120,7 @@ function ContentRailButton({
       iconOnly
       pressed={active}
       aria-label={`${action} ${label} panel`}
-      title={`${label} panel`}
+      tooltip={`${label} panel`}
       data-testid={`panel-rail-${id}`}
       data-icon={iconName}
       data-accent={accent}

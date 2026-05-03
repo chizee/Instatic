@@ -9,6 +9,9 @@ import { MediaExplorerPanel } from '../MediaExplorerPanel'
 import { PanelRail } from '../PanelRail'
 import { SelectorsPanel } from '../SelectorsPanel'
 import { SiteExplorerPanel } from '../SiteExplorerPanel'
+import { TypographyPanel } from '../TypographyPanel'
+import { SpacingPanel } from '../SpacingPanel'
+import { FrameworkChangeConfirmProvider } from '../shared/FrameworkChangeConfirmDialog'
 import { SidebarResizeHandle } from '../shared/SidebarResizeHandle'
 import styles from './LeftSidebar.module.css'
 
@@ -16,6 +19,8 @@ function selectActiveLeftSidebarPanel(state: ReturnType<typeof useEditorStore.ge
   if (state.siteExplorerPanelOpen) return 'site'
   if (state.selectorsPanelOpen) return 'selectors'
   if (state.colorsPanelOpen) return 'colors'
+  if (state.typographyPanelOpen) return 'typography'
+  if (state.spacingPanelOpen) return 'spacing'
   if (state.mediaExplorerPanelOpen) return 'media'
   if (state.dependenciesPanelOpen) return 'dependencies'
   if (!state.domTreePanel.collapsed) return 'layers'
@@ -50,33 +55,41 @@ export function LeftSidebar({ workspace = 'site', contentPanel }: LeftSidebarPro
     >
       <PanelRail workspace={workspace} />
 
-      <div
-        className={styles.panelSlot}
-        data-testid="left-sidebar-panel-slot"
-        aria-hidden={activePanel ? undefined : 'true'}
-      >
-        <div className={styles.panelMount} hidden={activePanel !== 'layers'}>
-          <DomPanel variant="docked" />
+      <FrameworkChangeConfirmProvider>
+        <div
+          className={styles.panelSlot}
+          data-testid="left-sidebar-panel-slot"
+          aria-hidden={activePanel ? undefined : 'true'}
+        >
+          <div className={styles.panelMount} hidden={activePanel !== 'layers'}>
+            <DomPanel variant="docked" />
+          </div>
+          <div className={styles.panelMount} hidden={activePanel !== 'site'}>
+            {workspace === 'content' ? contentPanel : <SiteExplorerPanel variant="docked" />}
+          </div>
+          <div className={styles.panelMount} hidden={activePanel !== 'selectors'}>
+            <SelectorsPanel variant="docked" />
+          </div>
+          <div className={styles.panelMount} hidden={activePanel !== 'colors'}>
+            <ColorsPanel variant="docked" />
+          </div>
+          <div className={styles.panelMount} hidden={activePanel !== 'typography'}>
+            <TypographyPanel variant="docked" />
+          </div>
+          <div className={styles.panelMount} hidden={activePanel !== 'spacing'}>
+            <SpacingPanel variant="docked" />
+          </div>
+          <div className={styles.panelMount} hidden={activePanel !== 'media'}>
+            <MediaExplorerPanel variant="docked" />
+          </div>
+          <div className={styles.panelMount} hidden={activePanel !== 'dependencies'}>
+            <DependenciesPanel variant="docked" />
+          </div>
+          <div className={styles.panelMount} hidden={activePanel !== 'agent'}>
+            <AgentPanel variant="docked" />
+          </div>
         </div>
-        <div className={styles.panelMount} hidden={activePanel !== 'site'}>
-          {workspace === 'content' ? contentPanel : <SiteExplorerPanel variant="docked" />}
-        </div>
-        <div className={styles.panelMount} hidden={activePanel !== 'selectors'}>
-          <SelectorsPanel variant="docked" />
-        </div>
-        <div className={styles.panelMount} hidden={activePanel !== 'colors'}>
-          <ColorsPanel variant="docked" />
-        </div>
-        <div className={styles.panelMount} hidden={activePanel !== 'media'}>
-          <MediaExplorerPanel variant="docked" />
-        </div>
-        <div className={styles.panelMount} hidden={activePanel !== 'dependencies'}>
-          <DependenciesPanel variant="docked" />
-        </div>
-        <div className={styles.panelMount} hidden={activePanel !== 'agent'}>
-          <AgentPanel variant="docked" />
-        </div>
-      </div>
+      </FrameworkChangeConfirmProvider>
 
       {activePanel && (
         <SidebarResizeHandle

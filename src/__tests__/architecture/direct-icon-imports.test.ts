@@ -2,7 +2,7 @@
  * Architecture Source-Scan — Direct Icon Imports
  *
  * Production UI must import concrete icon components from
- * `src/ui/icons/icons/<name>` instead of rendering through the lazy `Icon`
+ * `pixel-art-icons/icons/<name>` instead of rendering through any lazy `Icon`
  * wrapper. Direct file imports keep the large icon catalog available without
  * adding first-render async loading or importing every icon.
  */
@@ -37,7 +37,7 @@ function collectProdFiles(): string[] {
 }
 
 describe('Direct icon imports — no lazy Icon wrapper in production UI', () => {
-  it('production source does not import @ui/icons/Icon or render <Icon>', () => {
+  it('production source does not import a lazy pixel-art-icons/Icon wrapper or render <Icon>', () => {
     const violations: string[] = []
 
     for (const filePath of collectProdFiles()) {
@@ -45,8 +45,7 @@ describe('Direct icon imports — no lazy Icon wrapper in production UI', () => 
 
       const source = readFileSync(filePath, 'utf8')
       if (
-        /from\s+['"][^'"]*ui\/icons\/Icon['"]/.test(source) ||
-        /from\s+['"]@ui\/icons\/Icon['"]/.test(source) ||
+        /from\s+['"]pixel-art-icons\/Icon['"]/.test(source) ||
         /<Icon\b/.test(source)
       ) {
         violations.push(rel)
@@ -56,7 +55,7 @@ describe('Direct icon imports — no lazy Icon wrapper in production UI', () => 
     if (violations.length > 0) {
       throw new Error(
         `Lazy Icon wrapper usage found in production UI.\n` +
-          `Import concrete icons from '@ui/icons/icons/<name>' instead.\n\n` +
+          `Import concrete icons from 'pixel-art-icons/icons/<name>' instead.\n\n` +
           violations.map((f) => `  ${f}`).join('\n'),
       )
     }

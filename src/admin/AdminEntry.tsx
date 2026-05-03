@@ -1,8 +1,8 @@
 import { useEffect, useId, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Button } from '@ui/components/Button'
-import { DatabaseIcon } from '@ui/icons/icons/database'
-import { LoaderIcon } from '@ui/icons/icons/loader'
+import { DatabaseIcon } from 'pixel-art-icons/icons/database'
+import { LoaderIcon } from 'pixel-art-icons/icons/loader'
 import {
   getCmsSetupStatus,
   loginCms,
@@ -14,7 +14,7 @@ import { PluginPage } from './plugins/PluginPage'
 import { PluginsPage } from './plugins/PluginsPage'
 import { SitePage } from './site/SitePage'
 import { AppLoadingScreen } from './AppLoadingScreen'
-import type { AdminWorkspace } from './AdminLayout'
+import type { AdminWorkspace } from './workspace'
 import styles from './AdminEntry.module.css'
 
 type AdminPhase = 'loading' | 'setup' | 'login' | 'editor'

@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import React from 'react'
+import { DndContext } from '@dnd-kit/core'
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { readFileSync } from 'fs'
 import { SiteExplorerPanel } from '../../editor/components/SiteExplorerPanel'
@@ -630,7 +631,6 @@ describe('SiteExplorerPanel', () => {
 
     let component = useEditorStore.getState().site?.visualComponents.find((item) => item.id === 'vc-HeroCard')
     expect(component?.name).toBe('PromoCard')
-    expect(component?.filePath).toBe('src/components/PromoCard.tsx')
 
     fireEvent.contextMenu(screen.getByRole('button', { name: /open component promocard/i }), {
       clientX: 120,
@@ -669,6 +669,35 @@ describe('SiteExplorerPanel', () => {
 
     const scriptFile = useEditorStore.getState().site?.files.find((file) => file.id === 'script-1')
     expect(scriptFile).toBeUndefined()
+  })
+
+  it('renders a drag handle on each Component row', () => {
+    loadSite()
+    render(
+      <DndContext>
+        <SiteExplorerPanel variant="docked" />
+      </DndContext>,
+    )
+
+    const panel = screen.getByTestId('site-explorer-panel')
+    const handles = within(panel).getAllByTestId('site-explorer-component-drag-handle')
+    // One component in the fixture (HeroCard)
+    expect(handles).toHaveLength(1)
+  })
+
+  it('clicking a Component row still navigates to VC edit', () => {
+    loadSite()
+    render(
+      <DndContext>
+        <SiteExplorerPanel variant="docked" />
+      </DndContext>,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /open component herocard/i }))
+    expect(useEditorStore.getState().activeDocument).toEqual({
+      kind: 'visualComponent',
+      vcId: 'vc-HeroCard',
+    })
   })
 
   it('renames and deletes CMS media assets from the media row context menu', async () => {

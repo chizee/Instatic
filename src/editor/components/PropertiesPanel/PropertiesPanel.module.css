@@ -109,22 +109,6 @@
     gap: 8px;
 }
 
-.breakpointHint {
-    margin-bottom: 12px;
-    padding: 8px 10px;
-    border: 1px solid var(--panel-border);
-    border-radius: var(--editor-radius);
-    background: rgba(255, 255, 255, 0.04);
-    color: var(--editor-text-secondary);
-    font-size: 11px;
-    line-height: 1.5;
-}
-
-.breakpointHint strong {
-    color: var(--editor-text);
-    font-weight: 650;
-}
-
 .generatedUtilityState {
     display: grid;
     gap: 8px;

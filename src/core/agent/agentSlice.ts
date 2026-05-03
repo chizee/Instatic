@@ -20,7 +20,7 @@
 import { produce } from 'immer'
 import { nanoid } from 'nanoid'
 import type { StateCreator } from 'zustand'
-import type { EditorStore } from '../editor-store/store'
+import type { EditorStore } from '../editor-store/types'
 import { registry } from '../module-engine/registry'
 import type {
   AnyModuleDefinition,

@@ -10,9 +10,9 @@ import { useEditorStore } from '@core/editor-store/store'
 import type { CSSClass, CSSPropertyBag } from '@core/page-tree/types'
 import { Button } from '@ui/components/Button'
 import { SearchBar } from '@ui/components/SearchBar'
-import { CloseIcon } from '@ui/icons/icons/close'
-import { Settings2Icon } from '@ui/icons/icons/settings-2'
-import { BoxStackIcon } from '@ui/icons/icons/box-stack'
+import { CloseIcon } from 'pixel-art-icons/icons/close'
+import { Settings2Icon } from 'pixel-art-icons/icons/settings-2'
+import { BoxStackIcon } from 'pixel-art-icons/icons/box-stack'
 import { PropertyControlRenderer } from '../PropertyControls/PropertyControlRenderer'
 import { ClassPropertyRow } from './ClassPropertyRow'
 import { Section } from './Section'
@@ -214,7 +214,7 @@ function ClassStyleSection({
       title={section.title}
       icon={section.icon}
       defaultOpen
-      indicator={setCount > 0 ? 'set' : undefined}
+      indicator={setCount > 0}
       indicatorTestId={`class-style-section-dot-${section.id}`}
       meta={setCount > 0 ? `${setCount} set` : undefined}
     >
@@ -286,7 +286,7 @@ function ModuleStyleBindingRow({
           iconOnly
           onClick={() => onRemove(binding)}
           aria-label={`Remove ${binding.label} module style`}
-          title={`Remove ${binding.label}`}
+          tooltip={`Remove ${binding.label}`}
           className={styles.moduleStyleRemoveBtn}
         >
           <CloseIcon size={16} color="currentColor" aria-hidden="true" />
@@ -312,7 +312,7 @@ function StyleCategoryRail({ activeSectionId, sectionSetCounts, onChange }: Styl
         pressed={activeSectionId === ALL_STYLE_CATEGORY_ID}
         onClick={() => onChange(ALL_STYLE_CATEGORY_ID)}
         aria-label="Show all class style categories"
-        title="All styles"
+        tooltip="All styles"
         className={styles.categoryRailButton}
       >
         <BoxStackIcon size={14} aria-hidden="true" />
@@ -330,7 +330,7 @@ function StyleCategoryRail({ activeSectionId, sectionSetCounts, onChange }: Styl
             pressed={activeSectionId === section.id}
             onClick={() => onChange(section.id)}
             aria-label={`Show ${section.title} styles`}
-            title={section.title}
+            tooltip={section.title}
             className={styles.categoryRailButton}
             data-has-set-styles={hasSetStyles ? 'true' : undefined}
           >

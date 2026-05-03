@@ -1,7 +1,7 @@
 import type { StateCreator } from 'zustand'
-import type { EditorStore } from '../store'
+import type { EditorStore } from '../types'
 import { isUserVisibleClass } from '@core/page-tree/classUtils'
-import type { PageNode } from '@core/page-tree/types'
+import type { BaseNode } from '@core/page-tree/types'
 
 export interface SelectionSlice {
   /** Currently selected node ID — null if nothing is selected */
@@ -70,13 +70,13 @@ function getSelectionActiveClassId(state: EditorStore, nodeId: string | null): s
   return visibleClassIds[0]
 }
 
-function findSelectableNode(state: EditorStore, nodeId: string): PageNode | null {
+function findSelectableNode(state: EditorStore, nodeId: string): BaseNode | null {
   if (!state.site) return null
 
   const activeDocument = state.activeDocument
   if (activeDocument?.kind === 'visualComponent') {
     const component = state.site.visualComponents?.find((vc) => vc.id === activeDocument.vcId)
-    const node = component ? findNodeInTree(component.rootNode as PageNode, nodeId) : null
+    const node = component ? findNodeInTree(component.rootNode, nodeId) : null
     if (node) return node
   }
 
@@ -88,7 +88,10 @@ function findSelectableNode(state: EditorStore, nodeId: string): PageNode | null
   return null
 }
 
-function findNodeInTree(node: PageNode, nodeId: string): PageNode | null {
+function findNodeInTree<T extends { id: string; childNodes?: T[] }>(
+  node: T,
+  nodeId: string,
+): T | null {
   if (node.id === nodeId) return node
 
   for (const child of node.childNodes ?? []) {

@@ -11,6 +11,7 @@
 
     /* ─── Editor Surface Hierarchy (Vercel/Linear pure-black) ─────────────── */
     --editor-bg: #000000;
+    --editor-bg-subtle: #323232;  /* subtle element bg — chips, badges inside nested surfaces */
     --editor-surface: #1b1b1b;
     --editor-surface-2: #282828;
     --editor-surface-3: #323232;
@@ -22,6 +23,7 @@
     --editor-border-med: #2e2e2e; /* medium border (slightly elevated) */
 
     /* ─── Text Hierarchy ─────────────────────────────────────────────────── */
+    --editor-text-bright: #f4f4f5; /* zinc-100 — brightest text level (titles) */
     --editor-text: #ededed; /* primary text */
     --editor-text-secondary: #a1a1aa; /* labels, secondary UI text */
     --editor-text-muted: #71717a; /* muted / placeholder */
@@ -53,11 +55,43 @@
     --editor-danger: #ef4444;
     --editor-danger-light: #f87171; /* red-400 — lighter danger for text */
     --editor-danger-lighter: #fca5a5; /* red-300 — very light danger tint */
+    --editor-danger-text: #fecaca; /* red-200 — danger badge text */
     --editor-danger-bg: rgba(239, 68, 68, 0.1);
     --editor-danger-border: rgba(239, 68, 68, 0.2);
     --editor-warning: #f59e0b;
+    --editor-warning-text: #fde68a; /* amber-200 — warning badge text */
     --editor-success-green: #34d399; /* emerald-400 — saved / ok indicator */
     --editor-success-bright: #4ade80; /* green-400 — agent tool success */
+    --editor-success-text: #d1fae5; /* emerald-100 — success/mint badge text */
+    --editor-success-text-soft: #a7f3d0; /* emerald-200 — success hint text */
+    --editor-info-text: #c4b5fd; /* violet-300 — info text */
+
+    /* ─── Mint accent surface (canvas breakpoint chrome, mode toggle) ────── */
+    --editor-mint-surface: #1a2924; /* dark mint background */
+
+    /* ─── Panel rail accent tints (per-rail icon colour) ─────────────────── */
+    --rail-tint-mint: #8ee6c8;
+    --rail-tint-lilac: #c8b6ff;
+    --rail-tint-sky: #9bdcff;
+    --rail-tint-peach: #ffc7a8;
+
+    /* ─── Chart series tints — used by the spacing scale chart bars.
+     *     Two vibrant, deliberately-contrasting hues so the desktop and mobile
+     *     series read at a glance. The `-glow` tokens are the same hue at
+     *     lower alpha for shadow halos around active segments. */
+    --chart-series-min: #38bdf8; /* sky 400 — bright cyan-blue (mobile) */
+    --chart-series-min-glow: rgba(56, 189, 248, 0.4);
+    --chart-series-max: #4ade80; /* green 400 — neon green (desktop) */
+    --chart-series-max-glow: rgba(74, 222, 128, 0.4);
+    --chart-segment-empty: rgba(255, 255, 255, 0.06);
+    --chart-segment-empty-border: rgba(255, 255, 255, 0.04);
+    --chart-track-bg: rgba(255, 255, 255, 0.04);
+
+    /* ─── Admin shell (login / setup page) ───────────────────────────────── */
+    --admin-bg: #050505; /* admin chrome bg — slightly off-pure-black */
+    --admin-panel-bg: #0b0b0b; /* admin panel surface */
+    --admin-panel-border: #232323; /* admin panel border */
+    --admin-input-border: #2a2a2a; /* admin input border on dark panel */
 
     /* ─── Border Radius ──────────────────────────────────────────────────── */
     --editor-radius-sm: 3px;
@@ -92,6 +126,14 @@
     /* ─── Canvas ─────────────────────────────────────────────────────────── */
     --canvas-selection-ring: inset 0 0 0 1px #39ff14;
     --canvas-hover-ring: inset 0 0 0 1px #ff2bd6;
+
+    /* ─── Tooltip ────────────────────────────────────────────────────────── */
+    --tooltip-bg: #0a0a0c;
+    --tooltip-fg: #f4f4f5;
+    --tooltip-border: rgba(255, 255, 255, 0.06);
+    --tooltip-shadow: 0 4px 16px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    --tooltip-radius: 6px;
+    --tooltip-z-index: 2000;
 }
 
 /* Reduced motion support — Constraint from UX Guideline #189 */

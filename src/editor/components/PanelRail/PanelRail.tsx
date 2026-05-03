@@ -1,14 +1,16 @@
 import { useEffect } from 'react'
 import { useEditorStore } from '@core/editor-store/store'
 import type { LeftSidebarPanelId } from '@core/editor-store/slices/uiSlice'
-import type { IconComponent } from '@ui/icons/types'
-import { Bulletlist2SharpIcon } from '@ui/icons/icons/bulletlist-2-sharp'
-import { AiSettingsSolidIcon } from '@ui/icons/icons/ai-settings-solid'
-import { FilesStack2Icon } from '@ui/icons/icons/files-stack-2'
-import { ImagesIcon } from '@ui/icons/icons/images'
-import { BoxStackIcon } from '@ui/icons/icons/box-stack'
-import { PaintBucketIcon } from '@ui/icons/icons/paint-bucket'
-import { ColorsSwatchIcon } from '@ui/icons/icons/colors-swatch'
+import type { IconComponent } from 'pixel-art-icons/types'
+import { Bulletlist2SharpIcon } from 'pixel-art-icons/icons/bulletlist-2-sharp'
+import { AiSettingsSolidIcon } from 'pixel-art-icons/icons/ai-settings-solid'
+import { FilesStack2Icon } from 'pixel-art-icons/icons/files-stack-2'
+import { ImagesIcon } from 'pixel-art-icons/icons/images'
+import { BoxStackIcon } from 'pixel-art-icons/icons/box-stack'
+import { PaintBucketIcon } from 'pixel-art-icons/icons/paint-bucket'
+import { ColorsSwatchIcon } from 'pixel-art-icons/icons/colors-swatch'
+import { TextStartTIcon } from 'pixel-art-icons/icons/text-start-t'
+import { RulerDimensionIcon } from 'pixel-art-icons/icons/ruler-dimension'
 import { Button } from '@ui/components/Button'
 import styles from './PanelRail.module.css'
 
@@ -79,6 +81,20 @@ const PRIMARY_RAIL_ITEMS: PrimaryRailItem[] = [
     accent: 'peach',
   },
   {
+    id: 'typography',
+    label: 'Typography',
+    icon: TextStartTIcon,
+    iconName: 'text-start-t',
+    accent: 'mint',
+  },
+  {
+    id: 'spacing',
+    label: 'Spacing',
+    icon: RulerDimensionIcon,
+    iconName: 'ruler-dimension',
+    accent: 'lilac',
+  },
+  {
     id: 'media',
     label: 'Media',
     icon: ImagesIcon,
@@ -103,6 +119,8 @@ export function PanelRail({ workspace = 'site' }: PanelRailProps) {
   const siteOpen = useEditorStore((s) => s.siteExplorerPanelOpen)
   const selectorsOpen = useEditorStore((s) => s.selectorsPanelOpen)
   const colorsOpen = useEditorStore((s) => s.colorsPanelOpen)
+  const typographyOpen = useEditorStore((s) => s.typographyPanelOpen)
+  const spacingOpen = useEditorStore((s) => s.spacingPanelOpen)
   const mediaOpen = useEditorStore((s) => s.mediaExplorerPanelOpen)
   const dependenciesOpen = useEditorStore((s) => s.dependenciesPanelOpen)
   const agentOpen = useEditorStore((s) => s.isAgentOpen)
@@ -147,6 +165,8 @@ export function PanelRail({ workspace = 'site' }: PanelRailProps) {
     site: siteOpen,
     selectors: selectorsOpen,
     colors: colorsOpen,
+    typography: typographyOpen,
+    spacing: spacingOpen,
     media: mediaOpen,
     dependencies: dependenciesOpen,
   } satisfies Record<LeftSidebarPanelId, boolean>
@@ -194,7 +214,7 @@ function RailButton({ item }: { item: RailItem }) {
       aria-label={`${action} ${item.label} panel`}
       aria-keyshortcuts={item.ariaKeyshortcuts}
       disabled={item.disabled}
-      title={title}
+      tooltip={title}
       data-testid={`panel-rail-${item.id}`}
       data-icon={item.iconName}
       data-accent={item.accent}

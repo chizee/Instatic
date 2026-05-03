@@ -19,7 +19,7 @@
  */
 
 import type { StateCreator } from 'zustand'
-import type { EditorStore } from '../store'
+import type { EditorStore } from '../types'
 
 // ---------------------------------------------------------------------------
 // Types

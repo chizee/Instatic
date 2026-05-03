@@ -132,7 +132,7 @@ export function ScriptSettingsPane({ file }: ScriptSettingsPaneProps) {
         />
       </div>
 
-      <label className={styles.field}>
+      <div className={styles.field}>
         <span className={styles.label}>Priority</span>
         <Input
           aria-label="Script priority"
@@ -144,7 +144,7 @@ export function ScriptSettingsPane({ file }: ScriptSettingsPaneProps) {
             patch({ priority: Number.isFinite(next) ? next : DEFAULT_SCRIPT_RUNTIME_CONFIG.priority })
           }}
         />
-      </label>
+      </div>
 
       {(runtimePackages.length > 0 || diagnostics.length > 0) && (
         <div className={styles.imports} aria-label="Script imports">

@@ -1,5 +1,5 @@
 import type { StateCreator } from 'zustand'
-import type { EditorStore } from '../store'
+import type { EditorStore } from '../types'
 
 type CanvasMode = 'select' | 'pan' | 'insert'
 
@@ -38,6 +38,12 @@ export interface CanvasSlice {
   activeBreakpointId: string
   /** Active page ID */
   activePageId: string | null
+  /**
+   * Page ID to restore when exiting VC canvas mode.
+   * Captured by setActiveDocument when transitioning into VC mode from
+   * the default page canvas (activeDocument === null). Cleared on exit.
+   */
+  previousActivePageId: string | null
   /** Current editor interaction mode */
   canvasMode: CanvasMode
   /** Current canvas render mode — design (live module editor) or preview (sandboxed runtime) */
@@ -80,6 +86,7 @@ export const createCanvasSlice: StateCreator<EditorStore, [], [], CanvasSlice> =
   panY: 0,
   activeBreakpointId: 'desktop',
   activePageId: null,
+  previousActivePageId: null,
   canvasMode: 'select',
   canvasView: 'design',
 

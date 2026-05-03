@@ -51,6 +51,11 @@
     pointer-events: none;
 }
 
+/* ── Search bar — match PanelHeader's horizontal inset ───────────────────── */
+.searchBar {
+    margin: 0 8px;
+}
+
 /* ── Tree / scrollable content area ─────────────────────────────────────── */
 .treeArea {
     flex: 1;

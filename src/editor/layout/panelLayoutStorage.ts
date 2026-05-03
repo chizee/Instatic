@@ -1,11 +1,31 @@
 import { z } from 'zod'
-import type { PanelPosition } from '../hooks/useDraggablePanel'
 import type { PropertiesPanelMode } from '@core/editor-store/slices/uiSlice'
 import { safeParseJson } from '@core/utils/jsonValidate'
 
 export const EDITOR_LAYOUT_STORAGE_KEY = 'pb-editor-layout-v1'
 
-export type FloatingPanelId = 'dom' | 'properties' | 'site' | 'selectors' | 'colors' | 'media' | 'dependencies' | 'codeeditor' | 'agent'
+/**
+ * 2D position of a draggable / floating panel relative to the viewport.
+ * Defined here (the storage layer) so the hook layer can import it without
+ * creating a cycle back to the storage layer.
+ */
+export interface PanelPosition {
+  x: number
+  y: number
+}
+
+export type FloatingPanelId =
+  | 'dom'
+  | 'properties'
+  | 'site'
+  | 'selectors'
+  | 'colors'
+  | 'typography'
+  | 'spacing'
+  | 'media'
+  | 'dependencies'
+  | 'codeeditor'
+  | 'agent'
 
 export interface StoredPanelLayout {
   open?: boolean

@@ -2,29 +2,32 @@
  * Toolbar — fixed top bar for the editor.
  *
  * Layout (left → right):
- *   [Site name] [UndoRedo] [divider]
- *   [ZoomControls] [spacer→] [Publish actions] [Settings]
+ *   [Site name] [admin nav]
+ *   [Plugin buttons] [spacer→] [ZoomControls] [Publish actions] [Settings]
+ *
+ * Undo/Redo lives inside the canvas notch (CanvasNotch), not the toolbar —
+ * those controls only operate on the visual editor's page tree, so they have
+ * no meaning on admin pages outside the canvas (Content, Plugins, …).
  *
  * Accessibility (WCAG 2.1 AA):
  * - role="banner" for the top-level landmark
  * - aria-label on the nav region
  * - All interactive children have 44×44px minimum touch targets
- * - Keyboard shortcuts for Undo/Redo are registered by UndoRedoButtons
  */
 
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useEditorStore } from '@core/editor-store/store'
 import { pluginRuntime } from '@core/plugins/runtime'
 import type { RegisteredPluginToolbarButton } from '@core/plugin-sdk'
-import { UndoRedoButtons } from './UndoRedoButtons'
 import { ZoomControls } from './ZoomControls'
 import { PublishButton } from './PublishButton'
 import { SettingsButton } from './SettingsButton'
 import { PreviewOverlay } from '../Preview/PreviewOverlay'
+import VCBreadcrumb from './VCBreadcrumb'
 import { Button } from '@ui/components/Button'
 import { cn } from '@ui/cn'
 import type { PersistenceSaveStatus } from '@editor/hooks/usePersistence'
-import type { AdminWorkspace } from '@admin/AdminLayout'
+import type { AdminWorkspace } from '@admin/workspace'
 import styles from './Toolbar.module.css'
 
 interface ToolbarProps {
@@ -142,9 +145,12 @@ export function Toolbar({
         </span>
         {adminNavigationSlot ?? <DefaultAdminNavigation section={section} />}
 
+        {/* ── VC breadcrumb — visible only in Visual Component edit mode ── */}
+        <div className={styles.breadcrumbRegion}>
+          <VCBreadcrumb />
+        </div>
+
         <div className={styles.workspaceToolbarItems}>
-          <Divider />
-          <UndoRedoButtons />
           {pluginButtons.map((button) => {
             const key = pluginButtonKey(button)
             const status = pluginStatuses[key]

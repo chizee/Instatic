@@ -25,18 +25,16 @@ import {
   readStoredPanelPosition,
   writeStoredPanelPosition,
   type FloatingPanelId,
+  type PanelPosition,
 } from '../layout/panelLayoutStorage'
+
+export type { PanelPosition }
 
 /**
  * Minimum number of pixels that must remain visible on-screen when a panel
  * is dragged towards or past a viewport edge.
  */
 const EDGE_MARGIN = 50
-
-export interface PanelPosition {
-  x: number
-  y: number
-}
 
 interface UseDraggablePanelResult {
   /** Attach to the panel root element so drag can imperatively update CSS vars. */

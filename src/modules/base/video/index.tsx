@@ -1,13 +1,19 @@
 /* eslint-disable react-refresh/only-export-components */
 /**
  * base.video - responsive video embed.
+ *
+ * Emits a bare `<video>` or `<iframe>` with no default class or default CSS.
+ * Visual styling (sizing, aspect ratio, etc.) is opt-in via user classes
+ * (mcClassName / multi-class system). The editor preview wraps the element
+ * in chrome that is editor-only and does NOT ship to the published page.
  */
 import React from 'react'
 import { type ModuleDefinition, type ModuleComponentProps } from '@core/module-engine/types'
 import { registry } from '@core/module-engine/registry'
+import { VideoIcon } from 'pixel-art-icons/icons/video'
 import { safeUrl } from '../utils/escape'
-import styles from './video.module.css'
 import { cn } from '@ui/cn'
+import styles from './video.module.css'
 
 interface VideoProps extends Record<string, unknown> {
   source: 'media' | 'youtube' | 'url'
@@ -18,8 +24,6 @@ interface VideoProps extends Record<string, unknown> {
   muted: boolean
   controls: boolean
 }
-
-const MODULE_CLASS = 'pb-video'
 
 function youtubeEmbedUrl(id: unknown, autoplay: unknown): string {
   const safeId = encodeURIComponent(String(id ?? '').trim())
@@ -33,33 +37,37 @@ const VideoEditor: React.FC<ModuleComponentProps<VideoProps>> = ({ props, mcClas
     ? youtubeEmbedUrl(props.youtubeId, props.autoplay)
     : props.videoUrl
 
+  if (!sourceUrl) {
+    return (
+      <div className={cn(styles.placeholder, mcClassName)}>
+        <span className={styles.playIcon}>Play</span>
+        <span>{isYoutube ? 'YouTube ID required' : 'Video URL required'}</span>
+      </div>
+    )
+  }
+
+  if (isYoutube) {
+    return (
+      <iframe
+        className={mcClassName}
+        src={sourceUrl}
+        title="YouTube video"
+        frameBorder="0"
+        allow="autoplay; encrypted-media; fullscreen"
+        allowFullScreen
+      />
+    )
+  }
+
   return (
-    <div className={cn(styles.video, mcClassName)}>
-      {!sourceUrl ? (
-        <div className={styles.placeholder}>
-          <span className={styles.playIcon}>Play</span>
-          <span>{isYoutube ? 'YouTube ID required' : 'Video URL required'}</span>
-        </div>
-      ) : isYoutube ? (
-        <iframe
-          className={styles.inner}
-          src={sourceUrl}
-          title="YouTube video"
-          frameBorder="0"
-          allow="autoplay; encrypted-media; fullscreen"
-          allowFullScreen
-        />
-      ) : (
-        <video
-          className={styles.inner}
-          src={sourceUrl}
-          autoPlay={props.autoplay}
-          loop={props.loop}
-          muted={props.muted}
-          controls={props.controls}
-        />
-      )}
-    </div>
+    <video
+      className={mcClassName}
+      src={sourceUrl}
+      autoPlay={props.autoplay}
+      loop={props.loop}
+      muted={props.muted}
+      controls={props.controls}
+    />
   )
 }
 
@@ -69,7 +77,7 @@ export const VideoModule: ModuleDefinition<VideoProps> = {
   description: 'Embed a CMS media video or YouTube video.',
   category: 'Media',
   version: '2.0.0',
-  icon: 'Play',
+  icon: VideoIcon,
   trusted: true,
   canHaveChildren: false,
 
@@ -119,12 +127,11 @@ export const VideoModule: ModuleDefinition<VideoProps> = {
       const src = youtubeEmbedUrl(props.youtubeId, props.autoplay)
       if (!src) return { html: '' }
       return {
-        html: `<iframe class="${MODULE_CLASS}" src="${src}" title="YouTube video" frameborder="0" allow="autoplay; encrypted-media; fullscreen" allowfullscreen></iframe>`,
-        css: `.${MODULE_CLASS}{display:block;width:100%;max-width:100%;aspect-ratio:16 / 9;border:0;border-radius:0;background-color:#000;overflow:hidden}`,
+        html: `<iframe src="${src}" title="YouTube video" frameborder="0" allow="autoplay; encrypted-media; fullscreen" allowfullscreen></iframe>`,
       }
     }
 
-    const attrs: string[] = [`class="${MODULE_CLASS}"`]
+    const attrs: string[] = []
     if (props.videoUrl) attrs.push(`src="${safeUrl(String(props.videoUrl))}"`)
     if (props.autoplay) attrs.push('autoplay')
     if (props.loop) attrs.push('loop')
@@ -132,8 +139,7 @@ export const VideoModule: ModuleDefinition<VideoProps> = {
     if (props.controls) attrs.push('controls')
 
     return {
-      html: `<video ${attrs.join(' ')}></video>`,
-      css: `.${MODULE_CLASS}{display:block;width:100%;max-width:100%;aspect-ratio:16 / 9;border:0;border-radius:0;background-color:#000;overflow:hidden}`,
+      html: attrs.length > 0 ? `<video ${attrs.join(' ')}></video>` : `<video></video>`,
     }
   },
 }

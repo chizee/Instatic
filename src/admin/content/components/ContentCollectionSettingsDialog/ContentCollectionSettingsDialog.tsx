@@ -4,10 +4,10 @@ import { normalizeContentCollectionFields } from '@core/content/fields'
 import type { ContentCollection, UpdateContentCollectionInput } from '@core/content/types'
 import { Button } from '@ui/components/Button'
 import { Input } from '@ui/components/Input'
-import { CloseIcon } from '@ui/icons/icons/close'
+import { CloseIcon } from 'pixel-art-icons/icons/close'
 import dialogStyles from '@editor/components/SiteCreateDialog/SiteCreateDialog.module.css'
 import styles from '../../ContentPage.module.css'
-import { slugFromTitle } from '../../utils/contentEntryUtils'
+import { slugFromTitle } from '@core/utils/slug'
 
 interface ContentCollectionSettingsDialogProps {
   collection: ContentCollection

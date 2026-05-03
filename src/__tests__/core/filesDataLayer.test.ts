@@ -1,11 +1,11 @@
 /**
- * Files Data Layer tests — Task #429
+ * Files Data Layer tests
  *
  * Covers:
  *  1. pathValidation — isSafePath / normalizePath (positive + negative per rule)
  *  2. filesSlice CRUD — createFile / deleteFile / renameFile / updateFileContent / updateFileBlob
  *  3. filesSlice guards — invalid path throws, collision throws, rename collision throws
- *  4. validateSite — files field (default [] on missing, backward-compat, dedup)
+ *  4. validateSite — files field accepted shapes, dedup, drop on unsafe paths
  */
 
 import { describe, it, expect, beforeEach } from 'bun:test'
@@ -463,7 +463,7 @@ function minimalValidRaw(): Record<string, unknown> {
     createdAt: 1000,
     updatedAt: 2000,
     breakpoints: [{ id: 'desktop', label: 'Desktop', width: 1440, icon: 'monitor' }],
-    settings: { colorTokens: {}, typeScale: { baseSize: 16, ratio: 1.25 }, shortcuts: {} },
+    settings: { colorTokens: {}, shortcuts: {} },
     classes: {},
     files: [],
     visualComponents: [],

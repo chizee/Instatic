@@ -78,7 +78,7 @@
   border: 1px solid rgba(99, 102, 241, 0.22);
   border-radius: 999px;
   background: rgba(99, 102, 241, 0.12);
-  color: #c4b5fd;
+  color: var(--editor-info-text);
   font-family: monospace;
   font-size: 9px;
   font-weight: 700;
@@ -89,7 +89,7 @@
 
 .diagnostic {
   overflow: hidden;
-  color: var(--editor-warning, #fbbf24);
+  color: var(--editor-warning);
   font-size: 10px;
   line-height: 1.35;
   text-overflow: ellipsis;
@@ -97,5 +97,5 @@
 }
 
 .diagnostic[data-severity='error'] {
-  color: var(--editor-danger-light, #fecaca);
+  color: var(--editor-danger-light);
 }

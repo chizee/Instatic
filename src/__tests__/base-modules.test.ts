@@ -34,6 +34,8 @@ import { VideoModule } from '../modules/base/video/index.tsx'
 import { ListModule } from '../modules/base/list/index.tsx'
 import { LinkModule } from '../modules/base/link/index'
 import { RootModule } from '../modules/base/root'
+import { VisualComponentRefModule } from '../modules/base/visualComponentRef/index.tsx'
+import { SlotOutletModule } from '../modules/base/slotOutlet/index.tsx'
 
 // ---------------------------------------------------------------------------
 // Run the full conformance suite for every canonical base module (7 total)
@@ -47,6 +49,8 @@ runModuleConformanceSuite(ImageModule)
 runModuleConformanceSuite(VideoModule)
 runModuleConformanceSuite(ListModule)
 runModuleConformanceSuite(LinkModule)
+runModuleConformanceSuite(VisualComponentRefModule)
+runModuleConformanceSuite(SlotOutletModule)
 
 describe('base module registration', () => {
   it('only imports available production base modules', async () => {
@@ -55,11 +59,14 @@ describe('base module registration', () => {
     expect(baseIndex).not.toContain("import './columns'")
     expect(baseIndex).not.toContain("import './spacer'")
     expect(baseIndex).not.toContain("import './divider'")
-    expect(baseIndex).not.toContain("import './visualComponentRef'")
     expect(baseIndex).not.toContain("import './demoCard'")
     expect(baseIndex).not.toContain("import './demoScene'")
     expect(baseIndex).not.toContain("import './heading'")
     expect(baseIndex).not.toContain("import './paragraph'")
+
+    // Component system modules — registered and shipped
+    expect(baseIndex).toContain("import './visualComponentRef'")
+    expect(baseIndex).toContain("import './slotOutlet'")
   })
 
   it('does not keep retired module directories around', () => {
@@ -67,7 +74,6 @@ describe('base module registration', () => {
       'src/modules/base/columns',
       'src/modules/base/spacer',
       'src/modules/base/divider',
-      'src/modules/base/visualComponentRef',
       'src/modules/base/demoCard',
       'src/modules/base/demoScene',
       'src/modules/base/heading',
@@ -87,6 +93,8 @@ describe('base module registration', () => {
       VideoModule,
       ButtonModule,
       LinkModule,
+      VisualComponentRefModule,
+      SlotOutletModule,
     ]) {
       expect(mod.classStyleBindings ?? {}).toEqual({})
     }
@@ -222,7 +230,7 @@ describe('base.container — render() specifics', () => {
   it('falls back to div for invalid published tag values', () => {
     const { html } = ContainerModule.render({ tag: undefined }, ['<p>child</p>'])
 
-    expect(html).toContain('<div class="pb-container">')
+    expect(html).toContain('<div>')
     expect(html).toContain('</div>')
     expect(html).not.toContain('<undefined')
   })

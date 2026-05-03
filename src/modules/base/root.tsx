@@ -1,18 +1,18 @@
 /* eslint-disable react-refresh/only-export-components */
 /**
  * base.root - invisible page root container.
+ *
+ * Emits a bare `<div>` with no default class or default CSS. Visual styling
+ * is opt-in via user classes (mcClassName / multi-class system).
  */
 import type { ModuleDefinition, ModuleComponentProps } from '@core/module-engine/types'
 import { registry } from '@core/module-engine/registry'
-import { cn } from '../../ui/cn'
-import styles from './root.module.css'
+import { FileTextIcon } from 'pixel-art-icons/icons/file-text'
 
 type RootProps = Record<string, unknown>
 
-const MODULE_CLASS = 'pb-root'
-
 const RootEditorComponent = ({ children, mcClassName }: ModuleComponentProps<RootProps>) => (
-  <div className={cn(styles.root, mcClassName)}>
+  <div className={mcClassName}>
     {children}
   </div>
 )
@@ -24,7 +24,7 @@ export const RootModule: ModuleDefinition<RootProps> = {
   version: '2.0.0',
   trusted: true,
   canHaveChildren: true,
-  icon: 'FileText',
+  icon: FileTextIcon,
 
   schema: {},
   defaults: {},
@@ -32,8 +32,7 @@ export const RootModule: ModuleDefinition<RootProps> = {
   component: RootEditorComponent,
 
   render: (_props, renderedChildren) => ({
-    html: `<div class="${MODULE_CLASS}">${renderedChildren.join('')}</div>`,
-    css: `.${MODULE_CLASS}{min-height:100vh;width:100%;background-color:#fff;color:#111827}`,
+    html: `<div>${renderedChildren.join('')}</div>`,
   }),
 }
 

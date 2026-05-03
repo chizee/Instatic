@@ -164,7 +164,6 @@ function rawSite(overrides: Record<string, unknown> = {}): Record<string, unknow
     breakpoints: [{ id: 'desktop', label: 'Desktop', width: 1440, icon: 'monitor' }],
     settings: {
       colorTokens: {},
-      typeScale: { baseSize: 16, ratio: 1.25 },
       shortcuts: {},
     },
     pages: [
@@ -205,9 +204,6 @@ function rawVC(overrides: Record<string, unknown> = {}) {
     params: [],
     breakpoints: [],
     classIds: [],
-    filePath: 'src/components/Card.tsx',
-    generated: true,
-    ejected: false,
     createdAt: 1000,
     ...overrides,
   }
@@ -283,40 +279,56 @@ describe('Gate TS-1 — SiteDocument.visualComponents field declared in types.ts
 })
 
 describe('Gate TS-2 — PageNode.propBindings optional field declared', () => {
-  it('page-tree/types.ts adds optional propBindings to PageNode', () => {
-    const source = readFileSync(PAGE_TREE_TYPES, 'utf8')
-    // Optional propBindings field — must be declared inside the PageNode interface
-    expect(source).toMatch(/propBindings\s*\?/)
+  it('page-tree types declare optional propBindings on the shared BaseNode', () => {
+    // `propBindings?` lives on `BaseNode` (which `PageNode` extends).
+    // `BaseNode` was extracted into its own `baseNode.ts` module to break the
+    // page-tree ↔ visualComponents cycle, so check both files.
+    const baseNodeSource = readFileSync(join(ROOT, 'src/core/page-tree/baseNode.ts'), 'utf8')
+    const typesSource = readFileSync(PAGE_TREE_TYPES, 'utf8')
+    const combined = `${baseNodeSource}\n${typesSource}`
+    expect(combined).toMatch(/propBindings\s*\?/)
   })
 })
 
 describe('Gate TS-3 — VCParam shape has stable id field', () => {
-  it('types.ts exports VCParam with id, name, type, defaultValue', () => {
+  it('types.ts (or schemas.ts) exports VCParam with id, name, type, defaultValue', () => {
     if (!existsSync(TYPES_TS)) {
       throw new Error('[Task #436 not implemented] types.ts does not exist yet.')
     }
-    const source = readFileSync(TYPES_TS, 'utf8')
+    // Read type definitions from schemas.ts if it exists (Zod-schema approach),
+    // otherwise fall back to types.ts (direct-interface approach)
+    const schemasTs = join(ROOT, 'src/core/visualComponents/schemas.ts')
+    const definitionSource = existsSync(schemasTs)
+      ? readFileSync(schemasTs, 'utf8')
+      : readFileSync(TYPES_TS, 'utf8')
+    const typesSource = readFileSync(TYPES_TS, 'utf8')
+
+    // VCParam must be declared either as interface or as an exported type
+    expect(typesSource + definitionSource).toMatch(/(interface VCParam|export type VCParam)/)
     // id is the stable identifier that survives param renames (§2 rationale)
-    expect(source).toMatch(/interface VCParam/)
-    expect(source).toMatch(/\bid\s*:\s*string/)
-    expect(source).toMatch(/\bname\s*:\s*string/)
-    expect(source).toMatch(/\btype\s*:\s*['"]string['"]/)
-    expect(source).toMatch(/\bdefaultValue\s*:/)
+    expect(definitionSource).toMatch(/\bid\s*:/)
+    expect(definitionSource).toMatch(/\bname\s*:/)
+    // type field — may be inline union or a named VCParamType alias; both include 'string'
+    expect(definitionSource).toMatch(/['"]string['"]/)
+    expect(definitionSource).toMatch(/\bdefaultValue\s*:/)
   })
 })
 
 describe('Gate TS-4 — VisualComponent shape has required fields', () => {
-  it('types.ts exports VisualComponent with id, name, rootNode, params, filePath, generated, ejected', () => {
+  it('types.ts (or schemas.ts) exports VisualComponent with id, name, rootNode, params', () => {
     if (!existsSync(TYPES_TS)) {
       throw new Error('[Task #436 not implemented] types.ts does not exist yet.')
     }
-    const source = readFileSync(TYPES_TS, 'utf8')
-    expect(source).toMatch(/interface VisualComponent/)
-    expect(source).toMatch(/\brootNode\s*:/)
-    expect(source).toMatch(/\bparams\s*:.*VCParam/)
-    expect(source).toMatch(/\bfilePath\s*:\s*string/)
-    expect(source).toMatch(/\bgenerated\s*:\s*boolean/)
-    expect(source).toMatch(/\bejected\s*:\s*boolean/)
+    const schemasTs = join(ROOT, 'src/core/visualComponents/schemas.ts')
+    const definitionSource = existsSync(schemasTs)
+      ? readFileSync(schemasTs, 'utf8')
+      : readFileSync(TYPES_TS, 'utf8')
+    const typesSource = readFileSync(TYPES_TS, 'utf8')
+
+    // VisualComponent must be declared either as interface or as an exported type
+    expect(typesSource + definitionSource).toMatch(/(interface VisualComponent|export type VisualComponent)/)
+    expect(definitionSource).toMatch(/\brootNode\s*:/)
+    expect(definitionSource).toMatch(/\bparams\s*:/)
   })
 })
 
@@ -411,7 +423,7 @@ describe('Gate NV-9 — selfId skip: renaming to own existing name is allowed', 
 // ============================================================================
 
 describe('Gate RG-1 — getReferencedComponentIds: leaf node returns empty set', () => {
-  it('a node with no children and moduleId !== base.visualComponentRef returns empty set', () => {
+  it('a node with no children and moduleId !== base.visual-component-ref returns empty set', () => {
     requireRG(getReferencedComponentIds)
     const leafNode = {
       id: 'n1',
@@ -426,11 +438,11 @@ describe('Gate RG-1 — getReferencedComponentIds: leaf node returns empty set',
 })
 
 describe('Gate RG-2 — getReferencedComponentIds: direct componentRef found', () => {
-  it('a node with moduleId=base.visualComponentRef returns its componentId', () => {
+  it('a node with moduleId=base.visual-component-ref returns its componentId', () => {
     requireRG(getReferencedComponentIds)
     const refNode = {
       id: 'n1',
-      moduleId: 'base.visualComponentRef',
+      moduleId: 'base.visual-component-ref',
       props: { componentId: 'vc-banner-1', propOverrides: {} },
       children: [],
       breakpointOverrides: {},
@@ -452,7 +464,7 @@ describe('Gate RG-3 — getReferencedComponentIds: nested componentRef discovere
       childNodes: [
         {
           id: 'ref-child',
-          moduleId: 'base.visualComponentRef',
+          moduleId: 'base.visual-component-ref',
           props: { componentId: 'vc-card-1', propOverrides: {} },
           children: [],
           breakpointOverrides: {},
@@ -468,8 +480,8 @@ describe('Gate RG-4 — wouldCreateCycle: returns false when no cycle', () => {
   it('adding Banner inside Card (no cross-reference) → no cycle', () => {
     requireRG(wouldCreateCycle)
     const vcs = [
-      { id: 'vc-card', name: 'Card', rootNode: { id: 'root', moduleId: 'base.container', props: {}, children: [], breakpointOverrides: {} }, params: [], breakpoints: [], classIds: [], filePath: 'src/components/Card.tsx', generated: true, ejected: false, createdAt: 1000 },
-      { id: 'vc-banner', name: 'Banner', rootNode: { id: 'root', moduleId: 'base.container', props: {}, children: [], breakpointOverrides: {} }, params: [], breakpoints: [], classIds: [], filePath: 'src/components/Banner.tsx', generated: true, ejected: false, createdAt: 1000 },
+      { id: 'vc-card', name: 'Card', rootNode: { id: 'root', moduleId: 'base.container', props: {}, children: [], breakpointOverrides: {} }, params: [], breakpoints: [], classIds: [], createdAt: 1000 },
+      { id: 'vc-banner', name: 'Banner', rootNode: { id: 'root', moduleId: 'base.container', props: {}, children: [], breakpointOverrides: {} }, params: [], breakpoints: [], classIds: [], createdAt: 1000 },
     ]
     const result = wouldCreateCycle(vcs, 'vc-card', 'vc-banner')
     expect(result).toBe(false)
@@ -480,7 +492,7 @@ describe('Gate RG-5 — wouldCreateCycle: detects self-cycle', () => {
   it('adding Card inside Card → cycle detected', () => {
     requireRG(wouldCreateCycle)
     const vcs = [
-      { id: 'vc-card', name: 'Card', rootNode: { id: 'root', moduleId: 'base.container', props: {}, children: [], breakpointOverrides: {} }, params: [], breakpoints: [], classIds: [], filePath: 'src/components/Card.tsx', generated: true, ejected: false, createdAt: 1000 },
+      { id: 'vc-card', name: 'Card', rootNode: { id: 'root', moduleId: 'base.container', props: {}, children: [], breakpointOverrides: {} }, params: [], breakpoints: [], classIds: [], createdAt: 1000 },
     ]
     const result = wouldCreateCycle(vcs, 'vc-card', 'vc-card')
     expect(result).toBe(true)
@@ -500,7 +512,7 @@ describe('Gate RG-6 — wouldCreateCycle: detects 2-step cycle', () => {
       childNodes: [
         {
           id: 'card-ref',
-          moduleId: 'base.visualComponentRef',
+          moduleId: 'base.visual-component-ref',
           props: { componentId: 'vc-card', propOverrides: {} },
           children: [],
           breakpointOverrides: {},
@@ -508,8 +520,8 @@ describe('Gate RG-6 — wouldCreateCycle: detects 2-step cycle', () => {
       ],
     }
     const vcs = [
-      { id: 'vc-card', name: 'Card', rootNode: { id: 'root', moduleId: 'base.container', props: {}, children: [], breakpointOverrides: {} }, params: [], breakpoints: [], classIds: [], filePath: 'src/components/Card.tsx', generated: true, ejected: false, createdAt: 1000 },
-      { id: 'vc-banner', name: 'Banner', rootNode: bannerRoot, params: [], breakpoints: [], classIds: [], filePath: 'src/components/Banner.tsx', generated: true, ejected: false, createdAt: 1000 },
+      { id: 'vc-card', name: 'Card', rootNode: { id: 'root', moduleId: 'base.container', props: {}, children: [], breakpointOverrides: {} }, params: [], breakpoints: [], classIds: [], createdAt: 1000 },
+      { id: 'vc-banner', name: 'Banner', rootNode: bannerRoot, params: [], breakpoints: [], classIds: [], createdAt: 1000 },
     ]
     // Card tries to embed Banner — Banner already contains Card → cycle
     const result = wouldCreateCycle(vcs, 'vc-card', 'vc-banner')
@@ -530,7 +542,7 @@ describe('Gate RG-7 — wouldCreateCycle: detects 3-step cycle', () => {
       childNodes: [
         {
           id: 'b-ref',
-          moduleId: 'base.visualComponentRef',
+          moduleId: 'base.visual-component-ref',
           props: { componentId: 'vc-b', propOverrides: {} },
           children: [],
           breakpointOverrides: {},
@@ -546,7 +558,7 @@ describe('Gate RG-7 — wouldCreateCycle: detects 3-step cycle', () => {
       childNodes: [
         {
           id: 'a-ref',
-          moduleId: 'base.visualComponentRef',
+          moduleId: 'base.visual-component-ref',
           props: { componentId: 'vc-a', propOverrides: {} },
           children: [],
           breakpointOverrides: {},
@@ -554,9 +566,9 @@ describe('Gate RG-7 — wouldCreateCycle: detects 3-step cycle', () => {
       ],
     }
     const vcs = [
-      { id: 'vc-a', name: 'Alpha', rootNode: { id: 'root', moduleId: 'base.container', props: {}, children: [], breakpointOverrides: {} }, params: [], breakpoints: [], classIds: [], filePath: 'src/components/Alpha.tsx', generated: true, ejected: false, createdAt: 1000 },
-      { id: 'vc-b', name: 'Beta', rootNode: bRoot, params: [], breakpoints: [], classIds: [], filePath: 'src/components/Beta.tsx', generated: true, ejected: false, createdAt: 1000 },
-      { id: 'vc-c', name: 'Gamma', rootNode: cRoot, params: [], breakpoints: [], classIds: [], filePath: 'src/components/Gamma.tsx', generated: true, ejected: false, createdAt: 1000 },
+      { id: 'vc-a', name: 'Alpha', rootNode: { id: 'root', moduleId: 'base.container', props: {}, children: [], breakpointOverrides: {} }, params: [], breakpoints: [], classIds: [], createdAt: 1000 },
+      { id: 'vc-b', name: 'Beta', rootNode: bRoot, params: [], breakpoints: [], classIds: [], createdAt: 1000 },
+      { id: 'vc-c', name: 'Gamma', rootNode: cRoot, params: [], breakpoints: [], classIds: [], createdAt: 1000 },
     ]
     // vc-c tries to embed vc-a; vc-c already reaches vc-a via vc-b → cycle
     const result = wouldCreateCycle(vcs, 'vc-c', 'vc-a')
@@ -568,7 +580,7 @@ describe('Gate RG-8 — wouldCreateCycle: handles unknown candidate id gracefull
   it('candidate vc not in the array → returns false (no crash)', () => {
     requireRG(wouldCreateCycle)
     const vcs = [
-      { id: 'vc-card', name: 'Card', rootNode: { id: 'root', moduleId: 'base.container', props: {}, children: [], breakpointOverrides: {} }, params: [], breakpoints: [], classIds: [], filePath: 'src/components/Card.tsx', generated: true, ejected: false, createdAt: 1000 },
+      { id: 'vc-card', name: 'Card', rootNode: { id: 'root', moduleId: 'base.container', props: {}, children: [], breakpointOverrides: {} }, params: [], breakpoints: [], classIds: [], createdAt: 1000 },
     ]
     // candidate doesn't exist — should not throw, just return false
     expect(() => wouldCreateCycle(vcs, 'vc-card', 'vc-nonexistent')).not.toThrow()
@@ -595,19 +607,6 @@ describe('Gate SL-1 — createVisualComponent: adds vc to site.visualComponents'
   })
 })
 
-describe('Gate SL-2 — createVisualComponent: sets name and derives filePath', () => {
-  beforeEach(() => { setupSite() })
-
-  it('created VC has correct name and derived filePath = src/components/{Name}.tsx', () => {
-    requireSliceAction('createVisualComponent')
-    const s = useEditorStore.getState() as Record<string, unknown>
-    const id = (s.createVisualComponent as (name: string) => string)('FeatureRow')
-    const vcs = (useEditorStore.getState().site as unknown as { visualComponents: Array<{ id: string; name: string; filePath: string }> }).visualComponents
-    const vc = vcs.find((v) => v.id === id)!
-    expect(vc.name).toBe('FeatureRow')
-    expect(vc.filePath).toBe('src/components/FeatureRow.tsx')
-  })
-})
 
 describe('Gate SL-3 — createVisualComponent: throws on EMPTY name', () => {
   beforeEach(() => { setupSite() })
@@ -643,20 +642,19 @@ describe('Gate SL-5 — createVisualComponent: throws on PROJECT_DUPLICATE name'
   })
 })
 
-describe('Gate SL-6 — renameVisualComponent: updates name and filePath', () => {
+describe('Gate SL-6 — renameVisualComponent: updates name', () => {
   beforeEach(() => { setupSite() })
 
-  it('renaming "Card" to "HeroCard" updates name and filePath atomically', () => {
+  it('renaming "Card" to "HeroCard" updates name', () => {
     requireSliceAction('createVisualComponent')
     requireSliceAction('renameVisualComponent')
     const s = useEditorStore.getState() as Record<string, unknown>
     const id = (s.createVisualComponent as (name: string) => string)('Card')
     ;(useEditorStore.getState() as Record<string, unknown>).renameVisualComponent as (id: string, name: string) => void
     ;((useEditorStore.getState() as Record<string, unknown>).renameVisualComponent as (id: string, name: string) => void)(id, 'HeroCard')
-    const vcs = (useEditorStore.getState().site as unknown as { visualComponents: Array<{ id: string; name: string; filePath: string }> }).visualComponents
+    const vcs = (useEditorStore.getState().site as unknown as { visualComponents: Array<{ id: string; name: string }> }).visualComponents
     const vc = vcs.find((v) => v.id === id)!
     expect(vc.name).toBe('HeroCard')
-    expect(vc.filePath).toBe('src/components/HeroCard.tsx')
   })
 })
 
@@ -732,20 +730,37 @@ describe('Gate SL-11 — addParam: appends a VCParam to vc.params', () => {
   })
 })
 
-describe('Gate SL-12 — removeParam: removes a VCParam by id', () => {
+describe('Gate SL-12 — removeParamWithCleanup: removes a VCParam by id and cleans up bindings', () => {
   beforeEach(() => { setupSite() })
 
-  it('removeParam removes the param from vc.params', () => {
+  it('removeParamWithCleanup removes the param from vc.params', () => {
     requireSliceAction('createVisualComponent')
     requireSliceAction('addParam')
-    requireSliceAction('removeParam')
+    requireSliceAction('removeParamWithCleanup')
     const s = useEditorStore.getState() as Record<string, unknown>
     const vcId = (s.createVisualComponent as (name: string) => string)('Card')
     ;((useEditorStore.getState() as Record<string, unknown>).addParam as (vcId: string, name: string, type: string) => void)(vcId, 'title', 'string')
     const paramId = (useEditorStore.getState().site as unknown as { visualComponents: Array<{ id: string; params: Array<{ id: string }> }> }).visualComponents.find((v) => v.id === vcId)!.params[0].id
-    ;((useEditorStore.getState() as Record<string, unknown>).removeParam as (vcId: string, paramId: string) => void)(vcId, paramId)
-    const params = (useEditorStore.getState().site as unknown as { visualComponents: Array<{ id: string; params: Array<{ id: string }> }> }).visualComponents.find((v) => v.id === vcId)!.params
-    expect(params).toHaveLength(0)
+
+    // Set a propBinding on the VC rootNode to verify cleanup
+    const vc = (useEditorStore.getState().site as unknown as { visualComponents: Array<{ id: string; rootNode: { id: string } }> }).visualComponents.find((v) => v.id === vcId)!
+    ;((useEditorStore.getState() as Record<string, unknown>).setNodePropBinding as (nodeId: string, propKey: string, paramId: string) => void)
+    // Set activeDocument so setNodePropBinding targets the VC tree
+    useEditorStore.setState({ activeDocument: { kind: 'visualComponent', vcId } } as Parameters<typeof useEditorStore.setState>[0])
+    ;((useEditorStore.getState() as Record<string, unknown>).setNodePropBinding as (nodeId: string, propKey: string, paramId: string) => void)(vc.rootNode.id, 'text', paramId)
+
+    // Verify binding is set
+    const vcBefore = (useEditorStore.getState().site as unknown as { visualComponents: Array<{ id: string; rootNode: { propBindings?: Record<string, { paramId: string }> }; params: Array<{ id: string }> }> }).visualComponents.find((v) => v.id === vcId)!
+    expect(vcBefore.rootNode.propBindings?.text?.paramId).toBe(paramId)
+
+    // Call removeParamWithCleanup
+    ;((useEditorStore.getState() as Record<string, unknown>).removeParamWithCleanup as (vcId: string, paramId: string) => void)(vcId, paramId)
+
+    const vcAfter = (useEditorStore.getState().site as unknown as { visualComponents: Array<{ id: string; rootNode: { propBindings?: Record<string, { paramId: string }> }; params: Array<{ id: string }> }> }).visualComponents.find((v) => v.id === vcId)!
+    // Param removed
+    expect(vcAfter.params).toHaveLength(0)
+    // Binding cleaned up
+    expect(vcAfter.rootNode.propBindings?.text).toBeUndefined()
   })
 })
 
@@ -759,7 +774,7 @@ describe('Gate SL-13 — addNodeToVc: cycle guard fires at slice write boundary'
     const vcId = (s.createVisualComponent as (name: string) => string)('Card')
     const selfRefNode = {
       id: 'self-ref',
-      moduleId: 'base.visualComponentRef',
+      moduleId: 'base.visual-component-ref',
       props: { componentId: vcId, propOverrides: {} },
       children: [],
       breakpointOverrides: {},
@@ -844,15 +859,6 @@ describe('Gate VP-5 — lenient: duplicate VC names are deduplicated (first-wins
   })
 })
 
-describe('Gate VP-6 — filePath auto-corrected on mismatch', () => {
-  it('a VC with mismatched filePath is corrected to src/components/{Name}.tsx', () => {
-    const vc = rawVC({ name: 'Card', filePath: 'src/components/WrongPath.tsx' })
-    const raw = rawSite({ visualComponents: [vc] })
-    const site = validateSite(raw) as SiteDocument & { visualComponents: Array<{ name: string; filePath: string }> }
-    const cardVC = site.visualComponents?.find((v) => v.name === 'Card')
-    expect(cardVC?.filePath).toBe('src/components/Card.tsx')
-  })
-})
 
 describe('Gate VP-7 — full site with valid VC still passes full validateSite', () => {
   it('validateSite does not throw for a site with a well-formed VC', () => {
@@ -1062,5 +1068,247 @@ describe('Gate VP-9 — validateSite preserves rootNode.propBindings on VC round
     const child = site.visualComponents[0]?.rootNode?.childNodes?.[0]
     expect(child?.id).toBe('heading-child')
     expect(child?.propBindings?.text?.paramId).toBe('param-label-5')
+  })
+})
+
+// ============================================================================
+// Section 8 — New VCParam types + description field (Phase 1 gate)
+// ============================================================================
+
+describe("Gate PT-1 — 'slot' param type round-trips through validateSite", () => {
+  it("a VC with a slot param survives validateSite with type preserved", () => {
+    const vc = rawVC({
+      params: [
+        {
+          id: 'p-slot-1',
+          name: 'children',
+          type: 'slot',
+          defaultValue: [],
+          required: false,
+        },
+      ],
+    })
+    const raw = rawSite({ visualComponents: [vc] })
+    const site = validateSite(raw) as {
+      visualComponents: Array<{ params: Array<{ id: string; type: string }> }>
+    }
+    const param = site.visualComponents[0]?.params[0]
+    expect(param?.id).toBe('p-slot-1')
+    expect(param?.type).toBe('slot')
+  })
+})
+
+describe("Gate PT-2 — 'image' param type round-trips through validateSite", () => {
+  it("a VC with an image param and null defaultValue survives validateSite", () => {
+    const vc = rawVC({
+      params: [
+        {
+          id: 'p-img-1',
+          name: 'thumbnail',
+          type: 'image',
+          defaultValue: null,
+          required: false,
+        },
+      ],
+    })
+    const raw = rawSite({ visualComponents: [vc] })
+    const site = validateSite(raw) as {
+      visualComponents: Array<{ params: Array<{ id: string; type: string; defaultValue: unknown }> }>
+    }
+    const param = site.visualComponents[0]?.params[0]
+    expect(param?.id).toBe('p-img-1')
+    expect(param?.type).toBe('image')
+  })
+
+  it("a VC with an image param and URL defaultValue survives validateSite", () => {
+    const vc = rawVC({
+      params: [
+        {
+          id: 'p-img-2',
+          name: 'thumbnail',
+          type: 'image',
+          defaultValue: 'https://example.com/x.png',
+          required: false,
+        },
+      ],
+    })
+    const raw = rawSite({ visualComponents: [vc] })
+    const site = validateSite(raw) as {
+      visualComponents: Array<{ params: Array<{ id: string; type: string; defaultValue: unknown }> }>
+    }
+    const param = site.visualComponents[0]?.params[0]
+    expect(param?.id).toBe('p-img-2')
+    expect(param?.type).toBe('image')
+    expect(param?.defaultValue).toBe('https://example.com/x.png')
+  })
+})
+
+describe("Gate PT-3 — 'richText' param type round-trips through validateSite", () => {
+  it("a VC with a richText param and HTML defaultValue survives validateSite", () => {
+    const vc = rawVC({
+      params: [
+        {
+          id: 'p-rt-1',
+          name: 'body',
+          type: 'richText',
+          defaultValue: '<p>hello</p>',
+          required: false,
+        },
+      ],
+    })
+    const raw = rawSite({ visualComponents: [vc] })
+    const site = validateSite(raw) as {
+      visualComponents: Array<{ params: Array<{ id: string; type: string; defaultValue: unknown }> }>
+    }
+    const param = site.visualComponents[0]?.params[0]
+    expect(param?.id).toBe('p-rt-1')
+    expect(param?.type).toBe('richText')
+    expect(param?.defaultValue).toBe('<p>hello</p>')
+  })
+})
+
+describe('Gate PT-4 — description field on VCParam survives validateSite round-trip', () => {
+  it('a VCParam with description is preserved after validateSite', () => {
+    const vc = rawVC({
+      params: [
+        {
+          id: 'p-desc-1',
+          name: 'title',
+          type: 'string',
+          description: 'Card heading text',
+          defaultValue: '',
+          required: false,
+        },
+      ],
+    })
+    const raw = rawSite({ visualComponents: [vc] })
+    const site = validateSite(raw) as {
+      visualComponents: Array<{ params: Array<{ id: string; description?: string }> }>
+    }
+    const param = site.visualComponents[0]?.params[0]
+    expect(param?.id).toBe('p-desc-1')
+    expect(param?.description).toBe('Card heading text')
+  })
+
+  it('a VCParam without description is preserved without injecting undefined', () => {
+    const vc = rawVC({
+      params: [
+        {
+          id: 'p-nodesc-1',
+          name: 'label',
+          type: 'string',
+          defaultValue: '',
+          required: false,
+        },
+      ],
+    })
+    const raw = rawSite({ visualComponents: [vc] })
+    const site = validateSite(raw) as {
+      visualComponents: Array<{ params: Array<{ id: string; description?: unknown }> }>
+    }
+    const param = site.visualComponents[0]?.params[0]
+    expect(param?.id).toBe('p-nodesc-1')
+    expect(param?.description).toBeUndefined()
+  })
+})
+
+describe('Gate RG-9 — getReferencedComponentIds finds vcRef nested inside slotContent', () => {
+  it('a vcRef inside props.slotContent is found by getReferencedComponentIds', () => {
+    requireRG(getReferencedComponentIds)
+
+    const vcRefInsideSlot = {
+      id: 'ref-in-slot',
+      moduleId: 'base.visual-component-ref',
+      props: { componentId: 'vc-inner', propOverrides: {}, slotContent: {} },
+      children: [],
+      breakpointOverrides: {},
+    }
+
+    const parentRef = {
+      id: 'parent-ref',
+      moduleId: 'base.visual-component-ref',
+      props: {
+        componentId: 'vc-outer',
+        propOverrides: {},
+        slotContent: {
+          children: [vcRefInsideSlot],
+        },
+      },
+      children: [],
+      breakpointOverrides: {},
+    }
+
+    const ids = getReferencedComponentIds(parentRef)
+    // The direct ref to vc-outer
+    expect(ids.has('vc-outer')).toBe(true)
+    // The vcRef nested inside slotContent
+    expect(ids.has('vc-inner')).toBe(true)
+  })
+
+  it('deeply nested vcRef inside slotContent is found', () => {
+    requireRG(getReferencedComponentIds)
+
+    const deepRef = {
+      id: 'deep-ref',
+      moduleId: 'base.visual-component-ref',
+      props: { componentId: 'vc-deep', propOverrides: {}, slotContent: {} },
+      children: [],
+      breakpointOverrides: {},
+    }
+
+    const shallowRef = {
+      id: 'shallow-ref',
+      moduleId: 'base.visual-component-ref',
+      props: {
+        componentId: 'vc-shallow',
+        propOverrides: {},
+        slotContent: {
+          header: [deepRef],
+        },
+      },
+      children: [],
+      breakpointOverrides: {},
+    }
+
+    const rootNode = {
+      id: 'root',
+      moduleId: 'base.container',
+      props: {},
+      children: [],
+      breakpointOverrides: {},
+      childNodes: [shallowRef],
+    }
+
+    const ids = getReferencedComponentIds(rootNode)
+    expect(ids.has('vc-shallow')).toBe(true)
+    expect(ids.has('vc-deep')).toBe(true)
+  })
+})
+
+describe('Gate RG-10 — wouldCreateCycle detects cycle via slotContent path', () => {
+  it('a vcRef inside slotContent that would create a cycle is detected', () => {
+    requireRG(wouldCreateCycle)
+    requireRG(getReferencedComponentIds)
+
+    // vc-a's rootNode contains a vcRef to vc-b via slotContent
+    const vcA = {
+      id: 'vc-a',
+      name: 'ComponentA',
+      rootNode: {
+        id: 'root-a',
+        moduleId: 'base.visual-component-ref',
+        props: {
+          componentId: 'vc-b',
+          propOverrides: {},
+          slotContent: {},
+        },
+        children: [],
+        breakpointOverrides: {},
+      },
+    }
+
+    // Adding vc-a inside vc-b would form a cycle (vc-b → vc-a → vc-b)
+    const visualComponents = [vcA]
+    expect(wouldCreateCycle(visualComponents, 'vc-b', 'vc-a')).toBe(true)
   })
 })

@@ -46,6 +46,9 @@ export function ClassStyleInjector() {
   const classes = useEditorStore((s) => s.site?.classes ?? null)
   const breakpoints = useEditorStore((s) => s.site?.breakpoints ?? EMPTY_BREAKPOINTS)
   const frameworkColors = useEditorStore((s) => s.site?.settings.framework?.colors ?? null)
+  const frameworkTypography = useEditorStore((s) => s.site?.settings.framework?.typography ?? null)
+  const frameworkSpacing = useEditorStore((s) => s.site?.settings.framework?.spacing ?? null)
+  const frameworkPreferences = useEditorStore((s) => s.site?.settings.framework?.preferences ?? null)
 
   useEffect(() => {
     // Get or create the <style> element
@@ -58,12 +61,27 @@ export function ClassStyleInjector() {
     }
 
     if (!classes || Object.keys(classes).length === 0) {
-      styleEl.textContent = generateCanvasClassCSS({}, breakpoints, frameworkColors) || '/* no classes */'
+      styleEl.textContent =
+        generateCanvasClassCSS(
+          {},
+          breakpoints,
+          frameworkColors,
+          frameworkTypography,
+          frameworkSpacing,
+          frameworkPreferences,
+        ) || '/* no classes */'
       return
     }
 
-    styleEl.textContent = generateCanvasClassCSS(classes, breakpoints, frameworkColors)
-  }, [classes, breakpoints, frameworkColors])
+    styleEl.textContent = generateCanvasClassCSS(
+      classes,
+      breakpoints,
+      frameworkColors,
+      frameworkTypography,
+      frameworkSpacing,
+      frameworkPreferences,
+    )
+  }, [classes, breakpoints, frameworkColors, frameworkTypography, frameworkSpacing, frameworkPreferences])
 
   // Cleanup: remove the style element when the component unmounts
   useEffect(() => {

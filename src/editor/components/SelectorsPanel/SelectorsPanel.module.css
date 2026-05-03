@@ -20,15 +20,6 @@
     padding: 8px;
 }
 
-.toolbar {
-    display: grid;
-    gap: 8px;
-}
-
-.search {
-    width: 100%;
-}
-
 .rows {
     display: flex;
     flex-direction: column;

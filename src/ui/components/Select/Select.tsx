@@ -19,7 +19,7 @@ import {
 } from 'react'
 import { createPortal } from 'react-dom'
 import { ContextMenu, ContextMenuItem } from '@ui/components/ContextMenu'
-import { ChevronDownIcon } from '@ui/icons/icons/chevron-down'
+import { ChevronDownIcon } from 'pixel-art-icons/icons/chevron-down'
 import { cn } from '@ui/cn'
 import styles from './Select.module.css'
 

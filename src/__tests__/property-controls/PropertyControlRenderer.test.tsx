@@ -550,6 +550,70 @@ describe('GroupSection — collapse toggle', () => {
 // 6 — Disabled state
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// 7 — Layout variant: inline (default) vs stacked
+// ---------------------------------------------------------------------------
+
+describe('PropertyControlRenderer — layout variant', () => {
+  it('inline-by-default control types expose data-layout="inline"', () => {
+    const html = renderControl({ type: 'text', label: 'Title' }, 'title')
+    expect(html).toContain('data-layout="inline"')
+  })
+
+  it('media/image/textarea/richtext control types default to stacked', () => {
+    expect(renderControl({ type: 'image', label: 'Image' }, 'src')).toContain('data-layout="stacked"')
+    expect(
+      renderControl({ type: 'media', mediaKind: 'video', label: 'Clip' }, 'video'),
+    ).toContain('data-layout="stacked"')
+    expect(renderControl({ type: 'textarea', label: 'Body' }, 'body')).toContain(
+      'data-layout="stacked"',
+    )
+    expect(
+      renderControl({ type: 'richtext' as 'textarea', label: 'Content' }, 'content'),
+    ).toContain('data-layout="stacked"')
+  })
+
+  it('explicit schema layout overrides the per-type default', () => {
+    // text would normally be inline → force stacked
+    const stackedText = renderControl(
+      { type: 'text', label: 'Alt text', layout: 'stacked' },
+      'alt',
+    )
+    expect(stackedText).toContain('data-layout="stacked"')
+
+    // textarea would normally be stacked → force inline
+    const inlineTextarea = renderControl(
+      { type: 'textarea', label: 'Notes', layout: 'inline' },
+      'notes',
+    )
+    expect(inlineTextarea).toContain('data-layout="inline"')
+  })
+
+  it('exposes the resolved layout on the outer testid wrapper', () => {
+    // CSS module classnames resolve to empty strings in this test env
+    // (see Post-Task #399 notes elsewhere in this file), so we check the
+    // data-layout attribute that the renderer publishes for testability.
+    render(
+      <PropertyControlRenderer
+        propKey="alt"
+        control={{ type: 'text', label: 'Alt text', layout: 'stacked' }}
+        value=""
+        onChange={() => {}}
+      />,
+    )
+    expect(screen.getByTestId('property-control-alt').getAttribute('data-layout')).toBe('stacked')
+  })
+
+  it('CSS module exposes a stacked variant for the control wrapper', async () => {
+    const { readFileSync } = await import('fs')
+    const css = readFileSync(
+      new URL('../../editor/components/PropertyControls/controls.module.css', import.meta.url),
+      'utf-8',
+    )
+    expect(css).toMatch(/\.controlWrapperStacked\s*\{[^}]*grid-template-columns:\s*1fr/)
+  })
+})
+
 describe('PropertyControlRenderer — disabled prop', () => {
   it('renders with reduced opacity when disabled=true', () => {
     const html = renderToStaticMarkup(

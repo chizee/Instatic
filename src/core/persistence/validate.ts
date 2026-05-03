@@ -666,7 +666,6 @@ function sanitizeVCNodeTree(node: VCNode): VCNode {
  *
  * Returns a fully-shaped VisualComponent or null (silently drop bad entries).
  * Uses Zod for structural validation; sanitizes richtext props post-parse.
- * Self-healing: filePath is always re-derived from name to fix stale paths.
  *
  * Architecture source: Contribution #619 §9
  */
@@ -680,13 +679,10 @@ function validateVisualComponent(raw: unknown): VisualComponent | null {
   const nameValidation = validateComponentName(vc.name, [])
   if (!nameValidation.ok) return null
 
-  // filePath: always re-derive from name (self-healing, Contribution #619 §9 VP-6)
-  const filePath = `src/components/${vc.name}.tsx`
-
   // Sanitize richtext props in the rootNode tree (security: Constraint #299)
   const rootNode = sanitizeVCNodeTree(vc.rootNode)
 
-  return { ...vc, filePath, rootNode }
+  return { ...vc, rootNode }
 }
 
 // ---------------------------------------------------------------------------
@@ -795,7 +791,6 @@ export function validateSite(raw: unknown): SiteDocument {
 
   // Validate visualComponents[] — required field. Individual VCs with invalid
   // names are silently dropped. Duplicate names are deduplicated (first-wins).
-  // filePath is always re-derived from name (self-healing).
   assertArray(raw.visualComponents, 'site.visualComponents')
   const visualComponents: VisualComponent[] = []
   {

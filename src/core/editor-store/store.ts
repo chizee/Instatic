@@ -1,18 +1,9 @@
 import { create } from 'zustand'
 import { immer } from 'zustand/middleware/immer'
 import { subscribeWithSelector } from 'zustand/middleware'
-import type { Page, PageNode } from '../page-tree/types'
+import type { Page, PageNode, BaseNode } from '../page-tree/types'
 import type { VisualComponent } from '../visualComponents/types'
-import type { SiteSlice } from './slices/siteSlice'
-import type { SelectionSlice } from './slices/selectionSlice'
-import type { CanvasSlice } from './slices/canvasSlice'
-import type { UiSlice } from './slices/uiSlice'
-import type { ClassSlice } from './slices/classSlice'
-import type { FilesSlice } from './slices/filesSlice'
-import type { VisualComponentsSlice } from './slices/visualComponentsSlice'
-import type { SettingsSlice } from './slices/settingsSlice'
-import type { AgentSlice } from '../agent/agentSlice'
-import type { SitePanelSlice } from './slices/sitePanelSlice'
+import type { EditorStore } from './types'
 import { createSiteSlice } from './slices/siteSlice'
 import { createSelectionSlice } from './slices/selectionSlice'
 import { createCanvasSlice } from './slices/canvasSlice'
@@ -23,6 +14,7 @@ import { createVisualComponentsSlice } from './slices/visualComponentsSlice'
 import { createSettingsSlice } from './slices/settingsSlice'
 import { createAgentSlice } from '../agent/agentSlice'
 import { createSitePanelSlice } from './slices/sitePanelSlice'
+import { setAgentStoreApi } from '../agent/storeRef'
 
 /**
  * EditorStore — the central Zustand store for the page builder editor.
@@ -39,6 +31,10 @@ import { createSitePanelSlice } from './slices/sitePanelSlice'
  *   - agentSlice:          AI Agent Panel state + streaming (Phase D)
  *   - sitePanelSlice:      dependency manifest + site runtime settings
  *
+ * The combined `EditorStore` type lives in `./types` so each slice can import
+ * it without going through this module — that's how the historical
+ * store ↔ slice cycles were eliminated.
+ *
  * All mutations are wrapped in Immer for structural sharing.
  * Use subscribeWithSelector for granular Zustand subscriptions without Context re-renders.
  *
@@ -46,7 +42,7 @@ import { createSitePanelSlice } from './slices/sitePanelSlice'
  * No panel may maintain a local copy of node data.
  * Constraint #283/#286: No Anthropic SDK imports in this file or any src/ file.
  */
-export type EditorStore = SiteSlice & SelectionSlice & CanvasSlice & UiSlice & ClassSlice & FilesSlice & VisualComponentsSlice & SettingsSlice & AgentSlice & SitePanelSlice
+export type { EditorStore }
 
 export const useEditorStore = create<EditorStore>()(
   subscribeWithSelector(
@@ -64,6 +60,11 @@ export const useEditorStore = create<EditorStore>()(
     }))
   )
 )
+
+// Wire the live store reference to the agent executor's bridge module so
+// `executor.ts` can read/write state without statically importing this file
+// (which would re-introduce the executor → store → agentSlice → executor cycle).
+setAgentStoreApi(useEditorStore)
 
 // ---------------------------------------------------------------------------
 // Convenience typed selectors — use these instead of accessing store directly
@@ -87,7 +88,7 @@ export const selectRightSidebarExpanded = (s: EditorStore) =>
 // tree so NodeRenderer + BreakpointFrame work unchanged.
 //
 // Memoised via WeakMap keyed on vc (the whole VC object) — Immer gives a new
-// ref on ANY field change (name, filePath, params, rootNode…), so the WeakMap
+// ref on ANY field change (name, params, rootNode…), so the WeakMap
 // misses precisely when the VC changes and we rebuild.  Same-reference vc → cache hit.
 // ---------------------------------------------------------------------------
 
@@ -101,8 +102,11 @@ const _vcVirtualPageCache = new WeakMap<object, Page>()
 function _flattenVCToVirtualPage(vc: VisualComponent): Page {
   const nodes: Record<string, PageNode> = {}
 
-  function visit(node: PageNode) {
-    nodes[node.id] = node
+  // Accepts any node type rooted at BaseNode — VCNode and PageNode both qualify.
+  // The single `as PageNode` cast is safe because VCNode is structurally compatible
+  // with PageNode (both extend BaseNode; PageNode only adds optional fields).
+  function visit<T extends BaseNode & { childNodes?: T[] }>(node: T): void {
+    nodes[node.id] = node as PageNode
     if (node.childNodes) {
       for (const child of node.childNodes) {
         visit(child)
@@ -110,7 +114,7 @@ function _flattenVCToVirtualPage(vc: VisualComponent): Page {
     }
   }
 
-  visit(vc.rootNode as unknown as PageNode)
+  visit(vc.rootNode)
 
   return {
     id: `vc-virtual:${vc.id}`,
@@ -142,7 +146,7 @@ export const selectActiveCanvasPage = (s: EditorStore): Page | null => {
     ) ?? null
     if (!vc) return null
 
-    // WeakMap key: vc object — Immer gives a new ref on ANY field change (name, filePath,
+    // WeakMap key: vc object — Immer gives a new ref on ANY field change (name,
     // params, rootNode…). Keying on vc.rootNode would miss renames because Immer reuses
     // rootNode when only top-level VC fields change (O-2 / CR #666 finding).
     const cached = _vcVirtualPageCache.get(vc as object)

@@ -17,10 +17,11 @@ import { useEditorStore, selectActiveCanvasPage } from '@core/editor-store/store
 import { resolveProps } from '@core/page-tree/selectors'
 import { registry } from '@core/module-engine/registry'
 import { resolveDynamicProps } from '@core/templates/dynamicBindings'
-import { WarningDiamondIcon } from '@ui/icons/icons/warning-diamond'
+import { WarningDiamondIcon } from 'pixel-art-icons/icons/warning-diamond'
 import { ModuleSandboxFrame } from './ModuleSandboxFrame'
 import { CanvasBreakpointContext, CanvasSelectionContext, CanvasTemplateContext } from './CanvasContexts'
 import { getCanvasNodeClassIds, getCanvasNodeClassName } from './canvasNodeClassName'
+import { findEnclosingComponentRef, type AnnotatedPageNode } from './canvasSelectionUtils'
 import styles from './NodeRenderer.module.css'
 
 // ---------------------------------------------------------------------------
@@ -72,6 +73,23 @@ export const NodeRenderer = memo(function NodeRenderer({ nodeId }: NodeRendererP
 
   const handleNodeClick = useCallback(
     (clickedNodeId: string, e: React.MouseEvent) => {
+      // B3 — VC lock-down: redirect clicks inside inlined VC bodies to the ref node.
+      // Imperative store access is correct here (event handler, not render path).
+      const state = useEditorStore.getState()
+      if (state.activeDocument?.kind !== 'visualComponent') {
+        const page = selectActiveCanvasPage(state)
+        if (page) {
+          const enclosing = findEnclosingComponentRef(
+            page.nodes as Record<string, AnnotatedPageNode>,
+            clickedNodeId,
+          )
+          if (enclosing !== null && !enclosing.isInsideSlotContent) {
+            // Clicked inside a VC body (not slot content) — route to the ref.
+            onNodeClick(enclosing.refId, e, breakpointId)
+            return
+          }
+        }
+      }
       onNodeClick(clickedNodeId, e, breakpointId)
     },
     [breakpointId, onNodeClick],
@@ -86,6 +104,23 @@ export const NodeRenderer = memo(function NodeRenderer({ nodeId }: NodeRendererP
 
   const handleNodeHover = useCallback(
     (hoveredNodeId: string | null) => {
+      if (hoveredNodeId !== null) {
+        // B3 — VC lock-down: clamp hover ring to the ref node for VC body nodes.
+        const state = useEditorStore.getState()
+        if (state.activeDocument?.kind !== 'visualComponent') {
+          const page = selectActiveCanvasPage(state)
+          if (page) {
+            const enclosing = findEnclosingComponentRef(
+              page.nodes as Record<string, AnnotatedPageNode>,
+              hoveredNodeId,
+            )
+            if (enclosing !== null && !enclosing.isInsideSlotContent) {
+              onNodeHover(enclosing.refId, breakpointId)
+              return
+            }
+          }
+        }
+      }
       onNodeHover(hoveredNodeId, breakpointId)
     },
     [breakpointId, onNodeHover],
@@ -164,7 +199,7 @@ interface NodeWrapperProps {
   onNodeHover: (nodeId: string | null) => void
   onNodeContextMenu: (nodeId: string, e: React.MouseEvent) => void
   /**
-   * Double-click handler — used for base.visualComponentRef to enter VC canvas mode.
+   * Double-click handler — used for base.visual-component-ref to enter VC canvas mode.
    * Defaults to no-op; provided by CanvasRoot via CanvasSelectionContext.
    */
   onNodeDoubleClick: (nodeId: string, e: React.MouseEvent) => void

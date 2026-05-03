@@ -679,16 +679,9 @@ describe('PP-12 — Removing a class CSS property removes it from class styles',
 // ---------------------------------------------------------------------------
 
 describe('PP-13 — Breakpoint hint inside Module section when non-desktop bp active', () => {
-  it('editing hint text visible inside module section when tablet bp active', () => {
-    const { nodeId } = loadSiteWithHeading()
-    selectNode(nodeId)
-    useEditorStore.setState({ activeBreakpointId: 'tablet' } as Parameters<typeof useEditorStore.setState>[0])
-    render(<PropertiesPanel />)
-
-    // Module section is open by default — hint should be in DOM
-    expect(screen.getByText(/editing/i)).toBeDefined()
-    expect(screen.getByText('tablet')).toBeDefined()
-  })
+  // The previous "editing tablet" text affordance was replaced by the breakpoint
+  // dot indicator on the Module section header — only the dot indicator below is
+  // still part of the spec.
 
   it('breakpoint dot indicator appears on Module section header when non-desktop bp active', () => {
     const { nodeId } = loadSiteWithHeading()

@@ -43,7 +43,6 @@ function snapshot(text: string): PublishedPageSnapshot {
       settings: {
         metaTitle: 'Public Site',
         colorTokens: {},
-        typeScale: { baseSize: 16, ratio: 1.25 },
         shortcuts: {},
       },
       classes: {},

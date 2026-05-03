@@ -9,6 +9,16 @@
     min-height: 28px;
 }
 
+/*
+ * Stacked layout — label sits on its own line above a full-width control.
+ * Used for media/image/textarea/richtext by default and for any property
+ * declared with `layout: 'stacked'` in its module schema.
+ */
+.controlWrapperStacked {
+    grid-template-columns: 1fr;
+    gap: 6px;
+}
+
 .controlWrapperDisabled {
     opacity: 0.5;
 }
@@ -145,11 +155,27 @@
     height: 18px;
     border-radius: 7px;
     background:
-        linear-gradient(45deg, rgb(255 255 255 / 0.12) 25%, transparent 25% 75%, rgb(255 255 255 / 0.12) 75%),
-        linear-gradient(45deg, rgb(255 255 255 / 0.12) 25%, transparent 25% 75%, rgb(255 255 255 / 0.12) 75%),
-        var(--color-token-option-value, #000);
-    background-position: 0 0, 5px 5px, 0 0;
-    background-size: 10px 10px, 10px 10px, auto;
+        linear-gradient(
+            45deg,
+            rgb(255 255 255 / 0.12) 25%,
+            transparent 25% 75%,
+            rgb(255 255 255 / 0.12) 75%
+        ),
+        linear-gradient(
+            45deg,
+            rgb(255 255 255 / 0.12) 25%,
+            transparent 25% 75%,
+            rgb(255 255 255 / 0.12) 75%
+        ),
+        var(--color-token-option-value, var(--editor-bg));
+    background-position:
+        0 0,
+        5px 5px,
+        0 0;
+    background-size:
+        10px 10px,
+        10px 10px,
+        auto;
     box-shadow:
         inset 0 0 0 1px rgb(255 255 255 / 0.18),
         inset 0 -5px 8px rgb(0 0 0 / 0.18);
@@ -364,6 +390,11 @@
     min-height: 28px;
 }
 
+.boundControlWrapperStacked {
+    grid-template-columns: 1fr;
+    gap: 6px;
+}
+
 .boundValueRow {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 26px;
@@ -419,11 +450,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    min-height: 34px;
-    padding: 0 10px;
-    border: 1px solid var(--panel-border);
-    border-radius: var(--editor-radius);
-    background: rgba(255, 255, 255, 0.025);
+    min-height: 28px;
 }
 
 .toggleLabel {

@@ -235,8 +235,8 @@ export function validateComponentName(
  * Rules:
  *  1. Must not be empty.
  *  2. Must be camelCase: /^[a-z][A-Za-z0-9]*$/ — starts lowercase, alphanumeric only.
- *  3. Must not be a reserved JavaScript keyword (would produce SyntaxError in
- *     the destructured function signature emitted by vcToComponent).
+ *  3. Must not be a reserved JavaScript keyword (would be a SyntaxError in
+ *     a destructured function signature).
  *  4. Must be unique within the VC's existing params.
  *
  * @param name          - The proposed param name string.

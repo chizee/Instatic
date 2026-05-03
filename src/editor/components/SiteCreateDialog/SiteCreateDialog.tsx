@@ -9,7 +9,7 @@ import {
 } from '@core/page-tree/slugs'
 import { Button } from '@ui/components/Button'
 import { Input } from '@ui/components/Input'
-import { CloseIcon } from '@ui/icons/icons/close'
+import { CloseIcon } from 'pixel-art-icons/icons/close'
 import type { SiteCreateKind } from './siteItemNames'
 import styles from './SiteCreateDialog.module.css'
 

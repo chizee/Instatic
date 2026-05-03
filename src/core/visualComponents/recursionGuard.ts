@@ -7,7 +7,7 @@
  *
  *   getReferencedComponentIds(node)
  *     Walks a VC node tree and returns the set of all componentIds
- *     referenced by any base.visualComponentRef nodes in that tree.
+ *     referenced by any base.visual-component-ref nodes in that tree.
  *     Uses childNodes[] for tree traversal (VC nested-tree format).
  *
  *   wouldCreateCycle(visualComponents, hostVcId, candidateChildVcId)
@@ -31,12 +31,13 @@
 
 /**
  * Walk a VC node tree and collect all componentIds referenced by
- * base.visualComponentRef nodes anywhere in the tree.
+ * base.visual-component-ref nodes anywhere in the tree.
  *
  * Accepts `unknown` so it can safely receive raw data from test fixtures
  * and validateSite without requiring a fully-typed PageNode.
  *
- * Tree traversal uses `childNodes: unknown[]` (VC-tree nested format).
+ * Tree traversal uses `childNodes: unknown[]` (VC-tree nested format) and
+ * `props.slotContent: Record<string, unknown[]>` (slot children on vcRef nodes).
  *
  * @param node - Root node of the tree to walk (or any subtree node).
  * @returns Set of componentId strings found in the tree.
@@ -50,7 +51,7 @@ export function getReferencedComponentIds(node: unknown): Set<string> {
 
     // If this is a visualComponentRef node, collect its componentId
     if (
-      obj.moduleId === 'base.visualComponentRef' &&
+      obj.moduleId === 'base.visual-component-ref' &&
       obj.props &&
       typeof obj.props === 'object' &&
       !Array.isArray(obj.props)
@@ -65,6 +66,20 @@ export function getReferencedComponentIds(node: unknown): Set<string> {
     if (Array.isArray(obj.childNodes)) {
       for (const child of obj.childNodes) {
         walk(child)
+      }
+    }
+
+    // Recurse into slotContent (Record<string, PageNode[]> — slot children on vcRef nodes)
+    if (obj.props && typeof obj.props === 'object' && !Array.isArray(obj.props)) {
+      const propsObj = obj.props as Record<string, unknown>
+      if (propsObj.slotContent && typeof propsObj.slotContent === 'object' && !Array.isArray(propsObj.slotContent)) {
+        for (const slotNodes of Object.values(propsObj.slotContent as Record<string, unknown>)) {
+          if (Array.isArray(slotNodes)) {
+            for (const child of slotNodes) {
+              walk(child)
+            }
+          }
+        }
       }
     }
   }

@@ -37,22 +37,18 @@ const PROJECT_PANEL_DIR = join(SRC_ROOT, 'editor/components/SitePanel')
 // ---------------------------------------------------------------------------
 // Gate 1 — DepsSection exists at canonical standalone DependenciesPanel path
 //
-// DepsSection.tsx was migrated from SitePanel/DepsTab.tsx in Task #434,
-// then split out of the site file-tree work into a standalone DependenciesPanel.
 // Regression guard: if someone accidentally deletes or moves this file,
 // the entire dependency management feature silently disappears.
 // ---------------------------------------------------------------------------
 
-describe('Post-#434 Gate 1 — DepsSection at canonical DependenciesPanel path', () => {
+describe('DependenciesPanel — DepsSection at canonical path', () => {
   it('DepsSection.tsx must exist at src/editor/components/DependenciesPanel/DepsSection.tsx', () => {
     if (!existsSync(DEPS_SECTION_PATH)) {
       throw new Error(
-        '[Post-#434 regression] DepsSection.tsx not found at expected path.\n' +
+        'DepsSection.tsx not found at expected path.\n' +
         'Expected: src/editor/components/DependenciesPanel/DepsSection.tsx\n' +
         '\n' +
-        'DepsSection was migrated from SitePanel/DepsTab.tsx in Task #434.\n' +
-        'If you moved it, update this gate to the new canonical path.\n' +
-        'If you accidentally deleted it, restore from Contribution #627.'
+        'If you moved it, update this gate to the new canonical path.'
       )
     }
     expect(existsSync(DEPS_SECTION_PATH)).toBe(true)

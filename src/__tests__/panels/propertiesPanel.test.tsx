@@ -364,24 +364,10 @@ describe('PropertiesPanel — close button', () => {
 })
 
 // ---------------------------------------------------------------------------
-// 8 — Breakpoint override hint
+// 8 — Breakpoint override indicator
+//
+// The previous "editing tablet" text hint was replaced by a breakpoint dot
+// indicator on the Module section header (Spec PP-13). The indicator-shape
+// assertions live in `propertiesPanel-redesign.test.tsx`; the stale text
+// affordance no longer exists, so there is nothing to check here.
 // ---------------------------------------------------------------------------
-
-describe('PropertiesPanel — breakpoint override hint', () => {
-  it('shows breakpoint editing hint when non-desktop breakpoint is active', () => {
-    const { nodeId } = loadSiteWithHeading()
-    selectNode(nodeId)
-    useEditorStore.setState({ activeBreakpointId: 'tablet' } as Parameters<typeof useEditorStore.setState>[0])
-    render(<PropertiesPanel />)
-    expect(screen.getByText(/editing/i)).toBeDefined()
-    expect(screen.getByText('tablet')).toBeDefined()
-  })
-
-  it('does NOT show breakpoint hint when desktop breakpoint is active', () => {
-    const { nodeId } = loadSiteWithHeading()
-    selectNode(nodeId)
-    useEditorStore.setState({ activeBreakpointId: 'desktop' } as Parameters<typeof useEditorStore.setState>[0])
-    render(<PropertiesPanel />)
-    expect(screen.queryByText(/editing.*overrides/i)).toBeNull()
-  })
-})

@@ -258,6 +258,142 @@ describe('renderNode', () => {
     expect(htmlDesktop).toBe('<h1>Desktop</h1>')
     expect(htmlMobile).toBe('<h2>Mobile</h2>')
   })
+
+  // Regression — parent classes must not bleed into descendants
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Pre-fix bug: injectClassIntoRootElement used a non-anchored regex that
+  // matched the FIRST `class="..."` anywhere in the rendered HTML. When the
+  // root tag had no class but a nested descendant did, the parent's class was
+  // wrongly prepended to that descendant. With three levels (e.g. outer
+  // container with `bg`, inner container with `row`, paragraph with
+  // `text-primary`), all three classes piled up on the deepest element:
+  //   <p class="bg row text-primary">…</p>
+  // The fix anchors the operation to the FIRST opening element tag.
+  describe('class injection — parent classes never bleed into descendants', () => {
+    // Bare-output stand-ins for base.container / base.text — no default class
+    const bareContainerDef = makeModule('base.container', {
+      canHaveChildren: true,
+      render: (_, children) => ({ html: `<div>${children.join('')}</div>` }),
+    })
+    const bareTextDef = makeModule('base.text', {
+      render: (props, _) => ({
+        html: `<p>${(props as { text: string }).text}</p>`,
+      }),
+    })
+    const bareReg = makeRegistry({
+      'base.container': bareContainerDef,
+      'base.text': bareTextDef,
+    })
+
+    function bareCtx(page: ReturnType<typeof makePage>): RenderContext {
+      const cssMap = new Map<string, string>()
+      return { page, site, registry: bareReg, breakpointId: undefined, cssMap }
+    }
+
+    it('two-level: parent class lands on parent root, not on its classed child', () => {
+      const siteDoc = makeSite({
+        classes: {
+          'row-id':    { id: 'row-id',    name: 'row',          styles: {}, breakpointStyles: {}, createdAt: 0, updatedAt: 0 },
+          'tprim-id':  { id: 'tprim-id',  name: 'text-primary', styles: {}, breakpointStyles: {}, createdAt: 0, updatedAt: 0 },
+        },
+      })
+      const page = makePage({
+        root: {
+          moduleId: 'base.container',
+          classIds: ['row-id'],
+          children: ['p1'],
+        },
+        p1: { moduleId: 'base.text', props: { text: 'Hi' }, classIds: ['tprim-id'] },
+      })
+      const cssMap = new Map<string, string>()
+      const html = renderNode('root', {
+        page, site: siteDoc, registry: bareReg, breakpointId: undefined, cssMap,
+      })
+
+      expect(html).toBe('<div class="row"><p class="text-primary">Hi</p></div>')
+      // Parent class never appears on the descendant
+      expect(html).not.toMatch(/<p[^>]*class="[^"]*row/)
+    })
+
+    it('three-level: each class lands on its own element (Vamos a la playa repro)', () => {
+      const siteDoc = makeSite({
+        classes: {
+          'bg-id':    { id: 'bg-id',    name: 'bg',           styles: {}, breakpointStyles: {}, createdAt: 0, updatedAt: 0 },
+          'row-id':   { id: 'row-id',   name: 'row',          styles: {}, breakpointStyles: {}, createdAt: 0, updatedAt: 0 },
+          'tprim-id': { id: 'tprim-id', name: 'text-primary', styles: {}, breakpointStyles: {}, createdAt: 0, updatedAt: 0 },
+        },
+      })
+      const page = makePage({
+        outer: {
+          moduleId: 'base.container',
+          classIds: ['bg-id'],
+          children: ['inner'],
+        },
+        inner: {
+          moduleId: 'base.container',
+          classIds: ['row-id'],
+          children: ['p1'],
+        },
+        p1: { moduleId: 'base.text', props: { text: 'Vamos a la playa' }, classIds: ['tprim-id'] },
+      }, 'outer')
+      const cssMap = new Map<string, string>()
+      const html = renderNode('outer', {
+        page, site: siteDoc, registry: bareReg, breakpointId: undefined, cssMap,
+      })
+
+      expect(html).toBe(
+        '<div class="bg"><div class="row"><p class="text-primary">Vamos a la playa</p></div></div>',
+      )
+      // Each ancestor class stays on its own element
+      expect(html).not.toMatch(/<p[^>]*class="[^"]*\bbg\b/)
+      expect(html).not.toMatch(/<p[^>]*class="[^"]*\brow\b/)
+      expect(html).not.toMatch(/<div class="row"[^>]*>[\s\S]*<div[^>]*class="[^"]*\bbg\b/)
+    })
+
+    it('multi-class on root: prepends to existing class on the same element', () => {
+      // This locks in the original Case-1 behaviour for the case it was meant
+      // to handle: a module render() that already emits a class on the root.
+      const classedDef = makeModule('base.classed', {
+        render: () => ({ html: '<button class="pb-btn">Click</button>' }),
+      })
+      const reg = makeRegistry({ 'base.classed': classedDef })
+      const siteDoc = makeSite({
+        classes: {
+          'cta-id': { id: 'cta-id', name: 'cta', styles: {}, breakpointStyles: {}, createdAt: 0, updatedAt: 0 },
+        },
+      })
+      const page = makePage({
+        root: { moduleId: 'base.classed', classIds: ['cta-id'] },
+      })
+      const cssMap = new Map<string, string>()
+      const html = renderNode('root', {
+        page, site: siteDoc, registry: reg, breakpointId: undefined, cssMap,
+      })
+
+      expect(html).toBe('<button class="cta pb-btn">Click</button>')
+    })
+
+    it('html starting with a comment: skips the comment and classes the first element', () => {
+      const wrappedDef = makeModule('base.wrapped', {
+        render: () => ({ html: '<!-- marker --><section><p>x</p></section>' }),
+      })
+      const reg = makeRegistry({ 'base.wrapped': wrappedDef })
+      const siteDoc = makeSite({
+        classes: {
+          'h-id': { id: 'h-id', name: 'hero', styles: {}, breakpointStyles: {}, createdAt: 0, updatedAt: 0 },
+        },
+      })
+      const page = makePage({
+        root: { moduleId: 'base.wrapped', classIds: ['h-id'] },
+      })
+      const cssMap = new Map<string, string>()
+      const html = renderNode('root', {
+        page, site: siteDoc, registry: reg, breakpointId: undefined, cssMap,
+      })
+
+      expect(html).toBe('<!-- marker --><section class="hero"><p>x</p></section>')
+    })
+  })
 })
 
 // ---------------------------------------------------------------------------

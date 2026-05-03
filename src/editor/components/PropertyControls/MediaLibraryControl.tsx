@@ -2,11 +2,11 @@ import { useEffect, useMemo, useState } from 'react'
 import { listCmsMediaAssets, type CmsMediaAsset } from '@core/persistence/cmsMedia'
 import { isValidImageUrl } from '@core/utils/urlValidation'
 import type { ControlProps } from './shared'
+import { ControlRow } from './ControlRow'
 import { Button } from '@ui/components/Button'
 import { Input } from '@ui/components/Input'
 import { SearchBar } from '@ui/components/SearchBar'
-import { VideoIcon } from '@ui/icons/icons/video'
-import { cn } from '@ui/cn'
+import { VideoIcon } from 'pixel-art-icons/icons/video'
 import styles from './controls.module.css'
 
 type MediaKind = 'image' | 'video'
@@ -72,6 +72,7 @@ export function MediaLibraryControl({
   label,
   isOverride,
   disabled,
+  layout,
   mediaKind,
 }: MediaLibraryControlProps) {
   const currentValue = String(value ?? '')
@@ -150,21 +151,19 @@ export function MediaLibraryControl({
   }
 
   return (
-    <div className={cn(styles.controlWrapper, disabled && styles.controlWrapperDisabled)}>
-      <div className={styles.labelRow}>
-        <label
-          htmlFor={mode === 'url' ? `ctrl-${propKey}` : undefined}
-          className={isOverride ? styles.labelOverride : undefined}
-        >
-          {label ?? propKey}
-        </label>
-        {mode === 'url' && urlError && (
-          <span className={styles.labelError} role="alert">
-            Invalid {modeLabel} URL
-          </span>
-        )}
-      </div>
-
+    <ControlRow
+      propKey={propKey}
+      label={label}
+      inputId={mode === 'url' ? `ctrl-${propKey}` : `ctrl-${propKey}`}
+      layout={layout}
+      isOverride={isOverride}
+      disabled={disabled}
+      labelSuffix={mode === 'url' && urlError ? (
+        <span className={styles.labelError} role="alert">
+          Invalid {modeLabel} URL
+        </span>
+      ) : undefined}
+    >
       <div className={styles.mediaPicker}>
         <div className={styles.mediaSourceSwitch} role="group" aria-label={`${label ?? propKey} source`}>
           <Button
@@ -198,7 +197,6 @@ export function MediaLibraryControl({
             <SearchBar
               value={query}
               onValueChange={setQuery}
-              fieldSize="xs"
               placeholder={`Search ${modeLabel}s`}
               aria-label={`Search ${modeLabel} media`}
               disabled={disabled}
@@ -290,6 +288,6 @@ export function MediaLibraryControl({
           </div>
         )}
       </div>
-    </div>
+    </ControlRow>
   )
 }

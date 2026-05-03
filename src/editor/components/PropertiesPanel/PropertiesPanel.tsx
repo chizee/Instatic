@@ -39,6 +39,9 @@ import { ClassPicker } from './ClassPicker'
 import { ClassComposer } from './ClassComposer'
 import { Section } from './Section'
 import { ComponentRefView } from './ComponentRefView'
+import { ParamPromotableRow } from './ParamPromotableRow'
+import { ComponentParamsOverview } from './ComponentParamsOverview'
+import { ConvertToComponentButton } from './ConvertToComponentButton'
 import {
   getModuleStyleBindings,
   isModuleStyleSet,
@@ -48,10 +51,9 @@ import { PanelHeader } from '../shared/PanelHeader'
 import { useDraggablePanel } from '../../hooks/useDraggablePanel'
 import { Button } from '@ui/components/Button'
 import { Input } from '@ui/components/Input'
-import { OpenIcon } from '@ui/icons/icons/open'
-import { DockIcon } from '@ui/icons/icons/dock'
-import { Settings2Icon } from '@ui/icons/icons/settings-2'
-import { EditIcon } from '@ui/icons/icons/edit'
+import { OpenIcon } from 'pixel-art-icons/icons/open'
+import { DockIcon } from 'pixel-art-icons/icons/dock'
+import { EditIcon } from 'pixel-art-icons/icons/edit'
 import { cn } from '@ui/cn'
 import styles from './PropertiesPanel.module.css'
 
@@ -94,6 +96,12 @@ export function PropertiesPanel({ variant = 'floating' }: PropertiesPanelProps) 
   const togglePropertiesPanel = useEditorStore((s) => s.togglePropertiesPanel)
   const focusedPanel = useEditorStore((s) => s.focusedPanel)
   const setFocusedPanel = useEditorStore((s) => s.setFocusedPanel)
+  const activeDocument = useEditorStore((s) => s.activeDocument)
+
+  // Resolve active VC for ComponentParamsOverview (null when not in VC canvas mode).
+  const activeVc = activeDocument?.kind === 'visualComponent'
+    ? site?.visualComponents?.find((v) => v.id === activeDocument.vcId) ?? null
+    : null
 
   const [statusMessage, setStatusMessage] = useState('')
 
@@ -250,7 +258,7 @@ export function PropertiesPanel({ variant = 'floating' }: PropertiesPanelProps) 
           iconOnly
           onClick={() => setPropertiesPanelMode(variant === 'docked' ? 'floating' : 'docked')}
           aria-label={modeButtonLabel}
-          title={modeButtonTitle}
+          tooltip={modeButtonTitle}
         >
           {variant === 'docked' ? (
             <OpenIcon size={12} aria-hidden="true" />
@@ -268,10 +276,14 @@ export function PropertiesPanel({ variant = 'floating' }: PropertiesPanelProps) 
         {selectedSelectorClass ? (
           <SelectorInspector cls={selectedSelectorClass} />
         ) : !selectedNode || !definition ? (
-          <div className={styles.emptyState}>
-            Select an element on the canvas to view its properties.
-          </div>
-        ) : selectedNode.moduleId === 'base.visualComponentRef' ? (
+          activeDocument?.kind === 'visualComponent' && selectedNodeId === null && selectedSelectorClassId === null && activeVc
+            ? <ComponentParamsOverview vc={activeVc} />
+            : (
+              <div className={styles.emptyState}>
+                Select an element on the canvas to view its properties.
+              </div>
+            )
+        ) : selectedNode.moduleId === 'base.visual-component-ref' ? (
           /* ── Visual Component instance view (Task #438 / Contribution #619 §8.5) ── */
           <ComponentRefView
             nodeId={selectedNodeId!}
@@ -281,30 +293,51 @@ export function PropertiesPanel({ variant = 'floating' }: PropertiesPanelProps) 
         ) : (
           /* ── Single-scroll layout (Task #456 / Spec #659 §1) ─────────── */
           <div className={styles.scrollArea}>
+            {/* Convert to component — only on pages, for non-root non-ref nodes */}
+            {activeDocument?.kind !== 'visualComponent' &&
+              selectedNode.moduleId !== 'base.root' &&
+              selectedNode.moduleId !== 'base.visual-component-ref' && (
+                <ConvertToComponentButton nodeId={selectedNodeId!} />
+              )
+            }
             <div className={styles.headerClassPicker}>
               <ClassPicker nodeId={selectedNodeId!} />
             </div>
 
-            {/* Module props section — collapsible, default open (PP-4) */}
+            {/* Module props section — collapsible, default open (PP-4).
+                Icon comes from the module declaration (single source of truth)
+                so this header matches the layer tree, canvas notch, and
+                module picker. */}
             <Section
               title="Module settings"
               defaultOpen
-              icon={Settings2Icon}
+              icon={definition.icon}
               meta={definition.name}
-              indicator={isNonDesktopBp ? 'bp' : undefined}
+              indicator={isNonDesktopBp}
             >
-              {/* Breakpoint hint inside module section (Spec §4.1) */}
-              {isNonDesktopBp && (
-                <div className={styles.breakpointHint}>
-                  Editing <strong>{activeBreakpointId}</strong> overrides.
-                  Purple values differ from desktop.
-                </div>
-              )}
               <div key={selectedNodeId ?? ''} className={styles.moduleContent}>
                 {Object.entries(definition.schema).map(([key, control]: [string, PropertyControl]) => {
                   if (control.condition && !evaluateCondition(control.condition, resolvedPropsForBreakpoint!)) {
                     return null
                   }
+
+                  // In VC edit mode, wrap each control in ParamPromotableRow to expose
+                  // the param-binding affordance (Phase 2 §B).
+                  if (activeDocument?.kind === 'visualComponent' && selectedNodeId && selectedNode) {
+                    return (
+                      <ParamPromotableRow
+                        key={key}
+                        vcId={activeDocument.vcId}
+                        nodeId={selectedNodeId}
+                        propKey={key}
+                        control={control}
+                        value={resolvedPropsForBreakpoint![key]}
+                        isOverride={overrideKeys.has(key)}
+                        onChange={handleChange}
+                      />
+                    )
+                  }
+
                   return (
                     <PropertyControlRenderer
                       key={key}
@@ -435,7 +468,7 @@ function NodeHeader({ nodeId, label, moduleName, onRename }: NodeHeaderProps) {
         iconOnly
         onClick={() => setIsEditing(true)}
         aria-label={`Rename ${displayName}`}
-        title="Rename element"
+        tooltip="Rename element"
       >
         <EditIcon size={12} aria-hidden="true" />
       </Button>
@@ -518,7 +551,7 @@ function SelectorHeader({ cls, onRename }: SelectorHeaderProps) {
         iconOnly
         onClick={() => setIsEditing(true)}
         aria-label={`Rename selector ${selectorLabel}`}
-        title="Rename selector"
+        tooltip="Rename selector"
       >
         <EditIcon size={12} aria-hidden="true" />
       </Button>
@@ -527,6 +560,13 @@ function SelectorHeader({ cls, onRename }: SelectorHeaderProps) {
 }
 
 function SelectorInspector({ cls }: { cls: CSSClass }) {
+  if (isGeneratedClassLocked(cls)) {
+    return (
+      <div className={styles.scrollArea}>
+        <GeneratedUtilityLockedState cls={cls} />
+      </div>
+    )
+  }
   return (
     <div className={styles.scrollArea}>
       <ClassComposer key={cls.id} classId={cls.id} cls={cls} mode="global" />
@@ -535,7 +575,8 @@ function SelectorInspector({ cls }: { cls: CSSClass }) {
 }
 
 function GeneratedUtilityLockedState({ cls }: { cls: CSSClass }) {
-  const utility = cls.generated?.utility
+  const colorGenerated = cls.generated?.family === 'color' ? cls.generated : undefined
+  const utility = colorGenerated?.utility
   const tokenName = cls.generated?.tokenName
 
   return (

@@ -26,12 +26,12 @@ import { useRef, useEffect, useCallback, memo } from 'react'
 import { useEditorStore } from '@core/editor-store/store'
 import { stripAgentActionBlocks } from '@core/agent/actionBlocks'
 import type { AgentMessage, AgentToolCall } from '@core/agent/types'
-import { DeleteIcon } from '@ui/icons/icons/delete'
-import { SquareIcon } from '@ui/icons/icons/square'
-import { LoaderIcon } from '@ui/icons/icons/loader'
-import { CheckIcon } from '@ui/icons/icons/check'
-import { CircleAlertIcon } from '@ui/icons/icons/circle-alert'
-import { AiBoxIcon } from '@ui/icons/icons/ai-box'
+import { DeleteIcon } from 'pixel-art-icons/icons/delete'
+import { SquareIcon } from 'pixel-art-icons/icons/square'
+import { LoaderIcon } from 'pixel-art-icons/icons/loader'
+import { CheckIcon } from 'pixel-art-icons/icons/check'
+import { CircleAlertIcon } from 'pixel-art-icons/icons/circle-alert'
+import { AiBoxIcon } from 'pixel-art-icons/icons/ai-box'
 import { PanelHeader } from '../shared/PanelHeader'
 import { Button } from '@ui/components/Button'
 import { Textarea } from '@ui/components/Input'
@@ -164,7 +164,7 @@ export const AgentPanel = memo(function AgentPanel({ variant = 'floating' }: { v
             size="xs"
             iconOnly
             onClick={clearAgentMessages}
-            title="Clear conversation"
+            tooltip="Clear conversation"
             aria-label="Clear conversation"
           >
             <DeleteIcon size={14} />

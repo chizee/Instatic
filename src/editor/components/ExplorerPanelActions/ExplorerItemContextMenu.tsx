@@ -3,8 +3,8 @@ import {
   ContextMenu,
   ContextMenuItem,
 } from '@ui/components/ContextMenu'
-import { DeleteIcon } from '@ui/icons/icons/delete'
-import { EditIcon } from '@ui/icons/icons/edit'
+import { DeleteIcon } from 'pixel-art-icons/icons/delete'
+import { EditIcon } from 'pixel-art-icons/icons/edit'
 
 export interface ExplorerContextMenuItem {
   label: string

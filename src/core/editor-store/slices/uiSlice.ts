@@ -1,8 +1,18 @@
+import { produce } from 'immer'
 import type { StateCreator } from 'zustand'
-import type { EditorStore } from '../store'
+import type { EditorStore } from '../types'
 
 export type FocusedPanel = 'canvas' | 'domTree' | 'properties' | null
-export type LeftSidebarPanelId = 'site' | 'selectors' | 'colors' | 'media' | 'dependencies' | 'layers' | 'agent'
+export type LeftSidebarPanelId =
+  | 'site'
+  | 'selectors'
+  | 'colors'
+  | 'typography'
+  | 'spacing'
+  | 'media'
+  | 'dependencies'
+  | 'layers'
+  | 'agent'
 export type PropertiesPanelMode = 'docked' | 'floating'
 
 export const SIDEBAR_MIN_WIDTH = 260
@@ -60,6 +70,8 @@ export interface UiSlice {
   siteExplorerPanelOpen: boolean
   selectorsPanelOpen: boolean
   colorsPanelOpen: boolean
+  typographyPanelOpen: boolean
+  spacingPanelOpen: boolean
   mediaExplorerPanelOpen: boolean
   dependenciesPanelOpen: boolean
 
@@ -94,6 +106,8 @@ export interface UiSlice {
   setSiteExplorerPanelOpen: (open: boolean) => void
   setSelectorsPanelOpen: (open: boolean) => void
   setColorsPanelOpen: (open: boolean) => void
+  setTypographyPanelOpen: (open: boolean) => void
+  setSpacingPanelOpen: (open: boolean) => void
   setMediaExplorerPanelOpen: (open: boolean) => void
   setDependenciesPanelOpen: (open: boolean) => void
   setLeftSidebarPanel: (panel: LeftSidebarPanelId | null) => void
@@ -115,6 +129,16 @@ export interface UiSlice {
    */
   activeDocument: ActiveDocument | null
   setActiveDocument: (doc: ActiveDocument | null) => void
+
+  /**
+   * Exit VC canvas mode and return to the previously active page.
+   *
+   * - Sets activeDocument = null.
+   * - If previousActivePageId is set and its page still exists in the site,
+   *   restores activePageId to that page; otherwise leaves activePageId as-is.
+   * - Clears selectedNodeId and previousActivePageId.
+   */
+  exitVisualComponentMode: () => void
 
   /** Class selected in the global Selectors panel. */
   selectedSelectorClassId: string | null
@@ -153,6 +177,8 @@ function getActiveLeftSidebarPanel(state: EditorStore): LeftSidebarPanelId | nul
   if (state.siteExplorerPanelOpen) return 'site'
   if (state.selectorsPanelOpen) return 'selectors'
   if (state.colorsPanelOpen) return 'colors'
+  if (state.typographyPanelOpen) return 'typography'
+  if (state.spacingPanelOpen) return 'spacing'
   if (state.mediaExplorerPanelOpen) return 'media'
   if (state.dependenciesPanelOpen) return 'dependencies'
   if (!state.domTreePanel.collapsed) return 'layers'
@@ -175,6 +201,8 @@ export const createUiSlice: StateCreator<EditorStore, [], [], UiSlice> = (set, g
   siteExplorerPanelOpen: false,
   selectorsPanelOpen: false,
   colorsPanelOpen: false,
+  typographyPanelOpen: false,
+  spacingPanelOpen: false,
   mediaExplorerPanelOpen: false,
   dependenciesPanelOpen: false,
   codeEditorPanelOpen: false,
@@ -269,6 +297,10 @@ export const createUiSlice: StateCreator<EditorStore, [], [], UiSlice> = (set, g
 
   setColorsPanelOpen: (open) => set({ colorsPanelOpen: open }),
 
+  setTypographyPanelOpen: (open) => set({ typographyPanelOpen: open }),
+
+  setSpacingPanelOpen: (open) => set({ spacingPanelOpen: open }),
+
   setMediaExplorerPanelOpen: (open) => set({ mediaExplorerPanelOpen: open }),
 
   setDependenciesPanelOpen: (open) => set({ dependenciesPanelOpen: open }),
@@ -278,6 +310,8 @@ export const createUiSlice: StateCreator<EditorStore, [], [], UiSlice> = (set, g
       siteExplorerPanelOpen: panel === 'site',
       selectorsPanelOpen: panel === 'selectors',
       colorsPanelOpen: panel === 'colors',
+      typographyPanelOpen: panel === 'typography',
+      spacingPanelOpen: panel === 'spacing',
       mediaExplorerPanelOpen: panel === 'media',
       dependenciesPanelOpen: panel === 'dependencies',
       domTreePanel: {
@@ -305,7 +339,39 @@ export const createUiSlice: StateCreator<EditorStore, [], [], UiSlice> = (set, g
     // Closing the editor hides the panel and clears the active file.
     set({ activeEditorFileId: null, activeMediaAssetPreview: null, codeEditorPanelOpen: false }),
 
-  setActiveDocument: (doc) => set({ activeDocument: doc }),
+  setActiveDocument: (doc) =>
+    set(
+      produce((state: EditorStore) => {
+        const prevDoc = state.activeDocument
+        state.activeDocument = doc
+
+        if (doc?.kind === 'visualComponent') {
+          // Entering VC mode: capture the page we came from IF the previous
+          // activeDocument was null (the default page canvas). Coming from an
+          // explicit page doc or another VC → leave previousActivePageId as-is.
+          if (prevDoc === null && state.activePageId !== null) {
+            state.previousActivePageId = state.activePageId
+          }
+        } else {
+          // Leaving VC mode (setting to null or a page doc) → clear the captured id.
+          state.previousActivePageId = null
+        }
+      }),
+    ),
+
+  exitVisualComponentMode: () =>
+    set(
+      produce((state: EditorStore) => {
+        const prevPageId = state.previousActivePageId
+        state.activeDocument = null
+        // Restore the page we came from if it still exists in the site.
+        if (prevPageId !== null && state.site?.pages.some((p) => p.id === prevPageId)) {
+          state.activePageId = prevPageId
+        }
+        state.selectedNodeId = null
+        state.previousActivePageId = null
+      }),
+    ),
 
   setSelectedSelectorClassId: (classId) => {
     if (Object.is(get().selectedSelectorClassId, classId)) return
@@ -316,5 +382,5 @@ export const createUiSlice: StateCreator<EditorStore, [], [], UiSlice> = (set, g
     // Atomic: clear VC mode + switch to the target page in one store write.
     // Avoids an intermediate state where activeDocument is still 'visualComponent'
     // while activePageId has already changed (SF-2 / CR #666 finding).
-    set({ activeDocument: null, activePageId: pageId }),
+    set({ activeDocument: null, activePageId: pageId, previousActivePageId: null }),
 })

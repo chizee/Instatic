@@ -17,9 +17,15 @@ import { resolveDynamicProps, type TemplateRenderDataContext } from '../template
 import { classNamesForClassIds } from '../page-tree/classNames'
 import { sanitizeModuleCSS, collectClassCSS } from './cssCollector'
 import { generateFrameworkColorRootCss } from '../framework/colors'
+import { generateFrameworkTypographyRootCss } from '../framework/typography'
+import { generateFrameworkSpacingRootCss } from '../framework/spacing'
+import { resolveFrameworkPreferences } from '../framework/preferences'
 import { escapeHtml, isSafeUrl } from './utils'
 import type { PublishedPageRuntimeAssets } from '../site-runtime/types'
 import { hasPublishedRuntimeScripts, scriptTagsForRuntimeAssets } from '../site-runtime'
+import { sanitizeRichtext } from '../sanitize'
+import { instantiateVCAtRef, type InstantiatedVCNode } from '../visualComponents/instantiate'
+import type { VCNode } from '../visualComponents/types'
 
 // Re-export canonical utilities so existing imports from this file keep working
 // (render.test.ts imports escapeHtml / isSafeUrl from here)
@@ -76,8 +82,13 @@ export function escapeProps(
     }
 
     if (isRichtextKey(key)) {
-      // Richtext: pass through (DOMPurify must sanitize at edit time)
-      escaped[key] = value
+      // Richtext: defense-in-depth sanitization via DOMPurify (Constraint #368).
+      // DOMPurify runs at write time (editor/Properties Panel boundary); this is a
+      // second pass at the publisher boundary so that corrupted or injected richtext
+      // values cannot reach the published HTML unsanitized.
+      // sanitizeRichtext falls back to a regex strip if DOMPurify is unavailable
+      // (e.g. server-side Bun context with no DOM).
+      escaped[key] = sanitizeRichtext(value)
     } else if (isUrlKey(key)) {
       // URLs: block javascript: and vbscript: schemes; pass safe URLs through raw
       // so that module render() functions can HTML-escape them via safeUrl() from
@@ -103,23 +114,174 @@ export function escapeProps(
 // ---------------------------------------------------------------------------
 
 /**
- * Inject a class attribute into the root element of an HTML string.
+ * Inject a class attribute into the ROOT element of an HTML string.
  *
- * Handles two cases:
- * 1. Element already has a class attribute → prepend the new classes.
+ * The function locates the first opening element tag in `html` and modifies
+ * only that tag — never a nested descendant. Two cases on the root tag:
+ *
+ * 1. Root tag already has `class="..."` → prepend the new classes.
  *    `<div class="existing">` → `<div class="class_name existing">`
- * 2. Element has no class attribute → inject one after the tag name.
+ * 2. Root tag has no class attribute → insert one as the first attribute.
  *    `<button type="button">` → `<button class="class_name" type="button">`
  *
  * The classAttr string is pre-validated by the caller (class tokens, HTML-escaped).
- * The function only touches the first opening tag so it does not modify nested elements.
+ *
+ * Comments / DOCTYPE / processing-instructions before the first element tag
+ * are skipped — they don't take a class attribute. If `html` contains no
+ * element tag at all (e.g. a comment-only placeholder, or empty string),
+ * the original `html` is returned unchanged.
+ *
+ * Anchoring on the FIRST tag is essential: the previous implementation used
+ * a non-anchored regex that could match a nested descendant's `class="..."`
+ * when the root had no class — causing parent classes to be wrongly prepended
+ * to the deepest classed element rather than to the root itself.
  */
 function injectClassIntoRootElement(html: string, classAttr: string): string {
-  // Case 1: existing class=" attribute — prepend to it
-  const withExisting = html.replace(/(<[\w-]+\b[^>]*?)(\bclass=")/, `$1$2${classAttr} `)
-  if (withExisting !== html) return withExisting
-  // Case 2: no existing class — insert after the first tag name
-  return html.replace(/(<[\w-]+)(\s|>)/, `$1 class="${classAttr}"$2`)
+  // Find the first opening element tag. Anchored on `<[a-zA-Z]` so it skips
+  // `<!--`, `<!DOCTYPE`, and `<?xml`-style prefixes.
+  // `[^>]*` is safe because module render() output escapes attribute values
+  // (so `>` cannot appear inside an attribute value here).
+  const tagMatch = html.match(/<([a-zA-Z][\w-]*)\b([^>]*)>/)
+  if (!tagMatch) return html
+
+  const [fullMatch, tagName, attrs] = tagMatch
+  const tagStart = tagMatch.index ?? 0
+
+  // Does the ROOT tag already carry a class attribute?
+  const classRe = /\bclass="([^"]*)"/
+  const existingClass = attrs.match(classRe)
+
+  let newAttrs: string
+  if (existingClass) {
+    // Prepend the new classes to the existing list (preserve cascade order)
+    newAttrs = attrs.replace(classRe, `class="${classAttr} ${existingClass[1]}"`)
+  } else {
+    // Insert the class as the first attribute on the root tag
+    newAttrs = ` class="${classAttr}"${attrs}`
+  }
+
+  const newTag = `<${tagName}${newAttrs}>`
+  return html.slice(0, tagStart) + newTag + html.slice(tagStart + fullMatch.length)
+}
+
+// ---------------------------------------------------------------------------
+// Visual Component inlining
+// ---------------------------------------------------------------------------
+
+/**
+ * Adapt an InstantiatedVCNode to the PageNode shape required by the publisher walker.
+ *
+ * VCNode is structurally compatible with PageNode for all fields the walker reads
+ * (moduleId, props, breakpointOverrides, children, classIds). The extra
+ * InstantiatedVCNode fields (_owningRefId, _fromSlotContent) are not part of
+ * PageNode and are harmlessly ignored by the walker. childNodes is explicitly
+ * cleared here because instantiateVCAtRef always sets it to undefined on all
+ * emitted nodes — the flat map is the canonical representation.
+ * dynamicBindings is intentionally absent: VCNodes don't support template
+ * bindings (those live only on page-level nodes).
+ */
+function instantiatedNodeToPageNode(node: InstantiatedVCNode): PageNode {
+  return {
+    id: node.id,
+    moduleId: node.moduleId,
+    props: node.props,
+    breakpointOverrides: node.breakpointOverrides,
+    children: node.children,
+    label: node.label,
+    locked: node.locked,
+    hidden: node.hidden,
+    classIds: node.classIds,
+    propBindings: node.propBindings,
+    childNodes: undefined,
+  }
+}
+
+/**
+ * Render a base.visual-component-ref node by inlining its VC tree.
+ *
+ * Called from renderNode before the normal render() dispatch for all
+ * base.visual-component-ref nodes. The VC is instantiated via
+ * instantiateVCAtRef (which applies propOverrides and expands slot outlets),
+ * then rendered recursively using a synthetic Page built from the flat
+ * instantiated node map. The shared ctx.cssMap ensures CSS deduplication
+ * across the whole page — a VC used three times contributes module CSS only once.
+ *
+ * The page-level ref node's own classIds are injected onto the VC's root
+ * element after recursive rendering, preserving the page author's intent.
+ */
+function renderVisualComponentRef(node: PageNode, ctx: RenderContext): string {
+  const componentId =
+    typeof node.props.componentId === 'string' ? node.props.componentId.trim() : ''
+  if (!componentId) {
+    return '<!-- pb: visual-component-ref missing componentId -->'
+  }
+
+  const propOverrides =
+    node.props.propOverrides !== null &&
+    typeof node.props.propOverrides === 'object' &&
+    !Array.isArray(node.props.propOverrides)
+      ? (node.props.propOverrides as Record<string, unknown>)
+      : {}
+
+  const rawSlotContent =
+    node.props.slotContent !== null &&
+    typeof node.props.slotContent === 'object' &&
+    !Array.isArray(node.props.slotContent)
+      ? (node.props.slotContent as Record<string, VCNode[]>)
+      : {}
+
+  const vc = ctx.site.visualComponents.find((v) => v.id === componentId)
+  if (!vc) {
+    return `<!-- pb: unknown component "${escapeHtml(componentId)}" -->`
+  }
+
+  const { nodes: instantiatedNodes, rootNodeId } = instantiateVCAtRef(
+    vc,
+    propOverrides,
+    rawSlotContent,
+    node.id,
+  )
+
+  // Build a minimal synthetic Page from the instantiated flat node map.
+  // Only nodes and rootNodeId are needed by the walker — other Page fields
+  // are stubs (the VC has no URL, slug, or template configuration).
+  const syntheticNodes: Record<string, PageNode> = {}
+  for (const [id, vcNode] of Object.entries(instantiatedNodes)) {
+    syntheticNodes[id] = instantiatedNodeToPageNode(vcNode)
+  }
+
+  const syntheticPage: Page = {
+    id: `vc:${node.id}`,
+    slug: '',
+    title: '',
+    nodes: syntheticNodes,
+    rootNodeId,
+  }
+
+  // Reuse all context fields but swap the page for the VC's synthetic page.
+  // Sharing cssMap is critical: CSS dedup is keyed by moduleId across the
+  // whole published page, including all inlined VC instances.
+  const syntheticCtx: RenderContext = {
+    page: syntheticPage,
+    site: ctx.site,
+    registry: ctx.registry,
+    breakpointId: ctx.breakpointId,
+    templateContext: ctx.templateContext,
+    cssMap: ctx.cssMap,
+  }
+
+  let html = renderNode(rootNodeId, syntheticCtx)
+
+  // If the page-level ref node carries classIds, inject them onto the VC's root
+  // element. The VC's own nodes contribute their classIds via the recursive call.
+  if (node.classIds?.length) {
+    const classAttr = classNamesForClassIds(ctx.site.classes, node.classIds)
+      .map(escapeHtml)
+      .join(' ')
+    if (classAttr) html = injectClassIntoRootElement(html, classAttr)
+  }
+
+  return html
 }
 
 // ---------------------------------------------------------------------------
@@ -156,6 +318,14 @@ export function renderNode(nodeId: string, ctx: RenderContext): string {
   if (!def) {
     // Unknown module — emit a comment so the page doesn't silently lose content
     return `<!-- pb: unknown module "${escapeHtml(node.moduleId)}" -->`
+  }
+
+  // Special case: visual-component-ref nodes inline the VC tree recursively.
+  // This intercept happens BEFORE children rendering and render() dispatch because
+  // the ref node's children (none — canHaveChildren: false) are irrelevant; the
+  // VC body comes from instantiateVCAtRef, not from page.nodes children.
+  if (node.moduleId === 'base.visual-component-ref') {
+    return renderVisualComponentRef(node, ctx)
   }
 
   // 1. Render children first (bottom-up) — pass their HTML to the parent
@@ -239,19 +409,19 @@ const CSS_CUSTOM_PROP_RE = /^--[a-zA-Z0-9_-]+$/
  * Token keys are validated against CSS_CUSTOM_PROP_RE to prevent key-side injection.
  */
 function buildRootCss(site: SiteDocument): string {
-  const { colorTokens, typeScale } = site.settings
-  const tokens = {
-    ...colorTokens,
-    '--type-base-size': `${typeScale.baseSize}px`,
-    '--type-ratio': String(typeScale.ratio),
-  }
-  const declarations = Object.entries(tokens)
+  const { colorTokens, framework } = site.settings
+  const declarations = Object.entries(colorTokens)
     .filter(([k]) => CSS_CUSTOM_PROP_RE.test(k))
     .map(([k, v]) => `  ${k}: ${sanitizeCssTokenValue(v)};`)
     .join('\n')
   const legacyRootCss = declarations ? `:root {\n${declarations}\n}` : ''
-  const frameworkColorCss = generateFrameworkColorRootCss(site.settings.framework?.colors)
-  return [legacyRootCss, frameworkColorCss].filter(Boolean).join('\n')
+  const preferences = resolveFrameworkPreferences(framework?.preferences)
+  const frameworkColorCss = generateFrameworkColorRootCss(framework?.colors)
+  const frameworkTypographyCss = generateFrameworkTypographyRootCss(framework?.typography, preferences)
+  const frameworkSpacingCss = generateFrameworkSpacingRootCss(framework?.spacing, preferences)
+  return [legacyRootCss, frameworkColorCss, frameworkTypographyCss, frameworkSpacingCss]
+    .filter(Boolean)
+    .join('\n')
 }
 
 /**

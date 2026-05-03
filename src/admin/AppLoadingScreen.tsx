@@ -8,26 +8,27 @@ export function AppLoadingScreen() {
       aria-busy="true"
       aria-label="Loading Page Builder"
     >
-      <CenteredLoader />
+      <BanterLoader />
     </div>
   )
 }
 
-function CenteredLoader() {
+function BanterLoader() {
   return (
-    <div className={styles.centerLoader} aria-hidden="true">
-      <Spinner />
-      <span className={styles.loaderTrack} />
-    </div>
-  )
-}
-
-function Spinner() {
-  return (
-    <span
-      className={styles.spinner}
+    <div
+      className={styles.banterLoader}
       data-loader-spinner="true"
       aria-hidden="true"
-    />
+    >
+      <div className={styles.banterBox} />
+      <div className={styles.banterBox} />
+      <div className={styles.banterBox} />
+      <div className={styles.banterBox} />
+      <div className={styles.banterBox} />
+      <div className={styles.banterBox} />
+      <div className={styles.banterBox} />
+      <div className={styles.banterBox} />
+      <div className={styles.banterBox} />
+    </div>
   )
 }

@@ -22,7 +22,7 @@
  */
 import { memo, useCallback, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { useEditorStore, selectActivePage } from '@core/editor-store/store'
+import { useEditorStore, selectActiveCanvasPage } from '@core/editor-store/store'
 import { registry } from '@core/module-engine/registry'
 import { useDraggable } from '@dnd-kit/core'
 import { useDomTree } from './DomTreeContext'
@@ -30,15 +30,6 @@ import { useDomPanelDndContext } from './DomPanelDndContext'
 import { LayerNodeContextMenu } from './LayerNodeContextMenu'
 import { Input } from '@ui/components/Input'
 import { cn } from '@ui/cn'
-import type { IconComponent } from '@ui/icons/types'
-import { LayoutIcon } from '@ui/icons/icons/layout'
-import { TypeIcon } from '@ui/icons/icons/type'
-import { ImageIcon } from '@ui/icons/icons/image'
-import { SquareIcon } from '@ui/icons/icons/square'
-import { LinkIcon } from '@ui/icons/icons/link'
-import { ListBoxIcon } from '@ui/icons/icons/list-box'
-import { FileTextIcon } from '@ui/icons/icons/file-text'
-import { VideoIcon } from '@ui/icons/icons/video'
 import {
   TreeChevron,
   TreeIconSlot,
@@ -47,6 +38,7 @@ import {
   TreeMeta,
   TreeRow,
 } from '../../ui/Tree'
+import { ModuleIcon } from '../../ui/ModuleIcon'
 import styles from './TreeNode.module.css'
 
 interface TreeNodeProps {
@@ -62,12 +54,12 @@ interface ContextMenuState {
 export const TreeNode = memo(function TreeNode({ nodeId, depth }: TreeNodeProps) {
   // ── Per-node selectors — only THIS node re-renders on its own changes ──────
   const node = useEditorStore(
-    useCallback((s) => selectActivePage(s)?.nodes[nodeId] ?? null, [nodeId]),
+    useCallback((s) => selectActiveCanvasPage(s)?.nodes[nodeId] ?? null, [nodeId]),
   )
   // Per-node selection: only 2 rows re-render per canvas click (prev + next selected)
   const isSelected = useEditorStore(useCallback((s) => s.selectedNodeId === nodeId, [nodeId]))
   const isHovered = useEditorStore(useCallback((s) => s.hoveredNodeId === nodeId, [nodeId]))
-  const isRoot = useEditorStore(useCallback((s) => selectActivePage(s)?.rootNodeId === nodeId, [nodeId]))
+  const isRoot = useEditorStore(useCallback((s) => selectActiveCanvasPage(s)?.rootNodeId === nodeId, [nodeId]))
 
   const selectNode = useEditorStore((s) => s.selectNode)
   const hoverNode = useEditorStore((s) => s.hoverNode)
@@ -235,6 +227,7 @@ export const TreeNode = memo(function TreeNode({ nodeId, depth }: TreeNodeProps)
         onKeyDown={handleKeyDown}
         onContextMenu={(e) => {
           e.preventDefault(); e.stopPropagation()
+          selectNode(nodeId)
           setContextMenu({ x: e.clientX, y: e.clientY })
         }}
         onMouseEnter={() => hoverNode(nodeId)}
@@ -250,12 +243,14 @@ export const TreeNode = memo(function TreeNode({ nodeId, depth }: TreeNodeProps)
           visible={hasChildren && !isRoot}
         />
 
-        {/* Module icon */}
-        <TreeIconSlot
-          icon={getModuleIcon(node.moduleId)}
-          iconSize={11}
-          iconColor="var(--editor-text-subtle)"
-        />
+        {/* Module icon — resolved from the module declaration via ModuleIcon */}
+        <TreeIconSlot iconSize={11} iconColor="var(--editor-text-subtle)">
+          <ModuleIcon
+            module={definition}
+            size={11}
+            color="var(--editor-text-subtle)"
+          />
+        </TreeIconSlot>
 
         {/* Node label — inline editable when renaming */}
         {isRenaming ? (
@@ -323,6 +318,7 @@ export const TreeNode = memo(function TreeNode({ nodeId, depth }: TreeNodeProps)
         <LayerNodeContextMenu
           x={contextMenu.x}
           y={contextMenu.y}
+          nodeId={nodeId}
           onClose={() => setContextMenu(null)}
           onDelete={() => { deleteNode(nodeId); setContextMenu(null) }}
           onDuplicate={() => { duplicateNode(nodeId); setContextMenu(null) }}
@@ -344,7 +340,7 @@ import { useEditorStore as useStore } from '@core/editor-store/store'
 
 function ChildrenGroup({ nodeId, depth }: { nodeId: string; depth: number }) {
   const children = useStore(
-    useCallback((s) => selectActivePage(s)?.nodes[nodeId]?.children ?? [], [nodeId]),
+    useCallback((s) => selectActiveCanvasPage(s)?.nodes[nodeId]?.children ?? [], [nodeId]),
   )
 
   return (
@@ -356,26 +352,3 @@ function ChildrenGroup({ nodeId, depth }: { nodeId: string; depth: number }) {
   )
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function getModuleIcon(moduleId: string): IconComponent {
-  switch (moduleId) {
-    case 'base.container':
-      return LayoutIcon
-    case 'base.text':
-      return TypeIcon
-    case 'base.image':
-      return ImageIcon
-    case 'base.link':
-      return LinkIcon
-    case 'base.list':
-      return ListBoxIcon
-    case 'base.root':
-      return FileTextIcon
-    case 'base.video':
-      return VideoIcon
-    case 'base.button':
-    default:
-      return SquareIcon
-  }
-}

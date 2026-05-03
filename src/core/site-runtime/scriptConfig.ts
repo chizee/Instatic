@@ -1,12 +1,26 @@
 import { isSafePackageName } from '../site-dependencies/packageNames'
+import type { Page } from '../page-tree/types'
+import type { SiteFile } from '../files/types'
 import type {
-  CollectRuntimeScriptsInput,
   LockedSiteDependency,
   SiteDependencyLock,
   SiteRuntimeConfig,
+  SiteRuntimeTarget,
   SiteScriptRuntimeConfig,
   SiteScriptScope,
 } from './types'
+
+/**
+ * Input shape for `collectRuntimeScripts`. Lives here (next to the function)
+ * rather than in `./types` so the type module stays free of `page-tree` imports
+ * and the runtime/page-tree type cycle is broken.
+ */
+export interface CollectRuntimeScriptsInput {
+  files: SiteFile[]
+  runtime: SiteRuntimeConfig
+  page: Page
+  target: SiteRuntimeTarget
+}
 
 export const DEFAULT_SITE_DEPENDENCY_LOCK: SiteDependencyLock = {
   version: 1,

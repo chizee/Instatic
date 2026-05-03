@@ -3,8 +3,8 @@ import { createPortal } from 'react-dom'
 import { Button } from '@ui/components/Button'
 import { cn } from '@ui/cn'
 import { ContextMenu, ContextMenuItem } from '@ui/components/ContextMenu'
-import { ChevronDown2Icon } from '@ui/icons/icons/chevron-down-2'
-import type { IconComponent } from '@ui/icons/types'
+import { ChevronDown2Icon } from 'pixel-art-icons/icons/chevron-down-2'
+import type { IconComponent } from 'pixel-art-icons/types'
 import styles from './Toolbar.module.css'
 
 export type PublishActionStatusTone = 'neutral' | 'success' | 'warning' | 'danger'
@@ -124,7 +124,7 @@ export function PublishActionGroup({
             className={styles.publishPrimaryButton}
             aria-label={publishAriaLabel}
             aria-busy={publishBusy}
-            title={publishTitle}
+            tooltip={publishTitle}
             onClick={() => void onPublish()}
             disabled={publishDisabled}
             data-publish-state={publishState}
@@ -147,7 +147,7 @@ export function PublishActionGroup({
             aria-haspopup="menu"
             aria-expanded={menuOpen}
             aria-controls={menuOpen ? menuId : undefined}
-            title={triggerLabel}
+            tooltip={triggerLabel}
             onClick={toggleMenu}
             disabled={menuItems.length === 0}
             data-testid="toolbar-publish-actions-trigger"

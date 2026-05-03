@@ -26,3 +26,7 @@ import './link'
 
 // Media modules (extended)
 import './video'
+
+// Component system modules
+import './slotOutlet'
+import './visualComponentRef'

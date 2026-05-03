@@ -4,6 +4,7 @@
  * Styles are now in controls.module.css — imported per-component.
  * This file only exports TypeScript interfaces.
  */
+import type { PropertyControlLayout } from '@core/module-engine/types'
 
 /** Props shared by every property control component. */
 export interface ControlProps<T = unknown> {
@@ -19,4 +20,11 @@ export interface ControlProps<T = unknown> {
   isOverride?: boolean
   /** Disable the control */
   disabled?: boolean
+  /**
+   * Row layout — `inline` (default) renders a 100px label column + control,
+   * `stacked` renders the label above a full-width control. Resolved by
+   * `PropertyControlRenderer` from the schema (with sensible per-type
+   * defaults), so individual controls always receive a concrete value.
+   */
+  layout?: PropertyControlLayout
 }

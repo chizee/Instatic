@@ -1,16 +1,6 @@
 import type { CmsMediaAsset } from '@core/persistence'
 import type { ContentEntry, ContentMediaType } from '@core/content/types'
 
-export function slugFromTitle(title: string): string {
-  return title
-    .trim()
-    .toLowerCase()
-    .replace(/['"]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    || 'untitled'
-}
-
 export function updateEntryList(entries: ContentEntry[], entry: ContentEntry): ContentEntry[] {
   const existing = entries.findIndex((candidate) => candidate.id === entry.id)
   if (existing === -1) return [entry, ...entries]

@@ -13,8 +13,8 @@
  */
 
 import { useEditorStore } from '@core/editor-store/store'
-import { MinusIcon } from '@ui/icons/icons/minus'
-import { PlusIcon } from '@ui/icons/icons/plus'
+import { MinusIcon } from 'pixel-art-icons/icons/minus'
+import { PlusIcon } from 'pixel-art-icons/icons/plus'
 import { Button } from '@ui/components/Button'
 import styles from './Toolbar.module.css'
 
@@ -41,7 +41,7 @@ export function ZoomControls() {
         iconOnly
         aria-label="Zoom out"
         aria-keyshortcuts="-"
-        title="Zoom out (−)"
+        tooltip="Zoom out (−)"
         onClick={zoomOut}
       >
         <MinusIcon size={14} />
@@ -52,7 +52,7 @@ export function ZoomControls() {
         variant="ghost"
         size="sm"
         aria-label={`Current zoom ${pct}%. Click to reset to 100%.`}
-        title="Reset to 100% (Shift+1 for fit-to-screen)"
+        tooltip="Reset to 100% (Shift+1 for fit-to-screen)"
         onClick={resetView}
         numeric
         className={styles.zoomPct}
@@ -67,7 +67,7 @@ export function ZoomControls() {
         iconOnly
         aria-label="Zoom in"
         aria-keyshortcuts="="
-        title="Zoom in (+)"
+        tooltip="Zoom in (+)"
         onClick={zoomIn}
       >
         <PlusIcon size={14} />

@@ -19,7 +19,7 @@
 import { produce } from 'immer'
 import { nanoid } from 'nanoid'
 import type { StateCreator } from 'zustand'
-import type { EditorStore } from '../store'
+import type { EditorStore } from '../types'
 import type { SiteFile, SiteFileType } from '@core/files/types'
 import { isSafePath, normalizePath } from '@core/files/pathValidation'
 

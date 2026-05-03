@@ -1,6 +1,7 @@
 import type { ContentEntry } from '../content/types'
 import type { CmsMediaAsset } from '../persistence/cmsMedia'
-import { firstImagePathFromMarkdown, type TemplateEntryData } from './dynamicBindings'
+import { firstImagePathFromMarkdown } from '../markdown/renderContentMarkdown'
+import type { TemplateEntryData } from './dynamicBindings'
 import { normalizeRouteBase } from './templateMatching'
 
 function dateTimestamp(value: string | null | undefined): number {

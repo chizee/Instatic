@@ -238,9 +238,8 @@ export default defineConfig({
       '@modules': path.resolve(__dirname, 'src/modules'),
       '@ui': path.resolve(__dirname, 'src/ui'),
       '@admin': path.resolve(__dirname, 'src/admin'),
-      // @motion/icons — 2,216 icon components vendored in src/ui/icons/
-      // (copied from motion.page-master/packages/icons — Constraint #348)
-      '@motion/icons': path.resolve(__dirname, 'src/ui/icons'),
+      // pixel-art-icons resolves through node_modules (link: dep during local
+      // dev, registry version once published). No alias needed.
     },
   },
   server: {

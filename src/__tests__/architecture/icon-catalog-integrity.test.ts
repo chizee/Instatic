@@ -3,14 +3,20 @@
  *
  * WHY THESE GATES EXIST
  * ─────────────────────
- * User directive: editor UI icons should render synchronously from the
- * MotionPageMaster icon catalog. Production UI imports concrete icon files
- * directly from `src/ui/icons/icons/<name>` instead of resolving string names
- * through a lazy runtime wrapper.
+ * Editor UI icons render synchronously from the in-house pixel-art icon
+ * catalog. Production UI imports concrete icon files directly from
+ * `pixel-art-icons/icons/<name>` instead of resolving string names through a
+ * lazy runtime wrapper.
+ *
+ * The icon catalog ships as the `pixel-art-icons` npm package (developed as a
+ * sibling project at `../pixel-art-icons`). The `link:` dependency in
+ * `package.json` symlinks it into `node_modules/pixel-art-icons/` for local
+ * dev; once published, consumers install from the registry.
  *
  * This test file:
  *   Gate 1 — scans all src/editor/ .tsx files for direct icon imports and
- *             asserts each imported icon has a matching catalog file.
+ *             asserts each imported icon has a matching catalog file in the
+ *             pixel-art-icons package (resolved through node_modules).
  *
  *   Gate 2 — verifies each catalog file exports the expected PascalCase component.
  *             Confirms direct imports target the expected component names.
@@ -19,8 +25,8 @@
  *             component files), which violates Constraint #348 / Guideline #350.
  *
  * @see Task #389       — Icon Investigation + UI Polish Audit
- * @see Guideline #350  — @motion/icons accessibility requirements
- * @see Constraint #348 — All icons must use the MotionPageMaster set
+ * @see Guideline #350  — pixel-art-icons accessibility requirements
+ * @see Constraint #348 — All icons must use the in-house pixel-art set
  */
 
 import { describe, it, expect } from 'bun:test'
@@ -29,7 +35,12 @@ import { join, extname } from 'path'
 
 const PROJECT_ROOT = join(import.meta.dir, '../../../')
 const EDITOR_DIR   = join(PROJECT_ROOT, 'src/editor')
-const ICONS_DIR    = join(PROJECT_ROOT, 'src/ui/icons/icons')
+// Resolve the pixel-art-icons package via node_modules. The published shape
+// exposes built artifacts under dist/icons/<name>.js (+ .d.ts), so that's what
+// we check against — same path consumers see whether installed from the file:
+// dep or the published registry version.
+const ICONS_DIR    = join(PROJECT_ROOT, 'node_modules/pixel-art-icons/dist/icons')
+const ICON_FILE_EXT = '.js'
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -67,9 +78,7 @@ function toComponentName(kebab: string): string {
 
 /**
  * Extract all icon name strings referenced in a source file.
- * Covers direct imports from either alias or relative paths:
- *   import { ArrowRightIcon } from '@ui/icons/icons/arrow-right'
- *   import { CloseIcon } from '../../../ui/icons/icons/close'
+ *   import { ArrowRightIcon } from 'pixel-art-icons/icons/arrow-right'
  */
 function extractIconNames(source: string): string[] {
   const names: string[] = []
@@ -79,7 +88,7 @@ function extractIconNames(source: string): string[] {
     if (!seen.has(n)) { seen.add(n); names.push(n) }
   }
 
-  const importPattern = /from\s+["'][^"']*ui\/icons\/icons\/([a-z0-9-]+)["']/g
+  const importPattern = /from\s+["']pixel-art-icons\/icons\/([a-z0-9-]+)["']/g
   let m: RegExpExecArray | null
   while ((m = importPattern.exec(source)) !== null) add(m[1])
 
@@ -97,7 +106,7 @@ describe('Gate 1 — All direct icon imports exist in the icon catalog', () => {
 
   for (const filePath of editorFiles) {
     const source = readFileSync(filePath, 'utf8')
-    if (!source.includes('ui/icons/icons/')) continue
+    if (!source.includes('pixel-art-icons/icons/')) continue
     const names = extractIconNames(source)
     for (const name of names) {
       allRefs.push({ name, file: filePath.replace(PROJECT_ROOT, '') })
@@ -111,9 +120,9 @@ describe('Gate 1 — All direct icon imports exist in the icon catalog', () => {
     expect(allRefs.length).toBeGreaterThan(0)
   })
 
-  it('every directly imported icon name has a matching file in src/ui/icons/icons/', () => {
+  it('every directly imported icon name has a matching file in pixel-art-icons', () => {
     const missing: IconRef[] = allRefs.filter(
-      (ref) => !existsSync(join(ICONS_DIR, `${ref.name}.tsx`)),
+      (ref) => !existsSync(join(ICONS_DIR, `${ref.name}${ICON_FILE_EXT}`)),
     )
 
     if (missing.length > 0) {
@@ -121,9 +130,10 @@ describe('Gate 1 — All direct icon imports exist in the icon catalog', () => {
         (m) => `  icon "${m.name}" referenced in ${m.file}`,
       )
       throw new Error(
-        `[Gate 1 — Task #389] ${missing.length} icon(s) missing from src/ui/icons/icons/.\n` +
+        `[Gate 1 — Task #389] ${missing.length} icon(s) missing from pixel-art-icons.\n` +
           lines.join('\n') +
-          `\n\nFix: add the missing .tsx icon files from the MotionPageMaster repo.\n` +
+          `\n\nFix: add the missing icon to the pixel-art-icons package source\n` +
+          `(at ../pixel-art-icons/icons/<name>.tsx during local dev).\n` +
           `See Constraint #348 / Guideline #350.`,
       )
     }
@@ -166,8 +176,8 @@ describe('Gate 2 — Catalog files export the expected PascalCase component name
   ]
 
   for (const name of SAMPLED_ICONS) {
-    it(`src/ui/icons/icons/${name}.tsx exports "${toComponentName(name)}"`, () => {
-      const filePath = join(ICONS_DIR, `${name}.tsx`)
+    it(`pixel-art-icons/dist/icons/${name}.js exports "${toComponentName(name)}"`, () => {
+      const filePath = join(ICONS_DIR, `${name}${ICON_FILE_EXT}`)
       expect(existsSync(filePath)).toBe(true)
 
       const source = readFileSync(filePath, 'utf8')
@@ -186,6 +196,7 @@ describe('Gate 2 — Catalog files export the expected PascalCase component name
 describe('Gate 3 — No inline <svg JSX in src/editor/ (Constraint #348)', () => {
   // Inline SVG definitions inside component files violate Constraint #348;
   // UI chrome should import concrete components from the MotionPageMaster set.
+
   it('no src/editor/ .tsx file contains inline <svg JSX element definitions', () => {
     const editorFiles = collectFiles(EDITOR_DIR, ['.tsx'])
 
@@ -194,7 +205,7 @@ describe('Gate 3 — No inline <svg JSX in src/editor/ (Constraint #348)', () =>
     // or `return <svg` inside a function body.
     //
     // We intentionally exclude:
-    //   - Imports from @ui/icons (those ARE the MotionPageMaster icons)
+    //   - Imports from pixel-art-icons (those ARE the MotionPageMaster icons)
     //   - src/ui/ entirely — icons live there legitimately
     const INLINE_SVG_PATTERN = /return\s*\(\s*\n?\s*<svg|return\s+<svg/
 
@@ -211,7 +222,7 @@ describe('Gate 3 — No inline <svg JSX in src/editor/ (Constraint #348)', () =>
       throw new Error(
         `[Gate 3 — Task #389 / Constraint #348] ${violations.length} file(s) in src/editor/ ` +
           `define inline <svg JSX elements.\n` +
-          `All icons must use direct imports from '@ui/icons/icons/<name>'.\n\n` +
+          `All icons must use direct imports from 'pixel-art-icons/icons/<name>'.\n\n` +
           violations.map((f) => `  ${f}`).join('\n') +
           `\n\nFix: replace each inline SVG function with an appropriate direct icon import.\n` +
           `See Constraint #348 / Guideline #350.`,
@@ -228,12 +239,12 @@ describe('Gate 5 — No X/Twitter logo used as close/dismiss button (Constraint 
   /**
    * Constraint #451 — user directive msg #1967
    *
-   * `XIcon` from `src/ui/icons/icons/x.tsx` is the Twitter/X social-media logo
+   * `XIcon` from `pixel-art-icons/icons/x` is the Twitter/X social-media logo
    * (22 stair-step rectangles), NOT a close glyph.
    *
    * The correct close icon for dialogs, modals, and panel headers is:
    *
-   *   import { CloseIcon } from '@ui/icons/icons/close'
+   *   import { CloseIcon } from 'pixel-art-icons/icons/close'
    *   <CloseIcon size={12} color="currentColor" aria-hidden="true" />
    *
    * Exceptions (files that legitimately reference the X brand logo):
@@ -244,7 +255,7 @@ describe('Gate 5 — No X/Twitter logo used as close/dismiss button (Constraint 
     const editorFiles = collectFiles(EDITOR_DIR, ['.tsx', '.ts'])
 
     // NOTE: patterns are assembled from parts so this test file does not self-match.
-    const X_ICON_PATTERN = new RegExp(`from\\s+["'][^"']*ui/icons/icons/` + `x["']|<` + `XIcon\\b`)
+    const X_ICON_PATTERN = new RegExp(`from\\s+["']pixel-art-icons/icons/` + `x["']|<` + `XIcon\\b`)
 
     const violations: string[] = []
 
@@ -273,7 +284,7 @@ describe('Gate 5 — No X/Twitter logo used as close/dismiss button (Constraint 
         `[Gate 5 — Constraint #451] ${violations.length} file(s) in src/editor/ use XIcon (Twitter/X logo).\n` +
           `X icon is the Twitter logo — see Constraint #451 for the correct icon.\n\n` +
           `Use the site-standard close icon instead:\n` +
-          `  import { CloseIcon } from '@ui/icons/icons/close'\n` +
+          `  import { CloseIcon } from 'pixel-art-icons/icons/close'\n` +
           `  <CloseIcon size={12} color="currentColor" aria-hidden="true" />\n\n` +
           `Violating files:\n` +
           violations.map((f) => `  ${f}`).join('\n') +
@@ -299,7 +310,7 @@ describe('Gate 4 — No Unicode/emoji characters used as visual icons (user dire
    * These Unicode characters are currently used as visual icons in JSX renders:
    *
    *   ❌  DomPanel.tsx:400    — '≡'  (hamburger/triple-bar) for collapsed Layers panel
-   *         Fix: direct import MenuIcon from @ui/icons/icons/menu
+   *         Fix: direct import MenuIcon from pixel-art-icons/icons/menu
    *
    *   ❌  PropertiesPanel.tsx:283 — '‹' / '›' for collapse/expand toggle button
    *         Fix: direct import ChevronLeftIcon / ChevronRightIcon
@@ -318,7 +329,7 @@ describe('Gate 4 — No Unicode/emoji characters used as visual icons (user dire
 
   /**
    * Characters that are FORBIDDEN as visual icons in JSX renders.
-   * Each entry: [character, description, suggested @motion/icons replacement]
+   * Each entry: [character, description, suggested pixel-art-icons replacement]
    */
   const FORBIDDEN_ICON_CHARS = [
     { char: '≡',  desc: 'triple-bar / hamburger', replacement: 'MenuIcon' },
@@ -367,7 +378,7 @@ describe('Gate 4 — No Unicode/emoji characters used as visual icons (user dire
             `Unicode character '${char}' (${desc}) is used as a visual icon.\n` +
             `Replace with: ${replacement}\n\n` +
             violations.join('\n') +
-            `\n\nAll visual icons must come from the @motion/icons pixel-art set.\n` +
+            `\n\nAll visual icons must come from the pixel-art-icons pixel-art set.\n` +
             `See Constraint #348 / Guideline #350.`,
         )
       }

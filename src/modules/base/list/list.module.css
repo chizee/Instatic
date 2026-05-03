@@ -1,20 +1,8 @@
 /**
- * base.list — default editor styles.
- * These defaults are overridden by user-applied CSS classes (cascade order wins).
+ * base.list — editor-only chrome.
+ * No published-output styles: <ul>/<ol> render bare, with browser defaults
+ * unless the user attaches a class.
  */
-
-.list {
-  color: #374151;
-  font-size: 16px;
-  font-weight: 400;
-  line-height: 1.6;
-  padding-left: 24px;
-  margin: 0 0 16px 0;
-}
-
-.list li {
-  margin-bottom: 6px;
-}
 
 /* Editor-only placeholder when no items are configured */
 .placeholder {

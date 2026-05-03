@@ -9,15 +9,15 @@
  */
 
 import type { CSSPropertyBag } from '@core/page-tree/types'
-import type { IconComponent } from '@ui/icons/types'
-import { LayoutIcon } from '@ui/icons/icons/layout'
-import { ProportionsIcon } from '@ui/icons/icons/proportions'
-import { RulerDimensionIcon } from '@ui/icons/icons/ruler-dimension'
-import { TypeIcon } from '@ui/icons/icons/type'
-import { PaintBucketIcon } from '@ui/icons/icons/paint-bucket'
-import { BoxIcon } from '@ui/icons/icons/box'
-import { SparklesIcon } from '@ui/icons/icons/sparkles'
-import { PointerIcon } from '@ui/icons/icons/pointer'
+import type { IconComponent } from 'pixel-art-icons/types'
+import { LayoutIcon } from 'pixel-art-icons/icons/layout'
+import { ProportionsIcon } from 'pixel-art-icons/icons/proportions'
+import { RulerDimensionIcon } from 'pixel-art-icons/icons/ruler-dimension'
+import { TextStartTIcon } from 'pixel-art-icons/icons/text-start-t'
+import { PaintBucketIcon } from 'pixel-art-icons/icons/paint-bucket'
+import { BoxIcon } from 'pixel-art-icons/icons/box'
+import { SparklesIcon } from 'pixel-art-icons/icons/sparkles'
+import { PointerIcon } from 'pixel-art-icons/icons/pointer'
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -321,7 +321,7 @@ export const CLASS_STYLE_SECTIONS: ReadonlyArray<ClassStyleSectionDefinition> = 
   {
     id: 'typography',
     title: 'Typography',
-    icon: TypeIcon,
+    icon: TextStartTIcon,
     properties: [
       'fontFamily',
       'fontSize',

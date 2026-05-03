@@ -7,16 +7,18 @@
  * Sizes:     micro (18px) | xs (26px) | sm (28px, default) | md (32px) | lg (44px touch target)
  * Icon-only: iconOnly={true} → square, requires aria-label
  * Pressed:   pressed={true} → aria-pressed + active bg (toolbar toggles)
+ * Tooltip:   tooltip={...} → wraps with Tooltip primitive (works for disabled too)
  *
  * Constraints:
  *   - CSS Modules only — no Tailwind, no inline styles (#402/#403)
  *   - Strictly achromatic tokens (#376) — all colours via --editor-* vars
- *   - @motion/icons only (#350)
+ *   - pixel-art-icons only (#350)
  *   - No !important (#403)
  *   - default type="button" (never accidentally submits forms)
  */
-import { forwardRef } from "react";
+import { forwardRef, type ReactNode } from "react";
 import { cn } from "@ui/cn";
+import { Tooltip, type TooltipSide } from "@ui/components/Tooltip";
 import styles from "./Button.module.css";
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -34,6 +36,15 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
   navItem?: boolean;
   dangerHover?: boolean;
   numeric?: boolean;
+  /**
+   * Tooltip content shown on hover. Works even for disabled buttons — icon-only
+   * disabled buttons especially benefit from a tooltip to communicate their
+   * purpose when they cannot be activated.
+   * Note: mouseenter fires on disabled <button> elements in all major browsers.
+   */
+  tooltip?: ReactNode;
+  /** Which side the tooltip should prefer. Default: 'auto'. */
+  tooltipSide?: TooltipSide;
 }
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
@@ -57,6 +68,8 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       children,
       type = "button",
       "aria-label": ariaLabel,
+      tooltip,
+      tooltipSide,
       ...rest
     },
     ref,
@@ -67,7 +80,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       );
     }
 
-    return (
+    const button = (
       <button
         ref={ref}
         type={type}
@@ -94,5 +107,15 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         {children}
       </button>
     );
+
+    if (tooltip) {
+      return (
+        <Tooltip content={tooltip} side={tooltipSide ?? "auto"}>
+          {button}
+        </Tooltip>
+      );
+    }
+
+    return button;
   },
 );

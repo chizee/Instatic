@@ -12,14 +12,14 @@
  *
  * Constraints:
  * - CSS Modules only — no Tailwind, no !important (Constraints #402, #403).
- * - Icons from @motion/icons / @ui/icons (Guideline #350).
+ * - Icons from pixel-art-icons (Guideline #350).
  * - No inline styles (only CSS-var injection is permitted).
  *
  * @see Guideline #357 — Editor UI Density (Compact Mode) — 36px header
  * @see Constraint #402 — No Tailwind / no inline styles
  * @see Constraint #403 — No !important
  */
-import { CloseIcon } from '@ui/icons/icons/close'
+import { CloseIcon } from 'pixel-art-icons/icons/close'
 import { Button } from '@ui/components/Button'
 import styles from './PanelHeader.module.css'
 
@@ -80,7 +80,7 @@ export function PanelHeader({ title, titleContent, panelId, onClose, dragHandleP
         iconOnly
         onClick={onClose}
         aria-label={`Close ${title} panel`}
-        title={`Close ${title} panel`}
+        tooltip={`Close ${title} panel`}
         data-testid={`panel-close-${panelId}`}
       >
         <CloseIcon size={12} color="currentColor" aria-hidden="true" />

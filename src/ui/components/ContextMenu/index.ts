@@ -1,1 +1,1 @@
-export { ContextMenu, ContextMenuItem, ContextMenuSeparator } from './ContextMenu'
+export { ContextMenu, ContextMenuItem, ContextMenuSeparator, ContextMenuSubmenu } from './ContextMenu'
