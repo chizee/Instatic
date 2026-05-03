@@ -1,7 +1,7 @@
 import { strFromU8, unzipSync } from 'fflate'
 import {
   parsePluginManifest,
-} from '@core/extensions/manifest'
+} from '@core/plugins/manifest'
 import type { PluginManifest } from '@core/plugin-sdk'
 
 const SAFE_PACKAGE_PATH = /^(?!\/)(?!.*(?:^|\/)\.\.(?:\/|$))[a-zA-Z0-9._/-]+$/
@@ -30,6 +30,8 @@ export async function readPluginPackage(file: File): Promise<PluginPackage> {
   const manifestText = files['plugin.json']
   if (!manifestText) throw new Error('Plugin package is missing plugin.json')
 
+  // parsePluginManifest is a Zod schema validator — it accepts unknown and
+  // throws on shape mismatch. Safe boundary.
   const manifest = parsePluginManifest(JSON.parse(manifestText))
   const entrypoints = [
     ...Object.values(manifest.entrypoints ?? {}),

@@ -1,13 +1,12 @@
+import { parseJsonResponse, safeParseJson } from '@core/utils/jsonValidate'
 import { responseErrorMessage } from './httpErrors'
+import {
+  CmsMediaAssetEnvelopeSchema,
+  CmsMediaListResponseSchema,
+  type CmsMediaAsset,
+} from './responseSchemas'
 
-export interface CmsMediaAsset {
-  id: string
-  filename: string
-  mimeType: string
-  sizeBytes: number
-  publicPath: string
-  createdAt: string
-}
+export type { CmsMediaAsset }
 
 type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
 
@@ -22,8 +21,11 @@ export async function listCmsMediaAssets(
   if (!res.ok) {
     throw new Error(await responseErrorMessage(res, `CMS media listing failed with ${res.status}`))
   }
-  const body = await res.json() as { assets?: CmsMediaAsset[] }
-  return Array.isArray(body.assets) ? body.assets : []
+  // Use safeParseJson here so a malformed response degrades to an empty list
+  // instead of crashing the media panel — preserves prior behaviour.
+  const text = await res.text()
+  const parsed = safeParseJson(text, CmsMediaListResponseSchema)
+  return parsed.ok && parsed.value.assets ? parsed.value.assets : []
 }
 
 export async function uploadCmsMediaAsset(
@@ -42,7 +44,7 @@ export async function uploadCmsMediaAsset(
   if (!res.ok) {
     throw new Error(await responseErrorMessage(res, `CMS media upload failed with ${res.status}`))
   }
-  const payload = await res.json() as { asset: CmsMediaAsset }
+  const payload = await parseJsonResponse(res, CmsMediaAssetEnvelopeSchema)
   return payload.asset
 }
 
@@ -61,7 +63,7 @@ export async function renameCmsMediaAsset(
   if (!res.ok) {
     throw new Error(await responseErrorMessage(res, `CMS media rename failed with ${res.status}`))
   }
-  const payload = await res.json() as { asset: CmsMediaAsset }
+  const payload = await parseJsonResponse(res, CmsMediaAssetEnvelopeSchema)
   return payload.asset
 }
 

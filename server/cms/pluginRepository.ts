@@ -5,7 +5,7 @@ import type {
   PluginPermission,
   PluginRecord,
 } from '@core/plugin-sdk'
-import { parsePluginManifest } from '@core/extensions/manifest'
+import { parsePluginManifest } from '@core/plugins/manifest'
 import type { DbClient } from './db'
 
 interface InstalledPluginRow {
@@ -34,6 +34,8 @@ function toIsoString(value: Date | string): string {
   return value instanceof Date ? value.toISOString() : new Date(value).toISOString()
 }
 
+// Returns unknown by design — every caller validates downstream via
+// parsePluginManifest (Zod) or readPermissionGrants. Safe boundary.
 function readManifestJson(value: unknown): unknown {
   if (typeof value === 'string') {
     try {

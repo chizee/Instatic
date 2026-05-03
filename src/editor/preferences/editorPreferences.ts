@@ -1,30 +1,40 @@
+import { z } from 'zod'
+import { parseJsonWithFallback } from '@core/utils/jsonValidate'
+
 export const EDITOR_PREFS_KEY = 'pb-editor-prefs'
 const EDITOR_PREFS_CHANGED_EVENT = 'pb-editor-prefs-changed'
 
+// Single source of truth for editor preferences. The UI section
+// (PreferencesSection) imports both the schema and the type from here.
+// .passthrough() so future fields written by other parts of the editor
+// don't crash older readers.
+//
+// Surfaced by /audit-types — was `JSON.parse(raw) as { autoSave?: unknown }`.
+export const EditorPrefsSchema = z
+  .object({
+    autoSave: z.boolean().optional(),
+    classHoverPreview: z.boolean().optional(),
+  })
+  .passthrough()
+
+export type EditorPrefs = z.infer<typeof EditorPrefsSchema>
+
+export const DEFAULT_EDITOR_PREFS: Required<EditorPrefs> = {
+  autoSave: true,
+  classHoverPreview: true,
+}
+
+function readEditorPrefs() {
+  const raw = globalThis.localStorage?.getItem(EDITOR_PREFS_KEY) ?? null
+  return parseJsonWithFallback(raw, EditorPrefsSchema, DEFAULT_EDITOR_PREFS)
+}
+
 export function readAutoSavePreference(): boolean {
-  try {
-    const raw = globalThis.localStorage?.getItem(EDITOR_PREFS_KEY)
-    if (!raw) return true
-    const parsed = JSON.parse(raw) as { autoSave?: unknown }
-    return typeof parsed.autoSave === 'boolean'
-      ? parsed.autoSave
-      : true
-  } catch {
-    return true
-  }
+  return readEditorPrefs().autoSave ?? true
 }
 
 export function readClassHoverPreviewPreference(): boolean {
-  try {
-    const raw = globalThis.localStorage?.getItem(EDITOR_PREFS_KEY)
-    if (!raw) return true
-    const parsed = JSON.parse(raw) as { classHoverPreview?: unknown }
-    return typeof parsed.classHoverPreview === 'boolean'
-      ? parsed.classHoverPreview
-      : true
-  } catch {
-    return true
-  }
+  return readEditorPrefs().classHoverPreview ?? true
 }
 
 export function notifyEditorPrefsChanged() {

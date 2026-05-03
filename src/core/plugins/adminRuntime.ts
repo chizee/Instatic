@@ -1,9 +1,11 @@
+import type { z } from 'zod'
 import {
   createCmsPluginResourceRecord,
   deleteCmsPluginResourceRecord,
   listCmsPluginResourceRecords,
   updateCmsPluginResourceRecord,
 } from '../persistence/cmsPluginRecords'
+import { parseJsonResponse } from '@core/utils/jsonValidate'
 import type {
   PluginAdminAppApi,
   PluginAdminAppContext,
@@ -46,13 +48,13 @@ function createAdminPluginApi(pluginId: string, fetchImpl: FetchLike): PluginAdm
             ...init,
           })
         },
-        async json<T = unknown>(path: string, init?: RequestInit): Promise<T> {
+        async json<T>(path: string, schema: z.ZodType<T>, init?: RequestInit): Promise<T> {
           const res = await fetchImpl(runtimePath(pluginId, path), {
             credentials: 'include',
             ...init,
           })
           if (!res.ok) throw new Error(`Plugin route failed with ${res.status}`)
-          return await res.json() as T
+          return await parseJsonResponse(res, schema)
         },
       },
       storage: {

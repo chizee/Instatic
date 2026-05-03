@@ -4,29 +4,21 @@
 import { useState } from 'react'
 import { Switch } from '@ui/components/Switch'
 import {
+  DEFAULT_EDITOR_PREFS,
   EDITOR_PREFS_KEY,
+  EditorPrefsSchema,
   notifyEditorPrefsChanged,
+  type EditorPrefs,
 } from '@editor/preferences/editorPreferences'
+import { parseJsonWithFallback } from '@core/utils/jsonValidate'
 import s from '../Settings.module.css'
 
-interface EditorPrefs {
-  autoSave: boolean
-  classHoverPreview: boolean
-}
-
-const defaultPrefs: EditorPrefs = {
-  autoSave: true,
-  classHoverPreview: true,
-}
-
-function loadPrefs(): EditorPrefs {
-  try {
-    const raw = localStorage.getItem(EDITOR_PREFS_KEY)
-    return raw
-      ? { ...defaultPrefs, ...(JSON.parse(raw) as Partial<EditorPrefs>) }
-      : defaultPrefs
-  } catch { /* ignore */ }
-  return defaultPrefs
+function loadPrefs(): Required<EditorPrefs> {
+  const raw = (() => {
+    try { return localStorage.getItem(EDITOR_PREFS_KEY) } catch { return null }
+  })()
+  const parsed = parseJsonWithFallback(raw, EditorPrefsSchema, {})
+  return { ...DEFAULT_EDITOR_PREFS, ...parsed }
 }
 
 function savePrefs(prefs: EditorPrefs) {
@@ -37,7 +29,10 @@ function savePrefs(prefs: EditorPrefs) {
 }
 
 export function PreferencesSection() {
-  const [prefs, setPrefs] = useState<EditorPrefs>(loadPrefs)
+  // The UI binds <Switch checked> directly to these fields, so they need
+  // concrete booleans — use Required<EditorPrefs> here even though the
+  // schema (and storage) tolerate missing fields.
+  const [prefs, setPrefs] = useState<Required<EditorPrefs>>(loadPrefs)
 
   const update = (patch: Partial<EditorPrefs>) => {
     const next = { ...prefs, ...patch }
