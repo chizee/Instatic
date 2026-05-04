@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'bun:test'
-import React from 'react'
+import React, { useRef } from 'react'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { Select } from '../../ui/components/Select'
 
@@ -147,6 +147,72 @@ describe('Select', () => {
 
     expect(screen.getByRole('listbox', { name: /compact status/i }).getAttribute('style'))
       .toContain('--context-menu-min-width: 192px')
+  })
+
+  it('anchors the menu width to a parent element when menuAnchorRef is provided', () => {
+    // Trigger lives in a narrow grid cell; the parent grid (anchor) is wider
+    // — the menu should stretch to the anchor's left edge + width while the
+    // vertical position keeps tracking the trigger so the menu opens directly
+    // below it.
+    const TRIGGER_RECT = {
+      x: 200,
+      y: 50,
+      left: 200,
+      top: 50,
+      right: 260,
+      bottom: 80,
+      width: 60,
+      height: 30,
+      toJSON: () => ({}),
+    } as DOMRect
+    const ANCHOR_RECT = {
+      x: 100,
+      y: 50,
+      left: 100,
+      top: 50,
+      right: 320,
+      bottom: 80,
+      width: 220,
+      height: 30,
+      toJSON: () => ({}),
+    } as DOMRect
+
+    const originalRect = HTMLElement.prototype.getBoundingClientRect
+
+    function AnchorScenario() {
+      const anchorRef = useRef<HTMLDivElement>(null)
+      return (
+        <div ref={anchorRef} data-testid="anchor">
+          <Select
+            id="anchored-status"
+            aria-label="Anchored status"
+            value="draft"
+            menuAnchorRef={anchorRef}
+            options={OPTIONS}
+            onChange={() => {}}
+          />
+        </div>
+      )
+    }
+
+    HTMLElement.prototype.getBoundingClientRect = function getRect(this: HTMLElement) {
+      if (this.dataset.testid === 'anchor') return ANCHOR_RECT
+      return TRIGGER_RECT
+    }
+
+    try {
+      render(<AnchorScenario />)
+      fireEvent.click(screen.getByRole('combobox', { name: /anchored status/i }))
+
+      const menuStyle = screen
+        .getByRole('listbox', { name: /anchored status/i })
+        .getAttribute('style')
+      expect(menuStyle).toContain('--context-menu-x: 100px')
+      expect(menuStyle).toContain('--context-menu-y: 86px')
+      expect(menuStyle).toContain('--context-menu-width: 220px')
+    } finally {
+      HTMLElement.prototype.getBoundingClientRect = originalRect
+    }
   })
 
   it('can place the menu to the left of the trigger', () => {

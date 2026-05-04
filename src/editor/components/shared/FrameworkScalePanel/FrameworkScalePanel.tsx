@@ -14,7 +14,7 @@
  * tab/mode/manual/class-generator logic.
  */
 
-import { type MouseEvent, useMemo, useState } from 'react'
+import { type MouseEvent, type RefObject, useMemo, useRef, useState } from 'react'
 import { Button } from '@ui/components/Button'
 import {
   ContextMenu,
@@ -621,9 +621,15 @@ function FluidEditor<G extends GroupShape, C extends GeneratorShape>({
   const fieldId = (key: string) => `scale-${adapter.panelId}-${group.id}-${key}`
   const baseSizeLabel = adapter.baseSizeLabel.toLowerCase()
 
+  // Anchor element for the ratio Selects' dropdowns. Each Select trigger lives
+  // in a 2-column grid cell that's too narrow for the long ratio labels
+  // ("Augmented Fourth (1.414...)" etc.), so we let their menus span the full
+  // width of `.baseSettings` instead of getting truncated to one column.
+  const baseSettingsRef = useRef<HTMLDivElement>(null)
+
   return (
     <div className={styles.fluidGrid}>
-      <div className={styles.baseSettings}>
+      <div ref={baseSettingsRef} className={styles.baseSettings}>
         <ControlRow
           propKey="min-base-size"
           inputId={fieldId('min-base-size')}
@@ -682,6 +688,7 @@ function FluidEditor<G extends GroupShape, C extends GeneratorShape>({
             customValue={group.min.scaleRatioInputValue}
             options={adapter.ratioOptions}
             ariaLabel="Min scale ratio"
+            menuAnchorRef={baseSettingsRef}
             onChange={(patch) =>
               adapter.onUpdateGroup(group.id, { min: { ...group.min, ...patch } })
             }
@@ -716,6 +723,7 @@ function FluidEditor<G extends GroupShape, C extends GeneratorShape>({
             customValue={group.max.scaleRatioInputValue}
             options={adapter.ratioOptions}
             ariaLabel="Max scale ratio"
+            menuAnchorRef={baseSettingsRef}
             onChange={(patch) =>
               adapter.onUpdateGroup(group.id, { max: { ...group.max, ...patch } })
             }
@@ -1032,49 +1040,79 @@ function ClassGeneratorList<C extends GeneratorShape>({
           />
         ) : (
           localClasses.map((generator) => (
-            <div className={styles.classGeneratorRow} key={generator.id}>
-              <Input
-                fieldSize="sm"
-                aria-label="Class pattern"
-                value={generator.name}
-                onChange={(event) => handlePatch(generator.id, { name: event.target.value } as Partial<C>)}
-                monospace
-              />
-              <Select
-                fieldSize="sm"
-                aria-label="CSS property"
-                value={generator.property[0] ?? ''}
-                options={adapter.classGeneratorProperties.map((option) => ({
-                  value: option.value,
-                  label: option.label,
-                }))}
-                onChange={(event) =>
-                  handlePatch(generator.id, {
-                    property: [event.currentTarget.value],
-                  } as Partial<C>)
-                }
-              />
-              <Switch
-                checked={generator.isDisabled !== true}
-                onCheckedChange={(checked) =>
-                  handlePatch(generator.id, { isDisabled: !checked } as Partial<C>)
-                }
-                switchSize="sm"
-                aria-label="Enabled"
-              />
-              <Button
-                variant="ghost"
-                size="xs"
-                iconOnly
-                aria-label="Delete class"
-                onClick={() => handleDelete(generator.id)}
-              >
-                <DeleteIcon size={12} />
-              </Button>
-            </div>
+            <ClassGeneratorRow
+              key={generator.id}
+              generator={generator}
+              adapter={adapter}
+              onPatch={handlePatch}
+              onDelete={handleDelete}
+            />
           ))
         )}
       </div>
+    </div>
+  )
+}
+
+/**
+ * One row of the class generator: pattern input + property select + on/off
+ * switch + delete. Owns its own grid-row ref so the property Select's
+ * dropdown can span the full row instead of being clipped to the column
+ * width — matches the wider-menu treatment used on the ratio Selects above.
+ */
+function ClassGeneratorRow<C extends GeneratorShape>({
+  generator,
+  adapter,
+  onPatch,
+  onDelete,
+}: {
+  generator: C
+  adapter: ScaleAdapter<GroupShape, C>
+  onPatch: (id: string, patch: Partial<C>) => void
+  onDelete: (id: string) => void
+}) {
+  const rowRef = useRef<HTMLDivElement>(null)
+  return (
+    <div ref={rowRef} className={styles.classGeneratorRow}>
+      <Input
+        fieldSize="sm"
+        aria-label="Class pattern"
+        value={generator.name}
+        onChange={(event) => onPatch(generator.id, { name: event.target.value } as Partial<C>)}
+        monospace
+      />
+      <Select
+        fieldSize="sm"
+        aria-label="CSS property"
+        value={generator.property[0] ?? ''}
+        menuAnchorRef={rowRef}
+        options={adapter.classGeneratorProperties.map((option) => ({
+          value: option.value,
+          label: option.label,
+        }))}
+        onChange={(event) =>
+          onPatch(generator.id, {
+            property: [event.currentTarget.value],
+          } as Partial<C>)
+        }
+      />
+      <Switch
+        checked={generator.isDisabled !== true}
+        onCheckedChange={(checked) =>
+          onPatch(generator.id, { isDisabled: !checked } as Partial<C>)
+        }
+        switchSize="sm"
+        aria-label="Enabled"
+      />
+      <Button
+        variant="ghost"
+        size="xs"
+        iconOnly
+        aria-label="Delete class"
+        onClick={() => onDelete(generator.id)}
+      >
+        <DeleteIcon size={12} />
+      </Button>
     </div>
   )
 }
@@ -1128,6 +1166,7 @@ function RatioField({
   ariaLabel,
   onChange,
   inputId,
+  menuAnchorRef,
 }: {
   scaleRatio: number | string
   isCustom?: boolean
@@ -1135,6 +1174,13 @@ function RatioField({
   options: ReadonlyArray<{ value: string; label: string }>
   ariaLabel: string
   inputId?: string
+  /**
+   * Optional element whose width determines the dropdown's horizontal span.
+   * Lets the menu reach across both columns of the parent grid so long
+   * ratio labels (e.g. "Augmented Fourth (1.414...)") stay readable instead
+   * of being clipped to the trigger's narrow column width.
+   */
+  menuAnchorRef?: RefObject<HTMLElement | null>
   onChange: (patch: {
     scaleRatio?: number | string
     isCustomScaleRatio?: boolean
@@ -1157,6 +1203,7 @@ function RatioField({
       fieldSize="sm"
       aria-label={ariaLabel}
       value={String(scaleRatio)}
+      menuAnchorRef={menuAnchorRef}
       options={options.map((option) => ({ value: option.value, label: option.label }))}
       onChange={(event) => onChange({ scaleRatio: Number(event.currentTarget.value) })}
     />

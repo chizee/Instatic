@@ -15,6 +15,7 @@ import {
   type ReactElement,
   type ReactNode,
   type Ref,
+  type RefObject,
   type SelectHTMLAttributes,
 } from 'react'
 import { createPortal } from 'react-dom'
@@ -56,6 +57,22 @@ interface SelectProps extends Omit<SelectHTMLAttributes<HTMLSelectElement>, 'siz
   emphasis?: TextEmphasis
   menuMinWidth?: number
   menuPlacement?: MenuPlacement
+  /**
+   * Optional element whose bounding rect provides the dropdown's horizontal
+   * anchor (left edge + width). When unset, the trigger's own rect is used.
+   *
+   * Useful when the trigger is a narrow cell in a multi-column layout but the
+   * option labels are too long to fit the cell — the dropdown can span a
+   * wider parent (e.g. the full grid row) so labels stay fully readable
+   * instead of being truncated to the cell width.
+   *
+   * Vertical positioning still anchors to the trigger so the menu opens just
+   * below it; only the `x` and `width` come from the anchor element.
+   *
+   * Ignored when `menuPlacement === 'left-start'` (left-anchored placement
+   * needs trigger-relative coordinates to stay aligned with the trigger row).
+   */
+  menuAnchorRef?: RefObject<HTMLElement | null>
   options?: SelectOption[]
   placeholder?: string
   'data-testid'?: string
@@ -79,6 +96,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
     placeholder,
     menuMinWidth,
     menuPlacement = 'bottom-start',
+    menuAnchorRef,
     'aria-label': ariaLabel,
     'aria-labelledby': ariaLabelledBy,
     'data-testid': dataTestId,
@@ -131,19 +149,26 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
   )
 
   const updateMenuPosition = useCallback(() => {
-    const rect = selectRef.current?.getBoundingClientRect()
-    if (!rect) return
-    const resolvedMinWidth = menuMinWidth ?? rect.width
-    const resolvedWidth = Math.max(rect.width, resolvedMinWidth)
+    const triggerRect = selectRef.current?.getBoundingClientRect()
+    if (!triggerRect) return
+    // Use the anchor rect for x/width when provided (lets the menu span a
+    // wider parent than the trigger). Vertical positioning always tracks the
+    // trigger so the menu opens directly below the field.
+    const useAnchor = menuPlacement !== 'left-start' && menuAnchorRef?.current != null
+    const anchorRect = useAnchor
+      ? menuAnchorRef!.current!.getBoundingClientRect()
+      : triggerRect
+    const resolvedMinWidth = menuMinWidth ?? anchorRect.width
+    const resolvedWidth = Math.max(anchorRect.width, resolvedMinWidth)
     setMenuPosition({
       x: menuPlacement === 'left-start'
-        ? Math.max(8, rect.left - resolvedWidth - 6)
-        : rect.left,
-      y: menuPlacement === 'left-start' ? rect.top : rect.bottom + 6,
+        ? Math.max(8, triggerRect.left - resolvedWidth - 6)
+        : anchorRect.left,
+      y: menuPlacement === 'left-start' ? triggerRect.top : triggerRect.bottom + 6,
       width: resolvedWidth,
       minWidth: resolvedMinWidth,
     })
-  }, [menuMinWidth, menuPlacement])
+  }, [menuAnchorRef, menuMinWidth, menuPlacement])
 
   const closeMenu = useCallback(() => {
     setOpen(false)
