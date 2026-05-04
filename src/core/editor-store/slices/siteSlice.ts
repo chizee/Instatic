@@ -1073,11 +1073,15 @@ export const createSiteSlice: StateCreator<EditorStore, [], [], SiteSlice> = (se
     createFrameworkColorToken: (input) => {
       const { site } = get()
       if (!site) throw new Error('[siteSlice] Site document is not initialized')
-      const token = createFrameworkColorTokenFromInput(input, ensureFrameworkColors(site))
+      // Read-only view of the (Immer-frozen) live site — `ensureFrameworkColors`
+      // mutates and would throw on the frozen object. The actual write happens
+      // inside `mutateSite` below where Immer's draft is mutable.
+      const colors = site.settings.framework?.colors ?? { tokens: [] }
+      const token = createFrameworkColorTokenFromInput(input, colors)
 
       mutateSite((draftSite) => {
-        const colors = ensureFrameworkColors(draftSite)
-        colors.tokens.push(token)
+        const draftColors = ensureFrameworkColors(draftSite)
+        draftColors.tokens.push(token)
         reconcileFrameworkColorClasses(draftSite)
       })
 
@@ -1097,7 +1101,10 @@ export const createSiteSlice: StateCreator<EditorStore, [], [], SiteSlice> = (se
     duplicateFrameworkColorToken: (tokenId) => {
       const { site } = get()
       if (!site) return null
-      const colors = ensureFrameworkColors(site)
+      // Read-only view of the (Immer-frozen) live site — see note in
+      // `createFrameworkColorToken` for why we don't call `ensureFrameworkColors`
+      // here. The actual write happens inside `mutateSite` below.
+      const colors = site.settings.framework?.colors ?? { tokens: [] }
       const token = colors.tokens.find((candidate) => candidate.id === tokenId)
       if (!token) return null
       const copy = cloneFrameworkColorToken(token, colors)
@@ -1166,9 +1173,12 @@ export const createSiteSlice: StateCreator<EditorStore, [], [], SiteSlice> = (se
     createFrameworkTypographyGroup: () => {
       const { site } = get()
       if (!site) throw new Error('[siteSlice] Site document is not initialized')
-      const typography = ensureFrameworkTypography(site)
-      const { name, varName } = nextTypographyTabValues(typography.groups)
-      const order = nextOrderValue(typography.groups)
+      // Read-only view of the (Immer-frozen) live site — `ensureFrameworkTypography`
+      // mutates and would throw on the frozen object when typography (or framework)
+      // is absent. The actual write happens inside `mutateSite` below.
+      const groups = site.settings.framework?.typography?.groups ?? []
+      const { name, varName } = nextTypographyTabValues(groups)
+      const order = nextOrderValue(groups)
       const group = makeFreshTypographyGroup(name, varName, order)
 
       mutateSite((draftSite) => {
@@ -1192,12 +1202,14 @@ export const createSiteSlice: StateCreator<EditorStore, [], [], SiteSlice> = (se
     duplicateFrameworkTypographyGroup: (groupId) => {
       const { site } = get()
       if (!site) return null
-      const typography = ensureFrameworkTypography(site)
-      const source = typography.groups.find((g) => g.id === groupId)
+      // Read-only view of the (Immer-frozen) live site — see note in
+      // `createFrameworkTypographyGroup`. The actual write is inside `mutateSite`.
+      const groups = site.settings.framework?.typography?.groups ?? []
+      const source = groups.find((g) => g.id === groupId)
       if (!source) return null
 
-      const { name, varName } = nextTypographyTabValues(typography.groups)
-      const order = nextOrderValue(typography.groups)
+      const { name, varName } = nextTypographyTabValues(groups)
+      const order = nextOrderValue(groups)
       const now = Date.now()
       const copy: FrameworkTypographyGroup = {
         ...structuredClone(source),
@@ -1311,9 +1323,12 @@ export const createSiteSlice: StateCreator<EditorStore, [], [], SiteSlice> = (se
     createFrameworkSpacingGroup: () => {
       const { site } = get()
       if (!site) throw new Error('[siteSlice] Site document is not initialized')
-      const spacing = ensureFrameworkSpacing(site)
-      const { name, varName } = nextSpacingTabValues(spacing.groups)
-      const order = nextOrderValue(spacing.groups)
+      // Read-only view of the (Immer-frozen) live site — `ensureFrameworkSpacing`
+      // mutates and would throw on the frozen object when spacing (or framework)
+      // is absent. The actual write happens inside `mutateSite` below.
+      const groups = site.settings.framework?.spacing?.groups ?? []
+      const { name, varName } = nextSpacingTabValues(groups)
+      const order = nextOrderValue(groups)
       const group = makeFreshSpacingGroup(name, varName, order)
 
       mutateSite((draftSite) => {
@@ -1337,12 +1352,14 @@ export const createSiteSlice: StateCreator<EditorStore, [], [], SiteSlice> = (se
     duplicateFrameworkSpacingGroup: (groupId) => {
       const { site } = get()
       if (!site) return null
-      const spacing = ensureFrameworkSpacing(site)
-      const source = spacing.groups.find((g) => g.id === groupId)
+      // Read-only view of the (Immer-frozen) live site — see note in
+      // `createFrameworkSpacingGroup`. The actual write is inside `mutateSite`.
+      const groups = site.settings.framework?.spacing?.groups ?? []
+      const source = groups.find((g) => g.id === groupId)
       if (!source) return null
 
-      const { name, varName } = nextSpacingTabValues(spacing.groups)
-      const order = nextOrderValue(spacing.groups)
+      const { name, varName } = nextSpacingTabValues(groups)
+      const order = nextOrderValue(groups)
       const now = Date.now()
       const copy: FrameworkSpacingGroup = {
         ...structuredClone(source),
