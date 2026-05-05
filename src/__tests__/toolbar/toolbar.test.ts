@@ -443,15 +443,17 @@ describe('Toolbar — structural requirements', () => {
     expect(src).not.toContain('NewComponentButton')
   })
 
-  it('Add dropdown exposes page and component creation actions', () => {
+  it('Add dropdown is module-only — no in-toolbar page/component create actions', () => {
+    // Page / Component creation lives in the Site Explorer panel (the dedicated
+    // place for site structure). The toolbar "+ Add" dropdown is module-only.
     const { readFileSync } = require('fs')
     const src = readFileSync(
       new URL('../../editor/components/Toolbar/ModulePickerDropdown.tsx', import.meta.url),
       'utf-8',
     )
-    expect(src).toContain('data-testid="toolbar-add-page-action"')
-    expect(src).toContain('data-testid="toolbar-add-component-action"')
-    expect(src).toContain('SiteCreateDialog')
+    expect(src).not.toContain('toolbar-add-page-action')
+    expect(src).not.toContain('toolbar-add-component-action')
+    expect(src).not.toContain('SiteCreateDialog')
     expect(src).not.toContain('NewFileModal')
     expect(src).not.toContain('src/pages/')
     expect(src).not.toContain('src/components/')
@@ -480,16 +482,19 @@ describe('Toolbar — structural requirements', () => {
     expect(publishingSrc).toContain('data-testid="toolbar-publish-actions-menu"')
   })
 
-  it('ModulePickerDropdown uses role="menu" + role="menuitem" (not role="listbox")', () => {
+  it('ModulePicker uses ContextMenu primitives (role="menu" + role="menuitem")', () => {
     const { readFileSync } = require('fs')
+    // The picker content lives in ModulePicker.tsx, shared by the toolbar
+    // "+ Add" dropdown and the DOM-panel right-click submenu. The picker
+    // doesn't author its own role="menu" — it relies on the wrapping
+    // ContextMenu (or ContextMenuSubmenu) for that — and uses ContextMenuItem
+    // for every row, which renders a `role="menuitem"` button.
     const src = readFileSync(
-      new URL('../../editor/components/Toolbar/ModulePickerDropdown.tsx', import.meta.url), 'utf-8',
+      new URL('../../editor/components/ModulePicker/ModulePicker.tsx', import.meta.url), 'utf-8',
     )
-    // UX Review #333: role="listbox" without arrow-key nav is incorrect. role="menu" is right.
-    expect(src).toContain('role="menu"')
-    expect(src).toContain('role="menuitem"')
-    // Strip comment lines before checking — the source has role="listbox" in a JSDoc comment
-    // explaining WHY it's NOT used. We only care that it doesn't appear as an actual attribute.
+    expect(src).toContain('ContextMenuItem')
+    // UX Review #333: role="listbox" without arrow-key nav is incorrect. The
+    // picker uses ContextMenuItem (role="menuitem") instead.
     const codeLines = src.split('\n')
       .filter((line) => !line.trim().startsWith('*') && !line.trim().startsWith('//'))
       .join('\n')
@@ -497,23 +502,18 @@ describe('Toolbar — structural requirements', () => {
     expect(codeLines).not.toContain('role="option"')
   })
 
-  it('ModulePickerDropdown search input has a visible focus ring (WCAG SC 2.4.7)', () => {
+  it('ModulePicker search input has a visible focus ring (WCAG SC 2.4.7)', () => {
     const { readFileSync, existsSync } = require('fs')
-    const tsxSrc = readFileSync(
-      new URL('../../editor/components/Toolbar/ModulePickerDropdown.tsx', import.meta.url), 'utf-8',
-    )
-    // Post-Task #399: focus ring moved from inline boxShadow/state to CSS module.
-    // Read Toolbar.module.css alongside TSX to capture the :focus / :focus-visible rule.
-    const cssPath = new URL('../../editor/components/Toolbar/Toolbar.module.css', import.meta.url)
+    // The picker uses the shared <SearchBar /> primitive; the focus ring lives
+    // in that primitive's CSS module so every search bar in the editor uses
+    // the same focus treatment. We assert on the primitive's stylesheet.
+    const cssPath = new URL('../../ui/components/SearchBar/SearchBar.module.css', import.meta.url)
     const cssSrc = existsSync(cssPath.pathname) ? readFileSync(cssPath, 'utf-8') : ''
-    const src = tsxSrc + '\n' + cssSrc
-    // Accept: old boxShadow/searchFocused state approach (pre-#557) OR
-    //         Tailwind focus:ring-* / focus-visible:ring-* (post-#557) OR
-    //         CSS module :focus / :focus-visible selector (post-Task #399 migration).
-    const hasBoxShadowApproach = src.includes('boxShadow') && src.includes('searchFocused')
-    const hasTailwindRingApproach = /focus:ring-|focus-visible:ring-/.test(src)
+    // Accept: Tailwind focus:ring-* / focus-visible:ring-* (legacy) OR
+    //         CSS module :focus / :focus-visible selector.
+    const hasTailwindRingApproach = /focus:ring-|focus-visible:ring-/.test(cssSrc)
     const hasCssModuleFocus = /:focus[-\s{]|:focus-visible/.test(cssSrc)
-    expect(hasBoxShadowApproach || hasTailwindRingApproach || hasCssModuleFocus).toBe(true)
+    expect(hasTailwindRingApproach || hasCssModuleFocus).toBe(true)
   })
 
   it('PublishButton uses ref to track status timer (no useState leak on unmount)', () => {
@@ -631,20 +631,19 @@ describe('Toolbar — structural requirements', () => {
 //     forwards ArrowDown to the first [role="menuitem"] element via .focus().
 // ---------------------------------------------------------------------------
 
-describe('ModulePickerDropdown — ArrowDown keyboard bridge (WCAG SC 2.1.1)', () => {
+describe('ModulePicker — ArrowDown keyboard bridge (WCAG SC 2.1.1)', () => {
+  // The bridge logic lives in the shared ModulePicker.tsx (used by both the
+  // toolbar "+ Add" dropdown and the DOM-panel right-click submenu).
   const { readFileSync } = require('fs')
   const src = readFileSync(
-    new URL('../../editor/components/Toolbar/ModulePickerDropdown.tsx', import.meta.url),
+    new URL('../../editor/components/ModulePicker/ModulePicker.tsx', import.meta.url),
     'utf-8',
   )
 
   it('search input has an onKeyDown handler (WCAG 2.1.1 — keyboard access)', () => {
     // The search input must have its OWN onKeyDown. Without it, ArrowDown from
-    // the input cannot reach the menu sibling div's handleMenuKeyDown.
-    // We verify the handler is present on the <input> element, not just the menu div.
-    //
-    // Structural check: look for onKeyDown in the block immediately surrounding
-    // the searchRef / type="search" input.
+    // the input cannot reach the wrapping menu's keyboard nav. We verify the
+    // handler is wired to the <SearchBar /> via an `onKeyDown=` prop.
     const inputBlock = src.slice(
       src.indexOf('ref={searchRef}') - 10,
       src.indexOf('ref={searchRef}') + 600,
@@ -653,35 +652,30 @@ describe('ModulePickerDropdown — ArrowDown keyboard bridge (WCAG SC 2.1.1)', (
   })
 
   it('ArrowDown on search input forwards focus to first menu item', () => {
-    // The bridge must use querySelector('[role="menuitem"]') to find the first item.
-    // Using querySelectorAll + [0] is also acceptable but querySelector is simpler.
+    // The bridge must use querySelector('[role="menuitem"]') to find the first
+    // item, then call .focus() on it.
     const codeLines = src.split('\n')
       .filter((line) => !line.trim().startsWith('//') && !line.trim().startsWith('*'))
       .join('\n')
 
-    // The bridge implementation must: check e.key === 'ArrowDown' AND call .focus()
     expect(codeLines).toMatch(/ArrowDown/)
     expect(codeLines).toContain('[role="menuitem"]')
-    // Must call focus() on the first item — not just log or highlight it
     expect(codeLines).toMatch(/first.*\.focus\(\)|querySelector.*focus\(\)/)
   })
 
-  it('ArrowDown bridge calls e.preventDefault() to stop page scroll', () => {
+  it('ArrowDown bridge calls preventDefault() to stop page scroll', () => {
     // Without preventDefault, ArrowDown scrolls the page while also (if the
     // bridge is working) moving focus. The scroll is jarring and unexpected.
-    const bridgeBlock = (() => {
-      const idx = src.indexOf("e.key === 'ArrowDown'")
-      return src.slice(idx, idx + 200)
-    })()
-    expect(bridgeBlock).toContain('e.preventDefault()')
-  })
-
-  it('menu container still has handleMenuKeyDown for ArrowUp/Down within list', () => {
-    // The existing navigation within the list (ArrowDown/Up between items)
-    // must remain on the menu container so it still works once focus is in the list.
-    expect(src).toContain('handleMenuKeyDown')
-    // handleMenuKeyDown must be attached to the menu container (onKeyDown prop)
-    expect(src).toContain('onKeyDown={handleMenuKeyDown}')
+    // Strip JSDoc/line comments first so prose mentions of "ArrowDown" don't
+    // shadow the actual handler block.
+    const codeOnly = src
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .split('\n')
+      .filter((line: string) => !line.trim().startsWith('//'))
+      .join('\n')
+    const idx = codeOnly.indexOf('ArrowDown')
+    const bridgeBlock = codeOnly.slice(idx, idx + 200)
+    expect(bridgeBlock).toContain('preventDefault()')
   })
 })
 

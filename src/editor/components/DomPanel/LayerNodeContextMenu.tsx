@@ -1,19 +1,36 @@
-import { useEffect, useRef } from 'react'
-import type { VisualComponent } from '@core/visualComponents/schemas'
-import { useEditorStore } from '@core/editor-store/store'
+/**
+ * LayerNodeContextMenu — right-click menu for nodes in the DOM panel and
+ * canvas. Hosts rename / duplicate / wrap / delete actions and an
+ * "Insert module here" `ContextMenuSubmenu` that shows the shared
+ * `ModulePicker` (search + categorized module list, including site
+ * Visual Components) as a true second-level dropdown — same primitive,
+ * same styling, same hover/focus/colors as every other submenu.
+ *
+ * Selection of a base module routes through `useInsertModule` with the
+ * right-clicked nodeId as an explicit parent — no smart-resolution fallback.
+ *
+ * Architecture gate (G4, G5): Visual Component insertion MUST go through the
+ * shared `insertComponentRef` action in `siteSlice` so cycle detection and
+ * VC/page-mode dispatch are applied uniformly.
+ * See `src/__tests__/architecture/component-system-placement.test.ts`.
+ */
 
-const EMPTY_VCS: VisualComponent[] = []
+import { useCallback, useEffect, useRef } from 'react'
 import {
   ContextMenu as UIContextMenu,
   ContextMenuItem,
   ContextMenuSeparator,
   ContextMenuSubmenu,
 } from '@ui/components/ContextMenu'
+import { useEditorStore } from '@core/editor-store/store'
+import { useInsertModule } from '../../hooks/useInsertModule'
+import { ModulePicker } from '../ModulePicker'
+import type { AnyModuleDefinition } from '@core/module-engine/types'
 import { EditIcon } from 'pixel-art-icons/icons/edit'
 import { CopyIcon } from 'pixel-art-icons/icons/copy'
 import { CheckboxIcon } from 'pixel-art-icons/icons/checkbox'
 import { DeleteIcon } from 'pixel-art-icons/icons/delete'
-import { BracesIcon } from 'pixel-art-icons/icons/braces'
+import { PlusIcon } from 'pixel-art-icons/icons/plus'
 
 interface LayerNodeContextMenuProps {
   x: number
@@ -39,30 +56,34 @@ export function LayerNodeContextMenu({
 }: LayerNodeContextMenuProps) {
   const firstItemRef = useRef<HTMLButtonElement>(null)
 
-  const visualComponents = useEditorStore((s) => s.site?.visualComponents ?? EMPTY_VCS)
-  const selectedNodeId = useEditorStore((s) => s.selectedNodeId)
-  const insertComponentRef = useEditorStore((s) => s.insertComponentRef)
-
-  // Prefer explicitly passed nodeId; fall back to store's selected node.
+  // Per-node selector — fallback for nodeId when no explicit prop is given.
   // CanvasRoot selects the right-clicked node before opening the menu, so
   // selectedNodeId is reliable there even without an explicit nodeId prop.
+  const selectedNodeId = useEditorStore((s) => s.selectedNodeId)
+  const insertComponentRef = useEditorStore((s) => s.insertComponentRef)
+  const insertModule = useInsertModule()
+
   const nodeId = nodeIdProp ?? selectedNodeId
 
   useEffect(() => {
     firstItemRef.current?.focus()
   }, [])
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Escape') {
-      e.stopPropagation()
-    }
-  }
+  const handleSelectModule = useCallback(
+    (mod: AnyModuleDefinition) => {
+      if (!nodeId) return
+      insertModule(mod, nodeId)
+    },
+    [insertModule, nodeId],
+  )
 
-  function handleInsertVc(vcId: string) {
-    if (!nodeId) return
-    insertComponentRef(nodeId, vcId)
-    onClose()
-  }
+  const handleSelectVC = useCallback(
+    (vcId: string) => {
+      if (!nodeId) return
+      insertComponentRef(nodeId, vcId)
+    },
+    [insertComponentRef, nodeId],
+  )
 
   return (
     <UIContextMenu
@@ -70,7 +91,6 @@ export function LayerNodeContextMenu({
       y={y}
       ariaLabel="Node options"
       onClose={onClose}
-      onKeyDown={handleKeyDown}
     >
       <ContextMenuItem ref={firstItemRef} onClick={onRename}>
         <span aria-hidden="true"><EditIcon size={13} /></span>
@@ -87,19 +107,22 @@ export function LayerNodeContextMenu({
         Wrap in Container
       </ContextMenuItem>
 
-      {visualComponents.length > 0 && (
-        <ContextMenuSubmenu
-          label="Insert component here"
-          icon={<BracesIcon size={13} />}
-          onClose={onClose}
-        >
-          {visualComponents.map((vc) => (
-            <ContextMenuItem key={vc.id} onClick={() => handleInsertVc(vc.id)}>
-              {vc.name}
-            </ContextMenuItem>
-          ))}
-        </ContextMenuSubmenu>
-      )}
+      <ContextMenuSubmenu
+        label="Insert module here"
+        icon={<PlusIcon size={13} />}
+        onClose={onClose}
+        width={280}
+        maxHeight={420}
+        // The submenu hosts a search input — clicks on the input must not
+        // dismiss the panel. Only menuitem clicks (i.e. picking a module/VC)
+        // should close.
+        closeOnItemClickOnly
+      >
+        <ModulePicker
+          onSelectModule={handleSelectModule}
+          onSelectVC={handleSelectVC}
+        />
+      </ContextMenuSubmenu>
 
       <ContextMenuSeparator />
 

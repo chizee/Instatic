@@ -10,6 +10,7 @@ import {
   type ReactNode,
   type RefObject,
 } from 'react'
+import { createPortal } from 'react-dom'
 import { Button, type ButtonProps } from '@ui/components/Button'
 import { Separator } from '@ui/components/Separator'
 import { ChevronRightIcon } from 'pixel-art-icons/icons/chevron-right'
@@ -44,6 +45,14 @@ interface ContextMenuProps extends Omit<HTMLAttributes<HTMLDivElement>, 'childre
   children: ReactNode
   minWidth?: number
   width?: number
+  /**
+   * Maximum height of the menu in pixels. When the content exceeds this,
+   * the menu becomes vertically scrollable (`overflow-y: auto`). The CSS
+   * also clamps the menu to the viewport (`min(maxHeight, 100vh - 16px)`)
+   * so very tall menus near a screen edge stay reachable. When omitted the
+   * menu is unbounded.
+   */
+  maxHeight?: number
   zIndex?: number
   menuClassName?: string
   /**
@@ -104,6 +113,7 @@ export const ContextMenu = forwardRef<HTMLDivElement, ContextMenuProps>(function
     children,
     minWidth = 176,
     width = minWidth,
+    maxHeight,
     zIndex = 1000,
     menuClassName,
     triggerRef,
@@ -144,9 +154,16 @@ export const ContextMenu = forwardRef<HTMLDivElement, ContextMenuProps>(function
     // Use the explicit `width` prop (which the CSS renders to) rather than
     // the measured rect width — this keeps positioning predictable in jsdom
     // tests and avoids double-counting any layout-time width clamping.
+    // When `maxHeight` caps the menu, the measured rect already reflects the
+    // capped height (CSS applies `max-height` before getBoundingClientRect).
+    // Still defensively clamp here so position calculations agree with the
+    // rendered size even on the very first measurement.
+    const effectiveHeight = maxHeight != null
+      ? Math.min(menuRect.height, maxHeight)
+      : menuRect.height
     const next = computeFloatingPosition(anchorRect, {
       floatingWidth: width,
-      floatingHeight: menuRect.height,
+      floatingHeight: effectiveHeight,
       side,
       align,
       offset,
@@ -193,6 +210,7 @@ export const ContextMenu = forwardRef<HTMLDivElement, ContextMenuProps>(function
     '--context-menu-min-width': `${minWidth}px`,
     '--context-menu-width': `${width}px`,
     '--context-menu-z-index': zIndex,
+    ...(maxHeight != null ? { '--context-menu-max-height': `${maxHeight}px` } : null),
     ...(measuring ? { visibility: 'hidden' as const } : null),
   } as CSSProperties
 
@@ -233,6 +251,7 @@ export const ContextMenu = forwardRef<HTMLDivElement, ContextMenuProps>(function
       aria-label={ariaLabel}
       className={cn(styles.menu, menuClassName)}
       data-side={resolvedSide}
+      data-scrollable={maxHeight != null ? '' : undefined}
       style={style}
       onKeyDown={handleKeyDown}
       {...domProps}
@@ -325,6 +344,26 @@ interface ContextMenuSubmenuProps {
   children: ReactNode
   /** z-index base for the submenu panel (submenu uses zIndex + 10). Default: 1000 */
   zIndex?: number
+  /** Submenu panel width in px. Default: 176. */
+  width?: number
+  /** Submenu panel min-width in px. Default: same as `width`. */
+  minWidth?: number
+  /**
+   * Maximum height of the submenu panel in px. When set, the panel scrolls
+   * vertically (`overflow-y: auto`) and the height is clamped to
+   * `min(maxHeight, 100vh - 16px)` so it never overflows the viewport. Use
+   * for searchable submenus with long item lists.
+   */
+  maxHeight?: number
+  /**
+   * When true, panel-level clicks DO NOT auto-close the submenu — only clicks
+   * on a `[role="menuitem"]` descendant (or its children) close it. Use this
+   * for searchable submenus that contain non-menuitem widgets (e.g. a search
+   * input) where clicking the input must not dismiss the menu.
+   *
+   * Default: false (legacy behavior — any click inside the submenu closes).
+   */
+  closeOnItemClickOnly?: boolean
 }
 
 /**
@@ -348,6 +387,10 @@ export function ContextMenuSubmenu({
   onClose,
   children,
   zIndex = 1000,
+  width = 176,
+  minWidth,
+  maxHeight,
+  closeOnItemClickOnly = false,
 }: ContextMenuSubmenuProps) {
   const [open, setOpen] = useState(false)
   const [submenuStyle, setSubmenuStyle] = useState<CSSProperties>({})
@@ -361,12 +404,16 @@ export function ContextMenuSubmenu({
     const rect = triggerRef.current?.getBoundingClientRect()
     const x = rect ? rect.right + 2 : 0
     const y = rect ? rect.top : 0
+    const resolvedMinWidth = minWidth ?? width
     return {
       '--context-menu-x': `${x}px`,
       '--context-menu-y': `${y}px`,
       '--context-menu-z-index': zIndex + 10,
-      '--context-menu-min-width': '176px',
-      '--context-menu-width': '176px',
+      '--context-menu-min-width': `${resolvedMinWidth}px`,
+      '--context-menu-width': `${width}px`,
+      ...(maxHeight != null
+        ? { '--context-menu-max-height': `${maxHeight}px` }
+        : null),
     } as CSSProperties
   }
 
@@ -434,8 +481,16 @@ export function ContextMenuSubmenu({
     }
   }
 
-  // Any click inside the submenu panel closes both submenu and parent menu.
-  function handleSubmenuClick() {
+  // Default: any click inside the submenu panel closes both submenu and parent.
+  // When `closeOnItemClickOnly` is set, ignore clicks that don't land on (or
+  // inside) a `[role="menuitem"]` — useful for searchable submenus where the
+  // panel hosts non-menuitem widgets like a search input.
+  function handleSubmenuClick(event: React.MouseEvent<HTMLDivElement>) {
+    if (closeOnItemClickOnly) {
+      const target = event.target
+      if (!(target instanceof HTMLElement)) return
+      if (!target.closest('[role="menuitem"]')) return
+    }
     setOpen(false)
     onClose?.()
   }
@@ -469,12 +524,20 @@ export function ContextMenuSubmenu({
           <ChevronRightIcon size={10} color="currentColor" />
         </span>
       </Button>
-      {open && (
+      {open && typeof document !== 'undefined' && createPortal(
+        // The panel is portaled to document.body so its viewport-pixel
+        // positioning (set via CSS custom properties on `style`) escapes
+        // any `overflow: hidden` / `transform` / `contain` ancestor that
+        // would otherwise clip or re-anchor it. The DOM-tree relationship
+        // between trigger and panel is unchanged for accessibility — the
+        // ARIA wiring lives on attributes (aria-haspopup / role="menu"),
+        // not the DOM hierarchy.
         <div
           ref={submenuRef}
           role="menu"
           aria-label={typeof label === 'string' ? label : undefined}
           className={styles.menu}
+          data-scrollable={maxHeight != null ? '' : undefined}
           style={submenuStyle}
           onMouseEnter={cancelClose}
           onMouseLeave={scheduleClose}
@@ -482,7 +545,8 @@ export function ContextMenuSubmenu({
           onClick={handleSubmenuClick}
         >
           {children}
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   )

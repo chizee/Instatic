@@ -79,9 +79,10 @@ describe('CanvasNotch', () => {
     // The trigger is icon-only — only the PlusIcon is rendered, no text node.
     expect(picker).toContain('iconOnly')
     expect(picker).toContain('<PlusIcon size={13} />')
-    // The literal "Add" text inside the trigger button is gone (aria-label
-    // and tooltip still describe the action for screen readers).
-    expect(picker).toContain('aria-label="Add"')
+    // The literal "Add" text inside the trigger button is gone. The aria-label
+    // and tooltip describe the action for screen readers — "Add module" is
+    // accurate now that page/component creation lives elsewhere (Site Explorer).
+    expect(picker).toMatch(/aria-label="Add(?: module)?"/)
     expect(picker).not.toMatch(/<PlusIcon[^>]*\/>\s*Add\s*<\/Button>/)
   })
 })

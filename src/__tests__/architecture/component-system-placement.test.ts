@@ -14,7 +14,9 @@
  * 2. SiteExplorerPanel.tsx + AdminLayout.tsx — drag from site-explorer onto the
  *    canvas; the explorer registers the drag source with the `visualComponentRef`
  *    payload kind, and AdminLayout's `onDragEnd` calls `insertComponentRef`.
- * 3. LayerNodeContextMenu.tsx — 'Insert component here' submenu click.
+ * 3. LayerNodeContextMenu.tsx — 'Insert module here' submenu click (which
+ *    opens the shared ModulePickerMenu; picking a Visual Component flows
+ *    through this file via the onSelectVC callback).
  *
  * ENFORCED CONSTRAINTS:
  * G1 — ModulePickerDropdown must call insertComponentRef for VC insertion.
@@ -160,14 +162,15 @@ describe('G3 — AdminLayout onDragEnd calls insertComponentRef for visualCompon
 // Gate 4 — LayerNodeContextMenu must use insertComponentRef
 // ---------------------------------------------------------------------------
 
-describe("G4 — LayerNodeContextMenu calls insertComponentRef for 'Insert component here' (Phase 4)", () => {
+describe("G4 — LayerNodeContextMenu calls insertComponentRef for 'Insert module here' (Phase 4)", () => {
   test('LayerNodeContextMenu.tsx must reference insertComponentRef', () => {
     const src = readSource(CONTEXT_MENU_PATH)
     if (!src.includes('insertComponentRef')) {
       throw new Error(
         '[Phase 4 / G4] LayerNodeContextMenu.tsx does not reference insertComponentRef.\n' +
-        "The 'Insert component here' submenu click must route through insertComponentRef\n" +
-        'so that cycle detection and VC/page mode dispatch are applied uniformly.\n' +
+        "The 'Insert module here' submenu's VC-pick callback must route through\n" +
+        "insertComponentRef so cycle detection and VC/page mode dispatch are\n" +
+        'applied uniformly.\n' +
         'File: src/editor/components/DomPanel/LayerNodeContextMenu.tsx',
       )
     }

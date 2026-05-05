@@ -88,7 +88,7 @@ function loadSite(
 beforeEach(resetStore)
 
 describe('ModulePickerDropdown — Visual Components', () => {
-  it('lists site VCs in the Components category with name and param count', () => {
+  it('lists site VCs as menu items inside the picker', () => {
     loadSite([
       makeVC('vc-1', 'HeroCard', 3),
       makeVC('vc-2', 'PricingTable', 1),
@@ -97,13 +97,9 @@ describe('ModulePickerDropdown — Visual Components', () => {
 
     fireEvent.click(screen.getByTestId('toolbar-add-module-btn'))
 
-    const menu = screen.getByRole('menu', { name: 'Available modules' })
+    const menu = screen.getByRole('menu', { name: 'Add module' })
     expect(within(menu).getByText('HeroCard')).toBeDefined()
     expect(within(menu).getByText('PricingTable')).toBeDefined()
-
-    // Param count meta
-    expect(within(menu).getByText('3 props')).toBeDefined()
-    expect(within(menu).getByText('1 props')).toBeDefined()
   })
 
   it('renders data-vc-id attribute on VC menu items', () => {
@@ -111,7 +107,7 @@ describe('ModulePickerDropdown — Visual Components', () => {
     render(<ModulePickerDropdown />)
     fireEvent.click(screen.getByTestId('toolbar-add-module-btn'))
 
-    const menu = screen.getByRole('menu', { name: 'Available modules' })
+    const menu = screen.getByRole('menu', { name: 'Add module' })
     const vcItem = within(menu).getByText('MyComponent').closest('[data-vc-id]')
     expect(vcItem?.getAttribute('data-vc-id')).toBe('vc-abc')
   })
@@ -127,7 +123,7 @@ describe('ModulePickerDropdown — Visual Components', () => {
     const searchBox = screen.getByRole('searchbox', { name: 'Search modules' })
     fireEvent.change(searchBox, { target: { value: 'hero' } })
 
-    const menu = screen.getByRole('menu', { name: 'Available modules' })
+    const menu = screen.getByRole('menu', { name: 'Add module' })
     expect(within(menu).getByText('HeroCard')).toBeDefined()
     expect(within(menu).queryByText('PricingTable')).toBeNull()
   })
@@ -138,7 +134,9 @@ describe('ModulePickerDropdown — Visual Components', () => {
     fireEvent.click(screen.getByTestId('toolbar-add-module-btn'))
 
     // Use the data-vc-id to find and click the VC item
-    const vcItem = screen.getByRole('menu').querySelector('[data-vc-id="vc-1"]') as HTMLElement
+    const vcItem = screen
+      .getByRole('menu', { name: 'Add module' })
+      .querySelector('[data-vc-id="vc-1"]') as HTMLElement
     expect(vcItem).not.toBeNull()
     fireEvent.click(vcItem)
 
@@ -157,14 +155,16 @@ describe('ModulePickerDropdown — Visual Components', () => {
     render(<ModulePickerDropdown />)
     fireEvent.click(screen.getByTestId('toolbar-add-module-btn'))
 
-    // The dialog is open
-    expect(screen.getByRole('dialog', { name: 'Add' })).toBeDefined()
+    // Picker shell is open — ContextMenu with aria-label="Add module"
+    expect(screen.getByRole('menu', { name: 'Add module' })).toBeDefined()
 
-    const vcItem = screen.getByRole('menu').querySelector('[data-vc-id="vc-1"]') as HTMLElement
+    const vcItem = screen
+      .getByRole('menu', { name: 'Add module' })
+      .querySelector('[data-vc-id="vc-1"]') as HTMLElement
     fireEvent.click(vcItem)
 
     // Dropdown should be closed
-    expect(screen.queryByRole('dialog', { name: 'Add' })).toBeNull()
+    expect(screen.queryByRole('menu', { name: 'Add module' })).toBeNull()
   })
 
   it('hides base.visual-component-ref from the picker in page mode', () => {
@@ -173,7 +173,7 @@ describe('ModulePickerDropdown — Visual Components', () => {
     fireEvent.click(screen.getByTestId('toolbar-add-module-btn'))
 
     // base.visual-component-ref should not appear as a module item
-    const menu = screen.getByRole('menu', { name: 'Available modules' })
+    const menu = screen.getByRole('menu', { name: 'Add module' })
     const vcRefItem = within(menu).queryAllByRole('menuitem').find(
       (el) => el.getAttribute('data-module-id') === 'base.visual-component-ref',
     )
@@ -186,7 +186,7 @@ describe('ModulePickerDropdown — Visual Components', () => {
     fireEvent.click(screen.getByTestId('toolbar-add-module-btn'))
 
     // base.slot-outlet (display name: "Slot") should not appear in page mode
-    const menu = screen.getByRole('menu', { name: 'Available modules' })
+    const menu = screen.getByRole('menu', { name: 'Add module' })
     const slotItem = within(menu).queryAllByRole('menuitem').find(
       (el) => el.getAttribute('data-module-id') === 'base.slot-outlet',
     )
@@ -200,7 +200,7 @@ describe('ModulePickerDropdown — Visual Components', () => {
     fireEvent.click(screen.getByTestId('toolbar-add-module-btn'))
 
     // base.slot-outlet (display name: "Slot") should be visible in VC mode
-    const menu = screen.getByRole('menu', { name: 'Available modules' })
+    const menu = screen.getByRole('menu', { name: 'Add module' })
     const slotItem = within(menu).queryAllByRole('menuitem').find(
       (el) => el.getAttribute('data-module-id') === 'base.slot-outlet',
     )

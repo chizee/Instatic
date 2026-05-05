@@ -1,16 +1,19 @@
 /**
  * layerNodeContextMenu.test.tsx
  *
- * Tests for the LayerNodeContextMenu 'Insert component here' submenu:
- * - The entry is present in the menu when visual components exist
- * - Hovering opens a submenu listing VC names
- * - Clicking a VC entry calls insertComponentRef and closes the menu
- * - Empty state hides the submenu entry entirely
+ * Tests for the LayerNodeContextMenu "Insert module here" submenu:
+ * - The submenu trigger is always present.
+ * - Hovering it opens a `ContextMenuSubmenu` containing the shared ModulePicker
+ *   (search + module/VC list).
+ * - Picking a base module routes through useInsertModule with the right-clicked
+ *   nodeId as an explicit parent.
+ * - Picking a Visual Component routes through insertComponentRef with the
+ *   right-clicked nodeId as parent.
  */
 
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import React from 'react'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { LayerNodeContextMenu } from '../../editor/components/DomPanel/LayerNodeContextMenu'
 import { useEditorStore } from '@core/editor-store/store'
 import { makeNode, makePage, makeSite } from '../fixtures'
@@ -49,14 +52,14 @@ function resetStore(vcs: VisualComponent[] = []) {
     slug: 'index',
     rootNodeId: 'root-home',
     nodes: {
-      'root-home': makeNode({ id: 'root-home', moduleId: 'base.root' }),
-      'text-node': makeNode({ id: 'text-node', moduleId: 'base.text', props: { content: 'Hello' } }),
+      'root-home': makeNode({ id: 'root-home', moduleId: 'base.root', children: ['container-node'] }),
+      'container-node': makeNode({ id: 'container-node', moduleId: 'base.container' }),
     },
   })
   useEditorStore.setState({
     site: makeSite({ pages: [home], files: [], visualComponents: vcs }),
     activePageId: 'page-home',
-    selectedNodeId: 'text-node',
+    selectedNodeId: 'container-node',
     hoveredNodeId: null,
     activeDocument: null,
     _historyPast: [],
@@ -69,7 +72,7 @@ function resetStore(vcs: VisualComponent[] = []) {
 
 const noop = () => {}
 
-function renderMenu(nodeId = 'text-node', vcs: VisualComponent[] = [makeVC('vc-1', 'HeroCard')]) {
+function renderMenu(nodeId = 'container-node', vcs: VisualComponent[] = []) {
   resetStore(vcs)
   return render(
     <LayerNodeContextMenu
@@ -85,55 +88,77 @@ function renderMenu(nodeId = 'text-node', vcs: VisualComponent[] = [makeVC('vc-1
   )
 }
 
+function openInsertSubmenu() {
+  // ContextMenuSubmenu opens on mouseEnter — fire that to open the panel.
+  const trigger = screen.getByRole('menuitem', { name: /insert module here/i })
+  fireEvent.mouseEnter(trigger)
+  return trigger
+}
+
 beforeEach(() => resetStore())
 
-describe('LayerNodeContextMenu — Insert component here', () => {
-  it('renders the "Insert component here" submenu trigger', () => {
+describe('LayerNodeContextMenu — Insert module here', () => {
+  it('renders the "Insert module here" submenu trigger', () => {
     renderMenu()
-    expect(screen.getByRole('menuitem', { name: /insert component here/i })).toBeDefined()
+    expect(screen.getByRole('menuitem', { name: /insert module here/i })).toBeDefined()
   })
 
-  it('opens submenu listing VC names on mouseenter', () => {
+  it('opens the module picker submenu on hover', () => {
     renderMenu()
-    const trigger = screen.getByRole('menuitem', { name: /insert component here/i })
-    fireEvent.mouseEnter(trigger)
+    openInsertSubmenu()
 
-    // Submenu should now be visible with the VC name
-    expect(screen.getByRole('menuitem', { name: 'HeroCard' })).toBeDefined()
+    // ContextMenuSubmenu renders a panel with role="menu" and aria-label
+    // matching the trigger label. The picker's search input lives inside.
+    expect(screen.getByRole('menu', { name: 'Insert module here' })).toBeDefined()
+    expect(screen.getByRole('searchbox', { name: 'Search modules' })).toBeDefined()
   })
 
-  it('calls insertComponentRef with the correct nodeId and vcId when a VC is clicked', () => {
-    const vc = makeVC('vc-abc', 'MyCard')
-    renderMenu('text-node', [vc])
+  it('inserts a base module into the right-clicked node when picked', () => {
+    renderMenu('container-node')
+    openInsertSubmenu()
 
-    // Open submenu
-    const trigger = screen.getByRole('menuitem', { name: /insert component here/i })
-    fireEvent.mouseEnter(trigger)
+    const submenu = screen.getByRole('menu', { name: 'Insert module here' })
+    const textOption = within(submenu).getAllByRole('menuitem').find(
+      (el) => el.getAttribute('data-module-id') === 'base.text',
+    )
+    expect(textOption).toBeDefined()
+    fireEvent.click(textOption!)
 
-    // Click the VC entry
-    fireEvent.click(screen.getByRole('menuitem', { name: 'MyCard' }))
-
-    // Verify a VC ref node was inserted as child of text-node's parent (page root)
     const state = useEditorStore.getState()
     const page = state.site?.pages.find((p) => p.id === 'page-home')
-    const refNodes = page
-      ? Object.values(page.nodes).filter((n) => n.moduleId === 'base.visual-component-ref')
-      : []
-    expect(refNodes.length).toBe(1)
-    expect(refNodes[0]?.props.componentId).toBe('vc-abc')
+    const container = page?.nodes['container-node']
+    expect(container?.children.length).toBe(1)
+
+    const insertedId = container?.children[0]
+    const inserted = insertedId ? page?.nodes[insertedId] : null
+    expect(inserted?.moduleId).toBe('base.text')
   })
 
-  it('hides the "Insert component here" submenu entirely when visualComponents is empty', () => {
-    renderMenu('text-node', [])
+  it('inserts a Visual Component into the right-clicked node when picked', () => {
+    const vc = makeVC('vc-abc', 'MyCard')
+    renderMenu('container-node', [vc])
+    openInsertSubmenu()
 
-    expect(screen.queryByRole('menuitem', { name: /insert component here/i })).toBeNull()
+    const submenu = screen.getByRole('menu', { name: 'Insert module here' })
+    const vcItem = submenu.querySelector('[data-vc-id="vc-abc"]') as HTMLElement
+    expect(vcItem).not.toBeNull()
+    fireEvent.click(vcItem)
+
+    const state = useEditorStore.getState()
+    const page = state.site?.pages.find((p) => p.id === 'page-home')
+    const container = page?.nodes['container-node']
+    expect(container?.children.length).toBe(1)
+
+    const insertedId = container?.children[0]
+    const inserted = insertedId ? page?.nodes[insertedId] : null
+    expect(inserted?.moduleId).toBe('base.visual-component-ref')
+    expect(inserted?.props.componentId).toBe('vc-abc')
   })
 
-  it('uses selectedNodeId from store as fallback when nodeId prop is not provided', () => {
+  it('falls back to selectedNodeId when nodeId prop is not provided', () => {
     const vc = makeVC('vc-1', 'HeroCard')
     resetStore([vc])
 
-    // Render WITHOUT nodeId prop — should fall back to selectedNodeId ('text-node')
     render(
       <LayerNodeContextMenu
         x={100}
@@ -146,16 +171,16 @@ describe('LayerNodeContextMenu — Insert component here', () => {
       />,
     )
 
-    const trigger = screen.getByRole('menuitem', { name: /insert component here/i })
-    fireEvent.mouseEnter(trigger)
-    fireEvent.click(screen.getByRole('menuitem', { name: 'HeroCard' }))
+    openInsertSubmenu()
+
+    const submenu = screen.getByRole('menu', { name: 'Insert module here' })
+    const vcItem = submenu.querySelector('[data-vc-id="vc-1"]') as HTMLElement
+    fireEvent.click(vcItem)
 
     const state = useEditorStore.getState()
     const page = state.site?.pages.find((p) => p.id === 'page-home')
-    const refNodes = page
-      ? Object.values(page.nodes).filter((n) => n.moduleId === 'base.visual-component-ref')
-      : []
-    expect(refNodes.length).toBe(1)
-    expect(refNodes[0]?.props.componentId).toBe('vc-1')
+    // selectedNodeId in resetStore is 'container-node' — VC ref should land there.
+    const container = page?.nodes['container-node']
+    expect(container?.children.length).toBe(1)
   })
 })
