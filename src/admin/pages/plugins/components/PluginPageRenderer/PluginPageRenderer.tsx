@@ -1,20 +1,14 @@
 import {
-  createElement,
-  useCallback,
   useEffect,
   useMemo,
-  useRef,
   useState,
   type CSSProperties,
-  type ReactElement,
 } from 'react'
 import { Button } from '@ui/components/Button'
 import { Checkbox } from '@ui/components/Checkbox'
 import { ErrorBoundary } from '@ui/components/ErrorBoundary'
 import type {
-  PluginAdminAppRenderFn,
-  PluginAdminH,
-  PluginAdminHooks,
+  PluginAdminAppComponent,
   PluginAdminPageRoute,
   PluginPageContent,
   PluginRecord,
@@ -22,8 +16,8 @@ import type {
   PluginResourceField,
 } from '@core/plugin-sdk'
 import {
-  createAdminPluginApi,
-  loadPluginAdminAppModule,
+  buildPluginRoutesHelper,
+  loadPluginAdminAppComponent,
   type PluginAdminAppImport,
 } from '@core/plugins/adminRuntime'
 import {
@@ -31,7 +25,11 @@ import {
   deleteCmsPluginResourceRecord,
   loadCmsPluginResource,
 } from '@core/persistence'
-import { pluginAdminUi } from '../PluginAdminUi'
+import { pluginRuntime } from '@core/plugins/runtime'
+import {
+  PluginContext,
+  type PluginContextValue,
+} from '@admin/plugin-host-hooks'
 import styles from '../../PluginsPage.module.css'
 
 interface PluginPageRendererProps {
@@ -64,30 +62,23 @@ export function PluginPageRenderer({ page, importModule }: PluginPageRendererPro
 function PluginPageContent({ page, importModule }: PluginPageRendererProps) {
   if (page.content.kind === 'map') {
     return (
-      <section className={styles.pluginPage} aria-labelledby="plugin-page-title">
-        <header className={styles.pluginPageHeader}>
-          <p>{page.pluginName}</p>
-          <h1 id="plugin-page-title">{page.content.heading}</h1>
-          {page.content.body && <span>{page.content.body}</span>}
-        </header>
-        <div className={styles.mapSurface} aria-label={page.title}>
-          <div className={styles.mapGrid} aria-hidden="true" />
-          {page.content.centerLabel && (
-            <div className={styles.mapCenterLabel}>{page.content.centerLabel}</div>
-          )}
-          {page.content.pins.map((pin) => (
-            <article
-              key={`${pin.label}-${pin.x}-${pin.y}`}
-              className={styles.mapPin}
-              style={{ '--pin-x': `${pin.x}%`, '--pin-y': `${pin.y}%` } as CSSProperties}
-            >
-              <span aria-hidden="true" />
-              <strong>{pin.label}</strong>
-              {pin.detail && <small>{pin.detail}</small>}
-            </article>
-          ))}
-        </div>
-      </section>
+      <div className={styles.mapSurface} aria-label={page.title}>
+        <div className={styles.mapGrid} aria-hidden="true" />
+        {page.content.centerLabel && (
+          <div className={styles.mapCenterLabel}>{page.content.centerLabel}</div>
+        )}
+        {page.content.pins.map((pin) => (
+          <article
+            key={`${pin.label}-${pin.x}-${pin.y}`}
+            className={styles.mapPin}
+            style={{ '--pin-x': `${pin.x}%`, '--pin-y': `${pin.y}%` } as CSSProperties}
+          >
+            <span aria-hidden="true" />
+            <strong>{pin.label}</strong>
+            {pin.detail && <small>{pin.detail}</small>}
+          </article>
+        ))}
+      </div>
     )
   }
 
@@ -100,66 +91,47 @@ function PluginPageContent({ page, importModule }: PluginPageRendererProps) {
   }
 
   return (
-    <section className={styles.pluginPage} aria-labelledby="plugin-page-title">
-      <header className={styles.pluginPageHeader}>
-        <p>{page.pluginName}</p>
-        <h1 id="plugin-page-title">{page.content.heading ?? page.title}</h1>
-      </header>
-      <div className={styles.markdownPanel}>
-        {page.content.body.split(/\n{2,}/).map((paragraph, index) => (
-          <p key={index}>{paragraph}</p>
-        ))}
-      </div>
-    </section>
+    <div className={styles.markdownPanel}>
+      {page.content.body.split(/\n{2,}/).map((paragraph, index) => (
+        <p key={index}>{paragraph}</p>
+      ))}
+    </div>
   )
 }
 
 /**
- * `pluginHooks` — the curated React hook surface handed to plugin admin
- * apps. Plugins receive this via the `hooks` argument of their render
- * function so they can share the host's React instance without importing
- * React themselves.
- */
-const pluginHooks: PluginAdminHooks = {
-  useState: useState as PluginAdminHooks['useState'],
-  useEffect: useEffect as PluginAdminHooks['useEffect'],
-  useMemo: useMemo as PluginAdminHooks['useMemo'],
-  useCallback: useCallback as PluginAdminHooks['useCallback'],
-  useRef: useRef as PluginAdminHooks['useRef'],
-}
-
-const pluginH: PluginAdminH = createElement as PluginAdminH
-
-/**
- * Inner component that calls the plugin's render function on every React
- * render — this means hooks declared inside the plugin's function are
- * subject to the regular React rules of hooks (stable order). Wrapping
- * the plugin's element in our own component lets the editor's
- * ErrorBoundary catch render-time exceptions cleanly.
+ * Inner component — wraps the plugin's React component in a
+ * `PluginContext.Provider` so hooks like `usePluginSettings`,
+ * `usePluginRoutes`, and `usePluginContext` resolve to this plugin's
+ * scoped values.
  */
 function PluginReactSubtree({
-  render,
+  Component,
   page,
 }: {
-  render: PluginAdminAppRenderFn
+  Component: PluginAdminAppComponent
   page: AppPluginPageRoute
-}): ReactElement {
-  const api = useMemo(
-    () => createAdminPluginApi(page.pluginId, { settingsSnapshot: page.pluginSettings }),
-    [page.pluginId, page.pluginSettings],
+}) {
+  const contextValue = useMemo<PluginContextValue>(() => ({
+    pluginId: page.pluginId,
+    pluginVersion: '',
+    surfaceId: page.id,
+    surfaceLabel: page.title,
+    settings: page.pluginSettings,
+    routes: buildPluginRoutesHelper(page.pluginId),
+    runCommand: (commandId) => pluginRuntime.runCommand(commandId),
+  }), [page.id, page.pluginId, page.pluginSettings, page.title])
+
+  return (
+    <PluginContext.Provider value={contextValue}>
+      <Component page={page} />
+    </PluginContext.Provider>
   )
-  return render({
-    page,
-    api,
-    ui: pluginAdminUi,
-    h: pluginH,
-    hooks: pluginHooks,
-  })
 }
 
 type LoadState =
   | { kind: 'loading' }
-  | { kind: 'react'; render: PluginAdminAppRenderFn }
+  | { kind: 'react'; Component: PluginAdminAppComponent }
   | { kind: 'error'; message: string }
 
 function PluginAppPage({
@@ -186,10 +158,10 @@ function PluginAppPage({
 
   useEffect(() => {
     let cancelled = false
-    void loadPluginAdminAppModule(page, importModule)
+    void loadPluginAdminAppComponent(page, importModule)
       .then((loaded) => {
         if (cancelled) return
-        setLoadState({ kind: 'react', render: loaded.render, key: pageKey })
+        setLoadState({ kind: 'react', Component: loaded.Component, key: pageKey })
       })
       .catch((err) => {
         if (cancelled) return
@@ -203,12 +175,7 @@ function PluginAppPage({
   }, [importModule, page, pageKey])
 
   return (
-    <section className={styles.pluginPage} aria-labelledby="plugin-page-title">
-      <header className={styles.pluginPageHeader}>
-        <p>{page.pluginName}</p>
-        <h1 id="plugin-page-title">{page.content.heading}</h1>
-      </header>
-
+    <>
       {visibleState.kind === 'loading' && (
         <p className={styles.emptyState}>Loading plugin app...</p>
       )}
@@ -216,9 +183,9 @@ function PluginAppPage({
         <p className={styles.error} role="alert">{visibleState.message}</p>
       )}
       {visibleState.kind === 'react' && (
-        <PluginReactSubtree render={visibleState.render} page={page} />
+        <PluginReactSubtree Component={visibleState.Component} page={page} />
       )}
-    </section>
+    </>
   )
 }
 
@@ -314,12 +281,7 @@ function PluginResourcePage({ page }: { page: ResourcePluginPageRoute }) {
   }
 
   return (
-    <section className={styles.pluginPage} aria-labelledby="plugin-page-title">
-      <header className={styles.pluginPageHeader}>
-        <p>{page.pluginName}</p>
-        <h1 id="plugin-page-title">{page.content.heading}</h1>
-      </header>
-
+    <>
       {loading ? (
         <p className={styles.emptyState}>Loading records...</p>
       ) : error ? (
@@ -400,6 +362,6 @@ function PluginResourcePage({ page }: { page: ResourcePluginPageRoute }) {
       ) : (
         <p className={styles.emptyState}>Plugin resource unavailable.</p>
       )}
-    </section>
+    </>
   )
 }

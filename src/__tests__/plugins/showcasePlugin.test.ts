@@ -25,16 +25,16 @@ describe('showcase example plugin (TypeScript source)', () => {
     expect(definition.manifest.adminPages.map((p) => p.id)).toEqual(['dashboard', 'events'])
   })
 
-  it('admin app entrypoint is a TypeScript file using definePluginAdminApp', async () => {
+  it('admin app entrypoint is a JSX file using definePluginAdminApp + host-ui', async () => {
     const { readFile } = await import('node:fs/promises')
-    const path = '../../../examples/plugins/showcase/admin/dashboard.ts'
+    const path = '../../../examples/plugins/showcase/admin/dashboard.tsx'
     const url = new URL(path, import.meta.url)
     const text = await readFile(url, 'utf-8')
     expect(text).toContain('definePluginAdminApp')
-    expect(text).toContain('ui.Button')
-    expect(text).toContain('ui.Card')
-    expect(text).toContain('hooks.useState')
-    // No raw DOM API in actual code (the JSDoc may mention it).
+    expect(text).toContain('@pagebuilder/host-ui')
+    expect(text).toContain('@pagebuilder/host-hooks')
+    // Real React component, not the legacy hyperscript shim.
+    expect(text).toContain("import { useCallback, useEffect, useState } from 'react'")
     expect(text).not.toMatch(/document\.createElement\(/)
   })
 

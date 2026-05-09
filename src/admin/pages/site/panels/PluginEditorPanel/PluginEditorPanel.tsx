@@ -1,0 +1,154 @@
+/**
+ * PluginEditorPanel — host-side mount for a plugin-registered editor
+ * panel. Looks the panel up in `pluginRuntime.getPanel(panelId)`, wraps
+ * the plugin's React component in a `PluginContext.Provider`, and renders
+ * it inside the host-owned panel chrome (`PanelHeader` + scrollable body).
+ *
+ * The plugin's component is a real React component (`definePluginPanel`)
+ * that imports `react`, `@pagebuilder/host-ui`, and `@pagebuilder/host-hooks`
+ * as externals. The host's import map resolves those bare specifiers to
+ * its own React instance + design system primitives at mount time, so
+ * plugin bundles share host React without bundling a copy.
+ *
+ * Failure modes:
+ *   • Panel id is set but no panel is registered (plugin disabled, lost
+ *     race) → render an "unavailable" fallback instead of throwing.
+ *   • Plugin component throws → caught by ErrorBoundary so the editor
+ *     shell stays alive even if a plugin crashes.
+ */
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react'
+import { ErrorBoundary } from '@ui/components/ErrorBoundary'
+import { PanelHeader } from '@admin/shared/PanelHeader'
+import { useEditorStore } from '@site/store/store'
+import { pluginRuntime } from '@core/plugins/runtime'
+import { buildPluginRoutesHelper } from '@core/plugins/adminRuntime'
+import {
+  PluginContext,
+  type PluginContextValue,
+} from '@admin/plugin-host-hooks'
+import styles from './PluginEditorPanel.module.css'
+
+interface PluginEditorPanelProps {
+  panelId: string
+}
+
+export function PluginEditorPanel({ panelId }: PluginEditorPanelProps) {
+  // ErrorBoundary reset key includes the panel id so navigating away then
+  // back clears stuck errors automatically.
+  return (
+    <ErrorBoundary location="plugin-editor-panel" resetKeys={[panelId]}>
+      <PluginEditorPanelContent panelId={panelId} />
+    </ErrorBoundary>
+  )
+}
+
+function PluginEditorPanelContent({ panelId }: PluginEditorPanelProps) {
+  // Subscribe to the runtime so the panel re-renders if the plugin is
+  // re-activated (e.g. after a hot reload from `pb-plugin dev`).
+  const [tick, setTick] = useState(0)
+  useEffect(() => {
+    const unsubscribe = pluginRuntime.subscribe(() => setTick((t) => t + 1))
+    return unsubscribe
+  }, [])
+  void tick
+  const setActivePluginPanel = useEditorStore((s) => s.setActivePluginPanel)
+
+  const panel = pluginRuntime.getPanel(panelId)
+  const manifest = pluginRuntime.getPanelManifest(panelId)
+
+  const handleClose = useCallback(() => {
+    setActivePluginPanel(null)
+  }, [setActivePluginPanel])
+
+  if (!panel || !manifest) {
+    return (
+      <aside
+        role="complementary"
+        aria-label="Plugin panel"
+        className={styles.panel}
+        data-testid={`panel-plugin-${panelId}`}
+      >
+        <PanelHeader
+          panelId={`plugin-${panelId}`}
+          title="Plugin panel"
+          onClose={handleClose}
+        />
+        <div className={styles.unavailable}>
+          Panel <code>{panelId}</code> is not currently registered.
+        </div>
+      </aside>
+    )
+  }
+
+  const PanelComponent = panel.component
+  const settings = pluginRuntime.getPluginSettings(panel.pluginId)
+
+  return (
+    <aside
+      role="complementary"
+      aria-label={panel.label}
+      className={styles.panel}
+      data-testid={`panel-plugin-${panel.id}`}
+      data-panel-id={panel.id}
+    >
+      <PanelHeader
+        panelId={`plugin-${panel.id}`}
+        title={panel.label}
+        onClose={handleClose}
+      />
+      <div className={styles.content}>
+        <PluginPanelSubtree
+          panelId={panel.id}
+          pluginId={panel.pluginId}
+          pluginVersion={manifest.version}
+          label={panel.label}
+          settings={settings}
+          PanelComponent={PanelComponent}
+        />
+      </div>
+    </aside>
+  )
+}
+
+/**
+ * Inner component — wraps the plugin's panel component in a
+ * `PluginContext.Provider` so the plugin's hooks (`usePluginSettings`,
+ * `usePluginRoutes`, `usePluginContext`, `useEditorCommand`) resolve
+ * with the right plugin identity, settings snapshot, and HTTP scope.
+ */
+function PluginPanelSubtree({
+  panelId,
+  pluginId,
+  pluginVersion,
+  label,
+  settings,
+  PanelComponent,
+}: {
+  panelId: string
+  pluginId: string
+  pluginVersion: string
+  label: string
+  settings: Record<string, string | number | boolean>
+  PanelComponent: import('@core/plugin-sdk').PluginEditorPanelComponent
+}) {
+  const contextValue = useMemo<PluginContextValue>(() => ({
+    pluginId,
+    pluginVersion,
+    surfaceId: panelId,
+    surfaceLabel: label,
+    settings,
+    routes: buildPluginRoutesHelper(pluginId),
+    runCommand: (commandId) => pluginRuntime.runCommand(commandId),
+  }), [panelId, pluginId, pluginVersion, label, settings])
+
+  return (
+    <PluginContext.Provider value={contextValue}>
+      <PanelComponent panel={{ id: panelId, pluginId, label }} />
+    </PluginContext.Provider>
+  )
+}

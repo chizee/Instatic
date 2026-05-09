@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useSyncExternalStore } from 'react'
 import { useEditorStore } from '@site/store/store'
 import type { LeftSidebarPanelId } from '@site/store/slices/uiSlice'
 import type { IconComponent } from 'pixel-art-icons/types'
@@ -12,7 +12,11 @@ import { ColorsSwatchIcon } from 'pixel-art-icons/icons/colors-swatch'
 import { TextStartTIcon } from 'pixel-art-icons/icons/text-start-t'
 import { RulerDimensionIcon } from 'pixel-art-icons/icons/ruler-dimension'
 import { Button } from '@ui/components/Button'
+import { pluginRuntime } from '@core/plugins/runtime'
+import { resolvePluginPanelIcon } from './pluginPanelIcons'
 import styles from './PanelRail.module.css'
+
+const ACCENT_CYCLE: ReadonlyArray<RailAccent> = ['mint', 'lilac', 'sky', 'peach']
 
 type RailAccent = 'mint' | 'lilac' | 'sky' | 'peach'
 
@@ -115,6 +119,12 @@ interface PanelRailProps {
   editable?: boolean
 }
 
+const subscribePluginRuntime = (cb: () => void) => pluginRuntime.subscribe(cb)
+const getPluginPanelsSnapshot = () => pluginRuntime.getPanels()
+// Reuse the same empty array on the server so useSyncExternalStore doesn't
+// detect a snapshot mismatch.
+const SERVER_PLUGIN_PANELS_SNAPSHOT: ReturnType<typeof getPluginPanelsSnapshot> = []
+
 export function PanelRail({ workspace = 'site', editable = true }: PanelRailProps) {
   const domOpen = useEditorStore((s) => !s.domTreePanel.collapsed)
   const siteOpen = useEditorStore((s) => s.siteExplorerPanelOpen)
@@ -125,8 +135,19 @@ export function PanelRail({ workspace = 'site', editable = true }: PanelRailProp
   const mediaOpen = useEditorStore((s) => s.mediaExplorerPanelOpen)
   const dependenciesOpen = useEditorStore((s) => s.dependenciesPanelOpen)
   const agentOpen = useEditorStore((s) => s.isAgentOpen)
+  const activePluginPanelId = useEditorStore((s) => s.activePluginPanelId)
 
   const toggleLeftSidebarPanel = useEditorStore((s) => s.toggleLeftSidebarPanel)
+  const toggleActivePluginPanel = useEditorStore((s) => s.toggleActivePluginPanel)
+
+  // Subscribe to the plugin runtime so newly-registered panels appear in the
+  // rail without a manual refresh. The runtime emits on every register/reset
+  // — same channel toolbar buttons and commands already use.
+  const pluginPanels = useSyncExternalStore(
+    subscribePluginRuntime,
+    getPluginPanelsSnapshot,
+    () => SERVER_PLUGIN_PANELS_SNAPSHOT,
+  )
 
   useEffect(() => {
     if (!editable) return undefined
@@ -188,6 +209,23 @@ export function PanelRail({ workspace = 'site', editable = true }: PanelRailProp
     }
   })
 
+  // Plugin panels show up after the primary group when editing. They cycle
+  // through the four accent colors so plugins that don't pick one still get
+  // visual differentiation; the order is stable across renders because
+  // `getPanels()` returns insertion order.
+  const pluginItems: RailItem[] = editable
+    ? pluginPanels.map((panel, index) => ({
+        id: `plugin:${panel.id}`,
+        label: panel.label,
+        icon: resolvePluginPanelIcon(panel.iconName),
+        iconName: panel.iconName,
+        accent: panel.accent ?? ACCENT_CYCLE[index % ACCENT_CYCLE.length],
+        open: activePluginPanelId === panel.id,
+        onToggle: () => toggleActivePluginPanel(panel.id),
+        shortcutLabel: panel.shortcutLabel,
+      }))
+    : []
+
   return (
     <nav
       aria-label="Panel dock"
@@ -199,6 +237,13 @@ export function PanelRail({ workspace = 'site', editable = true }: PanelRailProp
           <RailButton key={item.id} item={item} />
         ))}
       </div>
+      {pluginItems.length > 0 && (
+        <div className={styles.itemGroup} data-testid="panel-rail-plugins">
+          {pluginItems.map((item) => (
+            <RailButton key={item.id} item={item} />
+          ))}
+        </div>
+      )}
     </nav>
   )
 }

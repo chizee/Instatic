@@ -4,6 +4,12 @@
  * Run `bun run plugin:build examples/plugins/showcase` to produce the
  * runtime zip at `examples/plugins/showcase.plugin.zip`.
  */
+// Note: `pb-plugin.config.ts` is evaluated by the build CLI in the host's
+// Bun process — it doesn't go through Bun.build, so it imports from
+// `@core/plugin-sdk` (resolved via the host's tsconfig paths) directly.
+// Plugin SOURCE files (admin/, editor/, modules/, frontend/) instead use
+// `@pagebuilder/plugin-sdk` so they're externalized at build time and
+// resolved at runtime via the host's import map.
 import { definePlugin, permissions } from '@core/plugin-sdk'
 import callout from './modules/callout'
 import eventCounter from './modules/eventCounter'
@@ -28,6 +34,7 @@ export default definePlugin({
     permissions.cmsHooks,
     permissions.editorToolbar,
     permissions.editorCommands,
+    permissions.editorPanels,
     permissions.modulesRegister,
     permissions.visualComponentsRegister,
     permissions.frontendScripts,

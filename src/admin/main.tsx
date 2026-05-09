@@ -4,7 +4,15 @@ import { Router } from './lib/routing'
 import { AdminRoutes } from './router'
 import { ErrorBoundary, flattenErrorChain, logErrorChain } from '@ui/components/ErrorBoundary'
 import { ToastProvider, pushToast } from '@ui/components/Toast'
+import { installPluginRuntime } from './pluginRuntimeBootstrap'
 import '../styles/globals.css'
+
+// Populate `globalThis.__pagebuilder` with the editor's React, design
+// system, and plugin SDK builders BEFORE any plugin module is imported.
+// The runtime shims in `public/runtime/*.js` (resolved by the import map
+// in index.html) re-export from this global so plugin bundles share the
+// host's React instance instead of bundling their own.
+installPluginRuntime()
 
 // Base module registration is deferred to AdminEntry (the lazy admin chunk)
 // so the publisher / page-tree / sanitize stack stays out of the eager entry

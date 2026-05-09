@@ -1,4 +1,5 @@
 import type { EditorStore, EditorStoreSliceCreator } from '@site/store/types'
+import { clearCanvasSelectionDraft } from './selectionSlice'
 
 export type FocusedPanel = 'canvas' | 'domTree' | 'properties' | null
 export type LeftSidebarPanelId =
@@ -73,6 +74,16 @@ export interface UiSlice {
   mediaExplorerPanelOpen: boolean
   dependenciesPanelOpen: boolean
 
+  /**
+   * Plugin-registered editor panel currently open in the left sidebar, or
+   * `null` when a built-in panel (or nothing) is active. Mutually exclusive
+   * with the built-in `*PanelOpen` flags — the setters below clear the
+   * other side automatically. The id is the full panel id registered by the
+   * plugin (e.g. `acme.workflow.review`); the host looks it up in
+   * `pluginRuntime.getPanel(id)` at render time.
+   */
+  activePluginPanelId: string | null
+
   // CodeEditorPanel (Task #433) — whether the code editor floating panel is visible
   codeEditorPanelOpen: boolean
 
@@ -110,6 +121,15 @@ export interface UiSlice {
   setDependenciesPanelOpen: (open: boolean) => void
   setLeftSidebarPanel: (panel: LeftSidebarPanelId | null) => void
   toggleLeftSidebarPanel: (panel: LeftSidebarPanelId) => void
+
+  /**
+   * Open a plugin-registered panel by id. Clears all built-in panels (only
+   * one panel can be active at a time). Pass `null` to close the active
+   * plugin panel without opening anything else.
+   */
+  setActivePluginPanel: (panelId: string | null) => void
+  /** Toggle a plugin panel — open if not active, close if active. */
+  toggleActivePluginPanel: (panelId: string) => void
 
   /** Show / hide the CodeEditor floating panel. */
   setCodeEditorPanelOpen: (open: boolean) => void
@@ -172,6 +192,11 @@ export function clampSidebarWidth(width: number) {
 }
 
 function getActiveLeftSidebarPanel(state: EditorStore): LeftSidebarPanelId | null {
+  // A plugin panel takes precedence over every built-in panel — the
+  // built-in `*PanelOpen` flags are forced to false whenever a plugin
+  // panel is opened, but `domTreePanel.collapsed` defaults to false so
+  // we have to short-circuit here too.
+  if (state.activePluginPanelId !== null) return null
   if (state.siteExplorerPanelOpen) return 'site'
   if (state.selectorsPanelOpen) return 'selectors'
   if (state.colorsPanelOpen) return 'colors'
@@ -209,6 +234,7 @@ export const createUiSlice: EditorStoreSliceCreator<UiSlice> = (set, get) => ({
   spacingPanelOpen: false,
   mediaExplorerPanelOpen: false,
   dependenciesPanelOpen: false,
+  activePluginPanelId: null,
   codeEditorPanelOpen: false,
   activeEditorFileId: null,
   activeMediaAssetPreview: null,
@@ -323,11 +349,42 @@ export const createUiSlice: EditorStoreSliceCreator<UiSlice> = (set, get) => ({
         collapsed: panel !== 'layers',
       },
       isAgentOpen: panel === 'agent',
+      // Built-in panels are mutually exclusive with plugin panels.
+      activePluginPanelId: null,
     })),
 
   toggleLeftSidebarPanel: (panel) => {
-    const activePanel = getActiveLeftSidebarPanel(get())
+    // Account for the plugin-panel-takes-precedence rule in
+    // getActiveLeftSidebarPanel: if a plugin panel is currently active
+    // and the user clicks a built-in rail item, that should open the
+    // built-in panel (not toggle it closed because it "wasn't active").
+    const state = get()
+    const activePanel = state.activePluginPanelId === null
+      ? getActiveLeftSidebarPanel(state)
+      : null
     get().setLeftSidebarPanel(activePanel === panel ? null : panel)
+  },
+
+  setActivePluginPanel: (panelId) =>
+    set((state) => ({
+      siteExplorerPanelOpen: false,
+      selectorsPanelOpen: false,
+      colorsPanelOpen: false,
+      typographyPanelOpen: false,
+      spacingPanelOpen: false,
+      mediaExplorerPanelOpen: false,
+      dependenciesPanelOpen: false,
+      domTreePanel: {
+        ...state.domTreePanel,
+        collapsed: true,
+      },
+      isAgentOpen: false,
+      activePluginPanelId: panelId,
+    })),
+
+  toggleActivePluginPanel: (panelId) => {
+    const current = get().activePluginPanelId
+    get().setActivePluginPanel(current === panelId ? null : panelId)
   },
 
   setCodeEditorPanelOpen: (open) => set({ codeEditorPanelOpen: open }),
@@ -369,9 +426,7 @@ export const createUiSlice: EditorStoreSliceCreator<UiSlice> = (set, get) => ({
         // entry point (page → VC, VC → page, VC → other VC, doc → null) gets
         // it right.
         if (!isSameActiveDocument(prevDoc, doc)) {
-          state.selectedNodeId = null
-          state.hoveredNodeId = null
-          state.hoveredBreakpointId = null
+          clearCanvasSelectionDraft(state)
         }
       }),
 
@@ -383,9 +438,7 @@ export const createUiSlice: EditorStoreSliceCreator<UiSlice> = (set, get) => ({
         if (prevPageId !== null && state.site?.pages.some((p) => p.id === prevPageId)) {
           state.activePageId = prevPageId
         }
-        state.selectedNodeId = null
-        state.hoveredNodeId = null
-        state.hoveredBreakpointId = null
+        clearCanvasSelectionDraft(state)
         state.previousActivePageId = null
       }),
 
@@ -413,9 +466,7 @@ export const createUiSlice: EditorStoreSliceCreator<UiSlice> = (set, get) => ({
       state.previousActivePageId = null
 
       if (docChanged || pageChanged) {
-        state.selectedNodeId = null
-        state.hoveredNodeId = null
-        state.hoveredBreakpointId = null
+        clearCanvasSelectionDraft(state)
       }
     }),
 })

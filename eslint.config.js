@@ -62,4 +62,16 @@ export default defineConfig([
       'preserve-caught-error': 'off',
     },
   },
+  {
+    // Example plugins are standalone projects that ship as zip packages —
+    // they aren't part of the host's React Fast-Refresh graph (Vite never
+    // serves them) and they don't run under the host's React 19 strict
+    // setState-in-effect rules. These rules are noisy in plugin authoring
+    // contexts; relax them for the examples folder.
+    files: ['examples/plugins/**/*.{ts,tsx}'],
+    rules: {
+      'react-refresh/only-export-components': 'off',
+      'react-hooks/set-state-in-effect': 'off',
+    },
+  },
 ])

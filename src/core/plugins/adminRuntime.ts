@@ -1,30 +1,50 @@
+/**
+ * Admin-side runtime helpers for loading plugin admin app modules.
+ *
+ *   • `loadPluginAdminAppComponent(page)` — dynamic-imports the plugin's
+ *     admin app entrypoint and returns its default-exported React component
+ *     (a `PluginAdminAppComponent` from `definePluginAdminApp`).
+ *   • `buildPluginRoutesHelper(pluginId)` — produces the fetch + json
+ *     helpers handed to plugin code through the host-hooks `PluginContext`.
+ *
+ * Plugin admin apps used to receive a curated `api` and `ui` namespace
+ * via render-function arguments. That layer is gone — plugins now write
+ * real React components and pull editor / settings / route helpers from
+ * `@pagebuilder/host-hooks` (which the host populates per-mount via
+ * `PluginContext`).
+ */
 import type { TSchema, Static } from '@sinclair/typebox'
-import {
-  createCmsPluginResourceRecord,
-  deleteCmsPluginResourceRecord,
-  listCmsPluginResourceRecords,
-  updateCmsPluginResourceRecord,
-} from '@core/persistence/cmsPluginRecords'
 import { parseJsonResponse } from '@core/utils/jsonValidate'
 import type {
-  PluginAdminAppApi,
-  PluginAdminAppRenderFn,
+  PluginAdminAppComponent,
   PluginAdminPageRoute,
 } from '@core/plugin-sdk'
 
 type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
 
+const defaultFetch: FetchLike = (input, init) => globalThis.fetch(input, init)
+
 /**
- * Loaded plugin admin app module shape — `mod.default` is the
- * SDK render function from `definePluginAdminApp`. There is no other
- * supported shape.
+ * Loaded plugin admin app module shape — the `default` export is the
+ * `PluginAdminAppComponent` returned by `definePluginAdminApp`.
  */
-export type LoadedAdminAppModule = { default: PluginAdminAppRenderFn }
+export type LoadedAdminAppModule = { default: PluginAdminAppComponent }
 
 export type PluginAdminAppImport = (url: string) => Promise<LoadedAdminAppModule>
 
+/**
+ * Append a cache-buster query string to plugin entrypoint URLs. The
+ * browser otherwise pins each `/uploads/.../<entry>.js` forever within
+ * a session — when `pb-plugin dev` rewrites the file (or the user
+ * re-uploads), a soft reload would still execute the stale module.
+ */
+function bustedImportUrl(url: string): string {
+  const sep = url.includes('?') ? '&' : '?'
+  return `${url}${sep}v=${Date.now()}`
+}
+
 const defaultImportModule: PluginAdminAppImport = async (url) =>
-  await import(/* @vite-ignore */ url) as LoadedAdminAppModule
+  await import(/* @vite-ignore */ bustedImportUrl(url)) as LoadedAdminAppModule
 
 export function pluginAdminAssetUrl(assetPath: string, entrypoint: string): string {
   return `${assetPath.replace(/\/+$/g, '')}/${entrypoint.replace(/^\/+/g, '')}`
@@ -35,90 +55,47 @@ function runtimePath(pluginId: string, path: string): string {
   return `/admin/api/cms/plugins/${encodeURIComponent(pluginId)}/runtime/${normalized}`
 }
 
-const defaultFetch: FetchLike = (input, init) => globalThis.fetch(input, init)
-
-export interface CreateAdminPluginApiOptions {
-  /** Snapshot of the plugin's current settings; omitted = empty record. */
-  settingsSnapshot?: Record<string, string | number | boolean>
-  fetchImpl?: FetchLike
+export interface PluginRoutesHelper {
+  fetch: (path: string, init?: RequestInit) => Promise<Response>
+  json: <T extends TSchema>(path: string, schema: T, init?: RequestInit) => Promise<Static<T>>
 }
 
-export function createAdminPluginApi(
+/**
+ * Build the plugin-scoped HTTP routes helper. Stable signature, suitable
+ * for handing through `PluginContext` so plugin code can call
+ * `usePluginRoutes()` and reach its own server entrypoint without
+ * constructing URLs manually.
+ */
+export function buildPluginRoutesHelper(
   pluginId: string,
-  options: CreateAdminPluginApiOptions = {},
-): PluginAdminAppApi {
-  const fetchImpl = options.fetchImpl ?? defaultFetch
-  // Local mutable snapshot — `update()` mutates this so subsequent reads
-  // see the new values without a round-trip through the host.
-  const settingsSnapshot: Record<string, string | number | boolean> = {
-    ...(options.settingsSnapshot ?? {}),
-  }
+  fetchImpl: FetchLike = defaultFetch,
+): PluginRoutesHelper {
   return {
-    cms: {
-      routes: {
-        fetch(path, init) {
-          return fetchImpl(runtimePath(pluginId, path), {
-            credentials: 'include',
-            ...init,
-          })
-        },
-        async json<T extends TSchema>(path: string, schema: T, init?: RequestInit): Promise<Static<T>> {
-          const res = await fetchImpl(runtimePath(pluginId, path), {
-            credentials: 'include',
-            ...init,
-          })
-          if (!res.ok) throw new Error(`Plugin route failed with ${res.status}`)
-          return await parseJsonResponse(res, schema)
-        },
-      },
-      storage: {
-        collection(resourceId) {
-          return {
-            list: () => listCmsPluginResourceRecords(pluginId, resourceId, fetchImpl),
-            create: (data) => createCmsPluginResourceRecord(pluginId, resourceId, data, fetchImpl),
-            update: (recordId, data) => updateCmsPluginResourceRecord(pluginId, resourceId, recordId, data, fetchImpl),
-            delete: (recordId) => deleteCmsPluginResourceRecord(pluginId, resourceId, recordId, fetchImpl),
-          }
-        },
-      },
-      settings: {
-        get<T extends string | number | boolean = string>(key: string): T | undefined {
-          return settingsSnapshot[key] as T | undefined
-        },
-        getAll() {
-          return { ...settingsSnapshot }
-        },
-        async update(next) {
-          const res = await fetchImpl(`/admin/api/cms/plugins/${encodeURIComponent(pluginId)}/settings`, {
-            method: 'PUT',
-            credentials: 'include',
-            headers: { 'content-type': 'application/json' },
-            body: JSON.stringify(next),
-          })
-          if (!res.ok) {
-            throw new Error(await res.text() || `Plugin settings update failed with ${res.status}`)
-          }
-          const body = await res.json() as { settings: Record<string, string | number | boolean> }
-          // Replace the local snapshot with the host's authoritative response
-          // so subsequent `get()` calls see the same values the server stored.
-          for (const key of Object.keys(settingsSnapshot)) delete settingsSnapshot[key]
-          Object.assign(settingsSnapshot, body.settings)
-          return body.settings
-        },
-      },
+    fetch(path, init) {
+      return fetchImpl(runtimePath(pluginId, path), {
+        credentials: 'include',
+        ...init,
+      })
+    },
+    async json<T extends TSchema>(path: string, schema: T, init?: RequestInit): Promise<Static<T>> {
+      const res = await fetchImpl(runtimePath(pluginId, path), {
+        credentials: 'include',
+        ...init,
+      })
+      if (!res.ok) throw new Error(`Plugin route failed with ${res.status}`)
+      return await parseJsonResponse(res, schema)
     },
   }
 }
 
 /**
  * Resolve a plugin admin page's entrypoint module via dynamic `import()`.
- * Throws if the module doesn't default-export a `definePluginAdminApp`
- * render function.
+ * Throws if the module doesn't default-export a `PluginAdminAppComponent`.
  */
-export async function loadPluginAdminAppModule(
+export async function loadPluginAdminAppComponent(
   page: PluginAdminPageRoute,
   importModule: PluginAdminAppImport = defaultImportModule,
-): Promise<{ render: PluginAdminAppRenderFn }> {
+): Promise<{ Component: PluginAdminAppComponent }> {
   if (page.content.kind !== 'app') {
     throw new Error('Plugin admin app loader requires app page content')
   }
@@ -126,11 +103,11 @@ export async function loadPluginAdminAppModule(
     throw new Error(`Plugin admin app "${page.pluginId}:${page.id}" is missing an asset path`)
   }
   const mod = await importModule(pluginAdminAssetUrl(page.content.assetPath, page.content.entry))
-  const render = (mod as { default?: unknown }).default
-  if (typeof render !== 'function') {
+  const Component = (mod as { default?: unknown }).default
+  if (typeof Component !== 'function' && typeof Component !== 'object') {
     throw new Error(
-      `Plugin admin app "${page.pluginId}:${page.id}" must default-export a definePluginAdminApp() render function.`,
+      `Plugin admin app "${page.pluginId}:${page.id}" must default-export a React component (definePluginAdminApp).`,
     )
   }
-  return { render: render as PluginAdminAppRenderFn }
+  return { Component: Component as PluginAdminAppComponent }
 }

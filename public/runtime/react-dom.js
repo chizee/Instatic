@@ -1,0 +1,19 @@
+/**
+ * Plugin-runtime shim for `react-dom`.
+ *
+ * Mirrors `react.js`: the host's main bundle exposes its react-dom on
+ * `globalThis.__pagebuilder.ReactDOM`; this file re-exports the named
+ * API for plugin code that needs portals or `flushSync`. Plugins should
+ * NOT need `createRoot` — the host already controls the React root.
+ */
+const G = globalThis.__pagebuilder?.ReactDOM
+if (!G) {
+  throw new Error(
+    "[@pagebuilder/runtime] Host ReactDOM not initialized. Did the host bundle finish loading before the plugin import?",
+  )
+}
+
+export const createPortal = G.createPortal
+export const flushSync = G.flushSync
+export const version = G.version
+export default G

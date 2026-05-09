@@ -6,6 +6,7 @@
  *
  *   import {
  *     definePlugin, defineModule, defineComponent, definePack,
+ *     definePluginAdminApp, definePluginPanel,
  *     control, html, raw, safeUrl,
  *     permissions, createNamespace, h, vc,
  *   } from '@pagebuilder/plugin-sdk'
@@ -41,11 +42,8 @@ export { createNamespace } from './namespace'
 export type { PluginNamespace } from './namespace'
 export { definePluginAdminApp } from './adminApp'
 export type {
-  PluginAdminAppRenderContext,
-  PluginAdminAppRenderFn,
-  PluginAdminH,
-  PluginAdminHooks,
-  PluginAdminUi,
+  PluginAdminAppComponent,
+  PluginAdminAppProps,
   PluginUiAlertProps,
   PluginUiButtonProps,
   PluginUiCardProps,
@@ -62,3 +60,9 @@ export type {
   PluginUiTextProps,
   PluginUiTextareaProps,
 } from './adminApp'
+export { definePluginPanel } from './panel'
+export type {
+  DefinePluginEditorPanelConfig,
+  PluginEditorPanelComponent,
+  PluginEditorPanelProps,
+} from './panel'

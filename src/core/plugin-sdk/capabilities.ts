@@ -78,7 +78,7 @@ export const PLUGIN_CAPABILITIES: PluginCapability[] = [
   {
     permission: 'editor.panels',
     label: 'Add editor panels',
-    description: 'Reserved for plugins that add panels to the editor workspace.',
+    description: 'Allows the plugin to register panels that mount in the editor\'s left sidebar (custom inspectors, plugin dashboards, review queues).',
     risk: 'medium',
     surfaces: ['editor'],
   },

@@ -42,11 +42,28 @@ interface ActivateInstalledEditorPluginsOptions {
 
 const defaultFetch: FetchLike = (input, init) => globalThis.fetch(input, init)
 
+/**
+ * Append a cache-buster query string to plugin entrypoint URLs. The
+ * browser's dynamic-import cache otherwise pins each `/uploads/.../editor/index.js`
+ * forever within a session — when `pb-plugin dev` rewrites that file (or
+ * the user re-uploads a plugin), a soft reload would still execute the
+ * stale module. Mirrors the server-side worker host, which already appends
+ * `?v=Date.now()` for the same reason.
+ *
+ * Cost: a fresh module is fetched and parsed on every editor mount. Worth
+ * it — plugin code is small (kilobytes) and the cache hit-rate would be
+ * worse than useless if the on-disk bundle changed.
+ */
+function bustedImportUrl(url: string): string {
+  const sep = url.includes('?') ? '&' : '?'
+  return `${url}${sep}v=${Date.now()}`
+}
+
 const defaultImportEditorModule: ImportEditorModule = async (url) =>
-  await import(/* @vite-ignore */ url) as EditorPluginModule
+  await import(/* @vite-ignore */ bustedImportUrl(url)) as EditorPluginModule
 
 const defaultImportModulePack: ImportModulePack = async (url) =>
-  await import(/* @vite-ignore */ url) as PluginModulesEntrypointModule
+  await import(/* @vite-ignore */ bustedImportUrl(url)) as PluginModulesEntrypointModule
 
 function joinAssetPath(assetBasePath: string, entrypoint: string): string {
   return `${assetBasePath.replace(/\/+$/g, '')}/${entrypoint.replace(/^\/+/g, '')}`
@@ -78,6 +95,11 @@ export async function activateInstalledEditorPlugins(
   const payload = await listCmsPlugins(fetchImpl)
   for (const plugin of payload.plugins) {
     const manifest = manifestWithGrants(plugin.manifest, plugin.grantedPermissions)
+    // Cache the live settings snapshot so editor panels can read settings
+    // synchronously inside their render(). Done unconditionally — even for
+    // plugins without an editor entrypoint, since the snapshot might be
+    // consulted by another plugin's panel via cross-plugin runCommand etc.
+    pluginRuntime.setPluginSettings(plugin.id, plugin.settings)
     if (!plugin.enabled || plugin.lifecycleStatus === 'error' || !manifest.assetBasePath) {
       continue
     }

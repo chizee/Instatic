@@ -282,6 +282,20 @@ export interface InstalledPlugin {
   settings: Record<string, string | number | boolean>
   installedAt: string
   updatedAt: string
+  /**
+   * Recent worker-crash events for this plugin (newest first, capped to 10
+   * by the host). Only attached when the row is read through the admin
+   * `pluginsPayload` helper — internal repository reads return an empty
+   * array. Surfaced in the admin UI's "Recent issues" panel so site owners
+   * can see why a plugin is in `error` state without tailing server logs.
+   */
+  recentCrashes?: Array<{
+    id: string
+    pluginId: string
+    occurredAt: string
+    reason: string
+    stack: string | null
+  }>
 }
 
 export interface PluginAdminPageRoute extends Omit<PluginAdminPage, 'route'> {
@@ -324,6 +338,43 @@ export interface RegisteredPluginToolbarButton extends PluginToolbarButton {
   pluginId: string
 }
 
+/**
+ * Accent palette for the editor panel rail. Mirrors the four CSS-side
+ * accents already declared in `PanelRail` (mint, lilac, sky, peach).
+ */
+export type PluginEditorPanelAccent = 'mint' | 'lilac' | 'sky' | 'peach'
+
+/**
+ * Editor panel registered by a plugin via `editor.panels.register`. Mounts in
+ * the left sidebar's panel slot when the user opens it from the rail.
+ *
+ *   • `id` MUST start with `<pluginId>.` — namespace-locked at registration
+ *   • `iconName` is one of the icon files in the `pixel-art-icons` package
+ *     (e.g. `'box-stack'`, `'colors-swatch'`). The host renders that icon in
+ *     the rail.
+ *   • `component` is a real React component. The host renders it inside
+ *     the panel body — chrome (header + close button) is host-provided.
+ *
+ * The plugin's bundle externalizes `react` / `@pagebuilder/host-ui` /
+ * `@pagebuilder/host-hooks`, so the component runs against the host's
+ * React instance. See `definePluginPanel` in `builders/panel.ts`.
+ */
+export interface PluginEditorPanel {
+  id: string
+  label: string
+  iconName: string
+  accent?: PluginEditorPanelAccent
+  /** Optional keyboard shortcut hint shown in the rail tooltip. */
+  shortcutLabel?: string
+  component: import('react').ComponentType<{
+    panel: { id: string; pluginId: string; label: string }
+  }>
+}
+
+export interface RegisteredPluginEditorPanel extends PluginEditorPanel {
+  pluginId: string
+}
+
 export interface EditorPluginApi {
   editor: {
     commands: {
@@ -331,6 +382,15 @@ export interface EditorPluginApi {
     }
     toolbar: {
       addButton: (button: PluginToolbarButton) => void
+    }
+    panels: {
+      /**
+       * Register a left-sidebar panel that the user can open from the rail.
+       * Requires the `editor.panels` permission. The panel id MUST start
+       * with `<pluginId>.` — the runtime enforces the namespace at
+       * registration time.
+       */
+      register: (panel: PluginEditorPanel) => void
     }
     store: {
       read: () => EditorStore
@@ -351,44 +411,6 @@ export interface EditorPluginApi {
 
 export interface EditorPluginModule {
   activate: (api: EditorPluginApi) => void | Promise<void>
-}
-
-export interface PluginAdminAppApi {
-  cms: {
-    routes: {
-      fetch: (path: string, init?: RequestInit) => Promise<Response>
-      /**
-       * Validated JSON helper. The TypeBox schema is required — that's the whole
-       * point: deeply-typed responses without an unsafe `as T` cast at the
-       * call site. Plugins that prefer raw access can use `fetch(path)` and
-       * `.json()` directly.
-       */
-      json: <T extends import('@sinclair/typebox').TSchema>(
-        path: string,
-        schema: T,
-        init?: RequestInit,
-      ) => Promise<import('@sinclair/typebox').Static<T>>
-    }
-    storage: {
-      collection: (resourceId: string) => {
-        list: () => Promise<PluginRecord[]>
-        create: (data: Record<string, unknown>) => Promise<PluginRecord>
-        update: (recordId: string, data: Record<string, unknown>) => Promise<PluginRecord>
-        delete: (recordId: string) => Promise<void>
-      }
-    }
-    /**
-     * Read/update the plugin's persisted settings from inside its admin
-     * app. The host already renders a Settings form per-plugin, so most
-     * admin apps don't need to call these — they're here for plugins that
-     * want a custom configuration surface.
-     */
-    settings: {
-      get: <T extends string | number | boolean = string>(key: string) => T | undefined
-      getAll: () => Record<string, string | number | boolean>
-      update: (next: Record<string, unknown>) => Promise<Record<string, string | number | boolean>>
-    }
-  }
 }
 
 export type RouteMethod = 'GET' | 'POST' | 'PATCH' | 'DELETE'

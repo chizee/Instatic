@@ -1,12 +1,30 @@
 /**
- * Curated UI namespace handed to plugin admin apps.
+ * Host-internal UI namespace — bundles the existing `Plugin*` wrappers as
+ * one record for the host's own form-rendering code (e.g. the Plugin
+ * Settings dialog uses `pluginAdminUi.Switch` etc.).
  *
- * The components themselves live in `PluginAdminUiComponents.tsx` so React
- * Fast Refresh works (only-component-exports rule). This file just
- * assembles the named-export wrappers into a single record matching the
- * `PluginAdminUi` shape from the SDK.
+ * Plugin code no longer reaches into this namespace — plugins import the
+ * named primitives directly from `@pagebuilder/host-ui` (resolved via
+ * the host's import map at runtime). This file is internal host plumbing.
  */
-import type { PluginAdminUi } from '@core/plugin-sdk'
+import type { ComponentType } from 'react'
+import type {
+  PluginUiAlertProps,
+  PluginUiButtonProps,
+  PluginUiCardProps,
+  PluginUiCheckboxProps,
+  PluginUiCodeProps,
+  PluginUiEmptyStateProps,
+  PluginUiHeadingProps,
+  PluginUiInputProps,
+  PluginUiSearchBarProps,
+  PluginUiSelectProps,
+  PluginUiSeparatorProps,
+  PluginUiStackProps,
+  PluginUiSwitchProps,
+  PluginUiTextProps,
+  PluginUiTextareaProps,
+} from '@core/plugin-sdk'
 import {
   PluginAlert,
   PluginButton,
@@ -25,7 +43,25 @@ import {
   PluginTextarea,
 } from './PluginAdminUiComponents'
 
-export const pluginAdminUi: PluginAdminUi = {
+export interface PluginAdminUiNamespace {
+  Button: ComponentType<PluginUiButtonProps>
+  Input: ComponentType<PluginUiInputProps>
+  Textarea: ComponentType<PluginUiTextareaProps>
+  Select: ComponentType<PluginUiSelectProps>
+  Switch: ComponentType<PluginUiSwitchProps>
+  Checkbox: ComponentType<PluginUiCheckboxProps>
+  SearchBar: ComponentType<PluginUiSearchBarProps>
+  Stack: ComponentType<PluginUiStackProps>
+  Card: ComponentType<PluginUiCardProps>
+  Heading: ComponentType<PluginUiHeadingProps>
+  Text: ComponentType<PluginUiTextProps>
+  Separator: ComponentType<PluginUiSeparatorProps>
+  EmptyState: ComponentType<PluginUiEmptyStateProps>
+  Alert: ComponentType<PluginUiAlertProps>
+  Code: ComponentType<PluginUiCodeProps>
+}
+
+export const pluginAdminUi: PluginAdminUiNamespace = {
   Button: PluginButton,
   Input: PluginInput,
   Textarea: PluginTextarea,

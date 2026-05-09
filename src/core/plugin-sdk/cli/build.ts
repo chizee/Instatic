@@ -45,9 +45,39 @@ export async function readPluginDefinition(sourceDir: string): Promise<PluginDef
   return mod.default
 }
 
+/**
+ * Externals for plugin browser bundles (admin pages, editor entrypoints,
+ * canvas modules, frontend scripts).
+ *
+ * Bun.build leaves these names as bare imports. At runtime, the host's
+ * import map (`index.html`) resolves them to the host's React instance,
+ * design-system primitives, plugin SDK helpers, and editor/settings
+ * hooks — so plugins share host React + host UI without bundling a
+ * copy. This is what gives plugin bundles ~kilobyte sizes and keeps
+ * the editor's design-system contract stable across plugin upgrades.
+ *
+ * Server entrypoints DO NOT use this list — they're loaded by the host's
+ * Bun worker and don't need a browser host runtime.
+ */
+const BROWSER_EXTERNALS = [
+  'react',
+  'react/jsx-runtime',
+  'react/jsx-dev-runtime',
+  'react-dom',
+  '@pagebuilder/host-ui',
+  '@pagebuilder/host-hooks',
+  '@pagebuilder/plugin-sdk',
+]
+
+interface BundleOptions {
+  /** When true, omit the browser externals — use this for server-side bundles. */
+  serverSide?: boolean
+}
+
 async function bundleEntrypoint(
   sourcePath: string,
   outFile: string,
+  options: BundleOptions = {},
 ): Promise<void> {
   const result = await Bun.build({
     entrypoints: [sourcePath],
@@ -55,6 +85,7 @@ async function bundleEntrypoint(
     format: 'esm',
     splitting: false,
     minify: false,
+    external: options.serverSide ? [] : BROWSER_EXTERNALS,
   })
   if (!result.success) {
     const messages = result.logs.map((l) => l.message).join('\n')
@@ -68,11 +99,12 @@ async function bundleEntrypoint(
 }
 
 async function findEntrypoint(sourceDir: string, basename: string): Promise<string | null> {
-  for (const ext of ['ts', 'tsx', 'js', 'mjs']) {
+  // Prefer .tsx so plugin entrypoints can use JSX directly.
+  for (const ext of ['tsx', 'ts', 'js', 'mjs']) {
     const candidate = join(sourceDir, `${basename}.${ext}`)
     if (existsSync(candidate)) return candidate
   }
-  for (const ext of ['ts', 'tsx', 'js', 'mjs']) {
+  for (const ext of ['tsx', 'ts', 'js', 'mjs']) {
     const candidate = join(sourceDir, basename, `index.${ext}`)
     if (existsSync(candidate)) return candidate
   }
@@ -88,8 +120,16 @@ async function bundleAdminApps(
     if (page.content.kind !== 'app') continue
     const entry = page.content.entry
     const sourceCandidate = join(sourceDir, entry)
+    // Plugin source is .tsx (JSX) or .ts (no JSX). The manifest's `entry`
+    // field always points at the BUNDLED output (.js); we resolve to one
+    // of the typed sources here.
+    const sourceTsx = sourceCandidate.replace(/\.js$/, '.tsx')
     const sourceTs = sourceCandidate.replace(/\.js$/, '.ts')
-    const sourcePath = existsSync(sourceTs) ? sourceTs : sourceCandidate
+    const sourcePath = existsSync(sourceTsx)
+      ? sourceTsx
+      : existsSync(sourceTs)
+        ? sourceTs
+        : sourceCandidate
     if (!existsSync(sourcePath)) {
       throw new Error(`Admin app entry "${entry}" not found at ${sourcePath}`)
     }
@@ -180,9 +220,14 @@ export async function buildPlugin(
     }
   }
 
-  // 3. Editor / server / frontend entrypoints — passthrough bundle.
+  // 3. Editor / server / frontend entrypoints — passthrough bundle. Only
+  //    the server entrypoint runs in the host's Bun worker; the rest run
+  //    in the browser and externalize React + the host runtime packages
+  //    so plugins share host React via the editor's import map.
   if (editorSource) await bundleEntrypoint(editorSource, join(distDir, 'editor', 'index.js'))
-  if (serverSource) await bundleEntrypoint(serverSource, join(distDir, 'server', 'index.js'))
+  if (serverSource) {
+    await bundleEntrypoint(serverSource, join(distDir, 'server', 'index.js'), { serverSide: true })
+  }
   if (frontendSource && frontendOutputPath) {
     await bundleEntrypoint(frontendSource, join(distDir, frontendOutputPath))
   }

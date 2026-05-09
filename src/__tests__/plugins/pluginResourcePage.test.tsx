@@ -1,11 +1,12 @@
 import { afterEach, describe, expect, it } from 'bun:test'
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { PluginPageRenderer } from '@plugins/components/PluginPageRenderer/PluginPageRenderer'
 import type {
-  PluginAdminAppRenderFn,
+  PluginAdminAppComponent,
   PluginAdminPageRoute,
 } from '@core/plugin-sdk'
+import { usePluginRoutes } from '@admin/plugin-host-hooks'
 
 const originalFetch = globalThis.fetch
 
@@ -126,6 +127,32 @@ describe('PluginPageRenderer resource pages', () => {
       })
     }
 
+    function ApprovalsCounter() {
+      const routes = usePluginRoutes()
+      const [count, setCount] = useState<number | null>(null)
+      useEffect(() => {
+        let cancelled = false
+        void routes
+          .fetch('approvals')
+          .then((res) => res.json())
+          .then((body: { count: number }) => {
+            if (!cancelled) setCount(body.count)
+          })
+        return () => { cancelled = true }
+      }, [routes])
+      return <strong>{count === null ? 'Loading...' : `Approvals: ${count}`}</strong>
+    }
+
+    // Override fetch for the runtime route the plugin component calls.
+    const originalFetchScoped = globalThis.fetch
+    globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url === '/admin/api/cms/plugins/acme.demo/runtime/approvals') {
+        return json({ count: 1 })
+      }
+      return originalFetchScoped(input, init)
+    }
+
     render(
       <PluginPageRenderer
         page={{
@@ -142,26 +169,19 @@ describe('PluginPageRenderer resource pages', () => {
           },
         }}
         importModule={async (url) => {
-          expect(url).toBe('/uploads/plugins/acme.demo/1.0.0/admin/dashboard.js')
-          return {
-            default: ({ h, hooks, api }) => {
-              const [count, setCount] = hooks.useState<number | null>(null)
-              hooks.useEffect(() => {
-                let cancelled = false
-                void api.cms.storage.collection('approvals').list().then((records) => {
-                  if (!cancelled) setCount(records.length)
-                })
-                return () => { cancelled = true }
-              }, [])
-              return h('strong', null, count === null ? 'Loading...' : `Approvals: ${count}`)
-            },
-          }
+          // The host appends a `?v=<timestamp>` cache-buster — assert the
+          // base path matches and ignore the query string.
+          expect(url.split('?')[0]).toBe('/uploads/plugins/acme.demo/1.0.0/admin/dashboard.js')
+          return { default: ApprovalsCounter }
         }}
       />,
     )
 
+    // Plugin's component called `routes.fetch('approvals')` from
+    // `usePluginRoutes()` — the host scoped the URL into the plugin's
+    // runtime namespace and resolved with `{ count: 1 }`. If the plugin
+    // can render the count, the routes helper is wired correctly.
     expect(await screen.findByText('Approvals: 1')).toBeDefined()
-    expect(calls[0]?.input).toBe('/admin/api/cms/plugins/acme.demo/resources/approvals/records')
   })
 
   it('keeps stale async admin app loads from duplicating the visible plugin UI', async () => {
@@ -179,14 +199,14 @@ describe('PluginPageRenderer resource pages', () => {
       },
     }
 
-    type Resolver = (mod: { default: PluginAdminAppRenderFn }) => void
+    type Resolver = (mod: { default: PluginAdminAppComponent }) => void
     const imports: Resolver[] = []
     const importModule = async () =>
-      await new Promise<{ default: PluginAdminAppRenderFn }>((resolve) => {
+      await new Promise<{ default: PluginAdminAppComponent }>((resolve) => {
         imports.push(resolve)
       })
 
-    const renderFn: PluginAdminAppRenderFn = ({ h }) => h('strong', null, 'Plugin dashboard subtree')
+    const PluginComponent: PluginAdminAppComponent = () => <strong>Plugin dashboard subtree</strong>
 
     const { rerender } = render(<PluginPageRenderer page={{ ...appPage }} importModule={importModule} />)
 
@@ -201,8 +221,8 @@ describe('PluginPageRenderer resource pages', () => {
     })
 
     await act(async () => {
-      imports[0]({ default: renderFn })
-      imports[1]({ default: renderFn })
+      imports[0]({ default: PluginComponent })
+      imports[1]({ default: PluginComponent })
     })
 
     await waitFor(() => {

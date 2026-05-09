@@ -126,35 +126,101 @@ const records = await items.list()
 
 ## Admin Apps
 
-Admin app pages use manifest content kind `app` and default-export a render function. The plugin doesn't import React — the host passes a curated UI namespace, a hyperscript factory `h`, and a hooks bag, so plugin admin pages match the CMS design system without inventing their own:
+Admin app pages use manifest content kind `app` and default-export a real React component. Plugin authors write JSX, import React directly, and pull design-system primitives from `@pagebuilder/host-ui`:
 
-```ts
+```tsx
+// admin/dashboard.tsx
+import { useState } from 'react'
+import { Button, Card, Heading, Stack, Text } from '@pagebuilder/host-ui'
+import { usePluginRoutes } from '@pagebuilder/host-hooks'
 import { definePluginAdminApp } from '@pagebuilder/plugin-sdk'
 
-export default definePluginAdminApp(({ ui, h, hooks, api }) => {
-  const [count, setCount] = hooks.useState(0)
-  return h(ui.Card, {}, [
-    h(ui.Heading, { level: 2, key: 'h' }, 'Counter'),
-    h(ui.Stack, { gap: 12, key: 's' }, [
-      h(ui.Text, { variant: 'muted', key: 't' }, `Total clicks: ${count}`),
-      h(ui.Button, {
-        variant: 'primary',
-        onClick: () => setCount(count + 1),
-        key: 'b',
-      }, 'Increment'),
-    ]),
-  ])
-})
+function Dashboard() {
+  const routes = usePluginRoutes()
+  const [count, setCount] = useState(0)
+  return (
+    <Card>
+      <Stack gap={12}>
+        <Heading level={2}>Counter</Heading>
+        <Text variant="muted">Total clicks: {count}</Text>
+        <Button variant="primary" onClick={() => setCount(count + 1)}>
+          Increment
+        </Button>
+      </Stack>
+    </Card>
+  )
+}
+
+export default definePluginAdminApp(Dashboard)
 ```
 
-What the plugin gets:
+How this works under the hood:
 
-- **`ui`** — the design-system surface: `Button`, `Input`, `Textarea`, `Select`, `Switch`, `Checkbox`, `SearchBar`, `Stack`, `Card`, `Heading`, `Text`, `Separator`, `EmptyState`, `Alert`, `Code`. Each is a thin wrapper around the host's primitives — the props are the stable plugin-facing API.
-- **`h`** — `React.createElement`, used as `h(component, props, ...children)`.
-- **`hooks`** — `useState`, `useEffect`, `useMemo`, `useCallback`, `useRef`. Same React rules of hooks apply.
-- **`api`** — `cms.routes.fetch / json` and `cms.storage.collection(resourceId)` for backend access.
+- The plugin's bundle externalizes `react`, `react/jsx-runtime`, `@pagebuilder/host-ui`, `@pagebuilder/host-hooks`, and `@pagebuilder/plugin-sdk` — those names stay as bare imports in the output.
+- The host's editor injects an **import map** (`<script type="importmap">` in `index.html`) at boot that resolves those bare names to small shim modules in `public/runtime/`.
+- The shims re-export from `globalThis.__pagebuilder` — populated by `pluginRuntimeBootstrap.ts` with the editor's live React + design-system primitives.
+- Result: plugins **share the host's React instance** (no duplicate-React crash), share the host's design-system primitives (visual consistency), and ship tiny bundles (no React vendor blob, no design-system blob).
 
-The plugin's bundle has **zero React imports**: the host owns the React instance, eliminating duplicate-React mismatches and giving every plugin admin page consistent styling. Cleanup belongs in `useEffect`'s return — there's no separate `cleanup()` hook.
+You can `import` whatever React-compatible library you want — chart libraries, drag-and-drop, table grids — and they bundle into your plugin normally. Only the four bare names above are externalized.
+
+### Available host packages
+
+```ts
+// React itself, plus the JSX runtime
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
+
+// The host's design-system primitives (the named React components)
+import {
+  Alert, Button, Card, Checkbox, Code, EmptyState, Heading,
+  Input, SearchBar, Select, Separator, Stack, Switch, Text, Textarea,
+} from '@pagebuilder/host-ui'
+
+// Editor / settings / route helpers — real React hooks
+import {
+  useEditorStore,        // subscribe to the editor store (any selector)
+  usePluginSettings,     // plugin's settings snapshot, typed
+  usePluginContext,      // plugin id, version, surface name
+  usePluginRoutes,       // .fetch(path) / .json(path, schema)
+  useEditorCommand,      // run a registered command by id
+} from '@pagebuilder/host-hooks'
+
+// SDK builders
+import {
+  definePluginPanel,
+  definePluginAdminApp,
+  definePlugin,
+  defineModule,
+  defineComponent,
+  definePack,
+  permissions,
+} from '@pagebuilder/plugin-sdk'
+```
+
+### What the plugin's component receives
+
+Admin app components get a `page` prop:
+
+```tsx
+import type { PluginAdminAppProps } from '@pagebuilder/plugin-sdk'
+
+function Dashboard({ page }: PluginAdminAppProps) {
+  // page.pluginId, page.pluginSettings, page.title, ...
+}
+```
+
+Editor panel components get a `panel` prop:
+
+```tsx
+import type { PluginEditorPanelProps } from '@pagebuilder/plugin-sdk'
+
+function MyPanel({ panel }: PluginEditorPanelProps) {
+  // panel.id, panel.pluginId, panel.label
+}
+```
+
+### TypeScript setup
+
+For first-party plugins inside this monorepo, drop a `tsconfig.json` next to `pb-plugin.config.ts` with path aliases pointing at the host's source — see `examples/plugins/showcase/tsconfig.json`. For external plugins (separate repos), copy the type declarations from the published `@pagebuilder/plugin-sdk` package once it ships; until then, vendoring the host's `*.d.ts` files works.
 
 ## Plugin Settings
 
@@ -265,6 +331,79 @@ export function activate(api) {
   })
 }
 ```
+
+## Editor Panels (`editor.panels`)
+
+Plugins can register panels that mount in the editor's **left sidebar**. The user opens them from the rail just like the built-in panels (Layers, Site, Selectors, etc.). Plugins write a real React component — same React + host-ui imports as admin apps.
+
+**The host owns the panel chrome.** Title, close button, and the surrounding panel surface are rendered by the host using the same `PanelHeader` / docked-panel layout as every built-in panel. Your component renders only the **body content**. Don't add your own heading or close button — they'd duplicate the host's chrome.
+
+```tsx
+// editor/index.tsx
+import { useState } from 'react'
+import { Button, Card, Stack, Text } from '@pagebuilder/host-ui'
+import { useEditorCommand, usePluginRoutes } from '@pagebuilder/host-hooks'
+import {
+  definePluginPanel,
+  type EditorPluginApi,
+  type EditorPluginModule,
+} from '@pagebuilder/plugin-sdk'
+
+function ReviewPanel() {
+  const routes = usePluginRoutes()
+  const runCommand = useEditorCommand()
+  const [pending, setPending] = useState<number>(0)
+
+  return (
+    <Stack gap={12}>
+      <Text variant="muted">{pending} item{pending === 1 ? '' : 's'} waiting</Text>
+      <Card>
+        <Button
+          variant="primary"
+          onClick={async () => {
+            await runCommand('acme.workflow.refresh')
+            const res = await routes.fetch('queue')
+            const body = await res.json() as { pending: number }
+            setPending(body.pending)
+          }}
+        >
+          Refresh
+        </Button>
+      </Card>
+    </Stack>
+  )
+}
+
+const reviewPanel = definePluginPanel({
+  id: 'acme.workflow.review',     // MUST start with `<pluginId>.`
+  label: 'Review queue',
+  iconName: 'box-stack',          // see "Available icons" below
+  accent: 'mint',                 // optional: 'mint' | 'lilac' | 'sky' | 'peach'
+  shortcutLabel: 'Ctrl+Shift+W',  // optional tooltip hint
+  component: ReviewPanel,
+})
+
+const mod: EditorPluginModule = {
+  activate(api: EditorPluginApi) {
+    api.editor.panels.register(reviewPanel)
+  },
+}
+export default mod
+```
+
+The `useEditorStore` hook lets the panel react to editor state — selection, active page, breakpoint, anything the editor store carries. Only mutating actions are gated by permissions (`editor.store.write` for `useEditorStore.setState` calls, `cms.storage` for plugin-owned record helpers).
+
+### Available icons
+
+Plugins pick from a curated set of icon names imported by the host:
+
+```text
+box, box-stack, circle-alert, ai-settings-solid, bulletlist-2-sharp,
+colors-swatch, files-stack-2, images, paint-bucket, ruler-dimension,
+text-start-t
+```
+
+Unknown names render with a generic box icon — request an icon by opening an issue and we'll add the import.
 
 ## Canvas Modules (`modules.register`)
 
