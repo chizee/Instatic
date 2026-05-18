@@ -403,7 +403,7 @@ For each, a "Manage…" command that deep-links to the panel + a "Create …" co
 | Rename / Duplicate / Delete content document | subcommand |
 | Create collection… | open `ContentCollectionCreateDialog` |
 | Collection settings… | open `ContentCollectionSettingsDialog` |
-| Open Media picker (for inserting media) | open `MediaPickerDialog` |
+| Open Media picker (for inserting media) | open `MediaPickerModal` |
 
 ### 4.9 Data workspace
 

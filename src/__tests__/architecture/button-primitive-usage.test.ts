@@ -90,7 +90,6 @@ const ALLOWLIST = new Set([
   // custom contenteditable editing surface and is intentionally deferred from
   // this admin shell refactor.
   'admin/pages/content/components/ContentExplorerPanel/ContentExplorerPanel.tsx',
-  'admin/pages/content/components/MediaPickerDialog/MediaPickerDialog.tsx',
   'admin/pages/content/RichMarkdownEditor.tsx',
 
   // ── §8.3 Sub-micro pill controls inside a status badge ──────────────────

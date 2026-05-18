@@ -6,23 +6,25 @@ import { Settings2SolidIcon } from 'pixel-art-icons/icons/settings-2-solid'
 import { VideoSolidIcon } from 'pixel-art-icons/icons/video-solid'
 import type { CmsMediaAsset } from '@core/persistence'
 import { useEditorStore } from '@site/store/store'
-import { contentCollectionHasField } from '@core/content/fields'
-import type {
-  ContentCollection,
-  ContentEntry,
-  ContentEntryStatus,
-  ContentUserReference,
-} from '@core/content/schemas'
+import { dataTableHasField } from '@core/data/fields'
+import {
+  POST_TYPE_FIELD_FEATURED_MEDIA,
+  POST_TYPE_FIELD_SEO_TITLE,
+  type DataTable,
+  type DataRow,
+  type DataRowStatus,
+  type DataUserReference,
+} from '@core/data/schemas'
 import propertiesStyles from '../../../site/panels/PropertiesPanel/PropertiesPanel.module.css'
 import { PanelHeader } from '@admin/shared/PanelHeader'
 import styles from '../../ContentPage.module.css'
 
 interface ContentSettingsPanelProps {
-  selectedEntry: ContentEntry | null
-  authors: ContentUserReference[]
+  selectedEntry: DataRow | null
+  authors: DataUserReference[]
   authorsLoading: boolean
-  collections: ContentCollection[]
-  selectedCollection: ContentCollection | null
+  collections: DataTable[]
+  selectedCollection: DataTable | null
   loading: boolean
   slug: string
   slugId: string
@@ -31,41 +33,39 @@ interface ContentSettingsPanelProps {
   seoDescription: string
   seoDescriptionId: string
   publicPath: string
-  mediaAssets: CmsMediaAsset[]
-  mediaLoading: boolean
   mediaError: string | null
   featuredMediaId: string | null
   featuredMediaAsset: CmsMediaAsset | null
   canEditEntry: boolean
   canPublishEntry: boolean
   canChangeAuthor: boolean
-  onCollectionChange: (collectionId: string) => void
+  onCollectionChange: (tableId: string) => void
   onAuthorChange: (authorUserId: string) => void
   onSlugChange: (value: string) => void
   onSeoTitleChange: (value: string) => void
   onSeoDescriptionChange: (value: string) => void
-  onStatusChange: (status: ContentEntryStatus) => void
+  onStatusChange: (status: DataRowStatus) => void
   onChooseFeaturedMedia: () => void
   onClearFeaturedMedia: () => void
 }
 
-function contentAuthor(entry: ContentEntry): ContentEntry['author'] {
+function contentAuthor(entry: DataRow): DataUserReference | null {
   return entry.author ?? entry.createdBy ?? entry.updatedBy ?? null
 }
 
-function contentAuthorLabel(entry: ContentEntry): string {
+function contentAuthorLabel(entry: DataRow): string {
   const user = contentAuthor(entry)
   if (user?.displayName) return user.displayName
   if (user?.email) return user.email
   return 'Unknown user'
 }
 
-function contentAuthorRoleLabel(entry: ContentEntry): string | null {
+function contentAuthorRoleLabel(entry: DataRow): string | null {
   const author = contentAuthor(entry)
   return author?.roleName ?? author?.roleSlug ?? null
 }
 
-function authorOptionLabel(author: ContentUserReference): string {
+function authorOptionLabel(author: DataUserReference): string {
   return author.displayName || author.email || 'Unknown user'
 }
 
@@ -83,8 +83,6 @@ export function ContentSettingsPanel({
   seoDescription,
   seoDescriptionId,
   publicPath,
-  mediaAssets,
-  mediaLoading,
   mediaError,
   featuredMediaId,
   featuredMediaAsset,
@@ -101,8 +99,8 @@ export function ContentSettingsPanel({
   onClearFeaturedMedia,
 }: ContentSettingsPanelProps) {
   const setPropertiesPanel = useEditorStore((s) => s.setPropertiesPanel)
-  const seoEnabled = contentCollectionHasField(selectedCollection, 'seo')
-  const featuredMediaEnabled = contentCollectionHasField(selectedCollection, 'featuredMedia')
+  const seoEnabled = selectedCollection ? dataTableHasField(selectedCollection, POST_TYPE_FIELD_SEO_TITLE) : false
+  const featuredMediaEnabled = selectedCollection ? dataTableHasField(selectedCollection, POST_TYPE_FIELD_FEATURED_MEDIA) : false
   const authorRoleLabel = selectedEntry ? contentAuthorRoleLabel(selectedEntry) : null
   const selectedAuthor = selectedEntry ? contentAuthor(selectedEntry) : null
   const authorOptions = selectedAuthor && !authors.some((author) => author.id === selectedAuthor.id)
@@ -146,7 +144,7 @@ export function ContentSettingsPanel({
               <span>Collection</span>
               <Select
                 aria-label="Collection"
-                value={selectedEntry?.collectionId ?? selectedCollection?.id ?? ''}
+                value={selectedEntry?.tableId ?? selectedCollection?.id ?? ''}
                 disabled={!canEditSelectedEntry}
                 onChange={(event) => onCollectionChange(event.target.value)}
                 options={collections.map((collection) => ({
@@ -195,7 +193,7 @@ export function ContentSettingsPanel({
                 value={selectedEntry?.status ?? 'draft'}
                 disabled={!canChangeStatus}
                 onChange={(event) => {
-                  const nextStatus = event.target.value as ContentEntryStatus
+                  const nextStatus = event.target.value as DataRowStatus
                   if (nextStatus === 'published' && !canPublishEntry) return
                   if (nextStatus !== 'published' && !canEditEntry) return
                   onStatusChange(nextStatus)
@@ -256,10 +254,10 @@ export function ContentSettingsPanel({
                   <Button
                     variant="secondary"
                     size="sm"
-                    disabled={!canEditSelectedEntry || mediaLoading}
+                    disabled={!canEditSelectedEntry}
                     onClick={onChooseFeaturedMedia}
                   >
-                    {mediaLoading ? 'Loading media' : 'Choose featured media'}
+                    {featuredMediaAsset ? 'Change featured media' : 'Choose featured media'}
                   </Button>
                   {featuredMediaId && (
                     <Button
@@ -272,9 +270,6 @@ export function ContentSettingsPanel({
                     </Button>
                   )}
                 </div>
-                {mediaAssets.length > 0 && !featuredMediaAsset && featuredMediaId && (
-                  <small className={styles.muted}>Selected media is not in the current library results.</small>
-                )}
               </div>
             )}
           </>
