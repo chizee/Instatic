@@ -38,6 +38,7 @@ import { useAdminUi } from '@admin/state/adminUi'
 import { Button } from '@ui/components/Button'
 import type { PixelArtIconComponent } from '@core/dashboard'
 import type { OnboardingFacts, OnboardingStepState } from '../hooks/useOnboardingState'
+import { LiquidProgressRing } from './LiquidProgressRing'
 import styles from './OnboardingPanel.module.css'
 
 interface StepDef {
@@ -102,69 +103,6 @@ export interface OnboardingPanelProps {
   onDismiss: () => void
 }
 
-/**
- * OnboardingRing — large circular progress badge sized for the header
- * column. Drawn with the standard "dasharray = arcLength, full
- * circumference gap" pattern so the math is unambiguous across browsers
- * and the round end-cap doesn't visually spill past the intended length.
- *
- * The track + progress arc share the same circle geometry; we draw two
- * `<circle>` elements layered on top of each other. The progress arc is
- * rotated -90° around its centre so the start sits at 12 o'clock and the
- * fill grows clockwise as completion grows.
- */
-function OnboardingRing({ value, total }: { value: number; total: number }) {
-  const size = 112
-  const stroke = 9
-  const r = (size - stroke) / 2
-  const cx = size / 2
-  const cy = size / 2
-  const c = 2 * Math.PI * r
-
-  const pct = total === 0 ? 0 : Math.max(0, Math.min(1, value / total))
-  const arcLength = c * pct
-
-  return (
-    <div className={styles.ring} style={{ width: size, height: size }}>
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-hidden="true">
-        <circle
-          cx={cx}
-          cy={cy}
-          r={r}
-          fill="none"
-          stroke="rgba(255, 255, 255, 0.08)"
-          strokeWidth={stroke}
-        />
-        {pct > 0 && (
-          <circle
-            cx={cx}
-            cy={cy}
-            r={r}
-            fill="none"
-            stroke="var(--rail-tint-mint)"
-            strokeWidth={stroke}
-            strokeLinecap="round"
-            strokeDasharray={`${arcLength} ${c}`}
-            transform={`rotate(-90 ${cx} ${cy})`}
-          />
-        )}
-      </svg>
-      <div className={styles.ringText}>
-        {/* Single inline span so the number and "/N" share a natural
-            text baseline. Using two flex children with baseline-align
-            instead would push both to the container's top — flex
-            baseline alignment without a parent baseline reference
-            doesn't vertically center, it aligns to the first item's
-            baseline at the top of the cross axis. */}
-        <span className={styles.ringFraction}>
-          {value}
-          <small>/{total}</small>
-        </span>
-      </div>
-    </div>
-  )
-}
-
 function stateLabel(state: OnboardingStepState): string {
   if (state === 'done') return 'Completed'
   if (state === 'active') return 'In progress'
@@ -191,7 +129,7 @@ export function OnboardingPanel({ facts, onDismiss }: OnboardingPanelProps) {
     <section className={styles.onboarding}>
       <header className={styles.head}>
         <div className={styles.headBlock}>
-          <OnboardingRing value={done} total={total} />
+          <LiquidProgressRing value={done} total={total} />
           <h2 className={styles.headTitle}>Finish setting up your site</h2>
           <p className={styles.headDesc}>
             {done} of {total} steps complete. Hit each one in any order — your site is live the

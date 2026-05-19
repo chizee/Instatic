@@ -85,51 +85,6 @@
     gap: 6px;
 }
 
-/* ── Progress ring ───────────────────────────────────────────────── */
-.ring {
-    position: relative;
-    flex-shrink: 0;
-}
-
-.ring svg {
-    display: block;
-}
-
-.ringText {
-    position: absolute;
-    inset: 0;
-    /* `place-items: center` centers the single inline-flex child both
-       horizontally and vertically — the bug in the earlier revision
-       was using flex+`align-items: baseline` on this container, which
-       (without a parent baseline reference) pulled the text to the
-       container's top edge instead of centering it. */
-    display: grid;
-    place-items: center;
-}
-
-.ringFraction {
-    /* Inline-flex with baseline alignment puts the big numerator and
-       the small denominator on the same baseline as a single visual
-       fraction ("3/5"). Inline-flex (not plain inline) lets us set
-       a tiny gap without falling back to word-spacing tricks. */
-    display: inline-flex;
-    align-items: baseline;
-    gap: 1px;
-    font-family: var(--font-mono);
-    font-size: 36px;
-    font-weight: 600;
-    color: var(--editor-text-bright);
-    letter-spacing: -0.04em;
-    line-height: 1;
-}
-
-.ringFraction small {
-    color: var(--editor-text-muted);
-    font-size: 14px;
-    font-weight: 500;
-    letter-spacing: -0.02em;
-}
-
 /* ── Steps stack ─────────────────────────────────────────────────── */
 .steps {
     list-style: none;
