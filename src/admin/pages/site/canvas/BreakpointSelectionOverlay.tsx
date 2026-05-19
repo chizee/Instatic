@@ -44,7 +44,7 @@
  * and clipped by the canvas root.
  */
 
-import { useContext, useEffect, useEffectEvent, useRef, type CSSProperties } from 'react'
+import { use, useEffect, useEffectEvent, useRef, type CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
 import { useEditorStore } from '@site/store/store'
 import { useEditorPermissions } from '@site/editorPermissionsContext'
@@ -110,7 +110,7 @@ export function BreakpointSelectionOverlay({
   const ringRefs = useRef<Map<string, HTMLDivElement | null>>(new Map())
   const hoverRef = useRef<HTMLDivElement>(null)
   const toolbarRef = useRef<HTMLDivElement>(null)
-  const viewportActions = useContext(CanvasViewportActionsContext)
+  const viewportActions = use(CanvasViewportActionsContext)
 
   // Hover only renders when the hovered node isn't already part of the
   // selection — otherwise the two rings would stack and the hover ring
@@ -163,7 +163,7 @@ export function BreakpointSelectionOverlay({
   // re-arms when the *identity* of what's being tracked changes — captured
   // by selectionKey (a serialized form of selectedNodeIds) plus hover and
   // toolbar visibility flags.
-  const tickOnce = useEffectEvent((viewport: HTMLDivElement) => {
+  const tickOnce = useEffectEvent((viewport: HTMLElement) => {
     for (const id of selectedNodeIds) {
       positionRing(ringRefs.current.get(id) ?? null, id, viewport)
     }

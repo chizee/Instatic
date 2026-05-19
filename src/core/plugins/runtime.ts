@@ -1,4 +1,5 @@
 import type { StoreApi } from 'zustand'
+import type { EditorStore } from '@site/store/types'
 import {
   createCmsPluginResourceRecord,
   deleteCmsPluginResourceRecord,
@@ -27,14 +28,13 @@ import {
  * only valid inside the editor canvas (Site / Content / Data / Media
  * pages).
  */
-type EditorStoreState = Record<string, unknown>
-let editorStoreApi: StoreApi<EditorStoreState> | null = null
+let editorStoreApi: StoreApi<EditorStore> | null = null
 
 export function bindEditorStoreApi(api: StoreApi<unknown>): void {
-  editorStoreApi = api as StoreApi<EditorStoreState>
+  editorStoreApi = api as StoreApi<EditorStore>
 }
 
-function requireEditorStore(): StoreApi<EditorStoreState> {
+function requireEditorStore(): StoreApi<EditorStore> {
   if (!editorStoreApi) {
     throw new Error(
       '[plugin-runtime] editor store accessed before initialization. ' +
@@ -366,7 +366,16 @@ export function createEditorPluginApi(
         },
         transaction(mutate) {
           assertPluginPermission(manifest, 'editor.store.write')
-          requireEditorStore().setState((state) => {
+          // The underlying editor store is created with the immer middleware
+          // (see `useEditorStore` in `@site/store/store`), so `setState`
+          // accepts a void-returning mutator that mutates the draft in place.
+          // The bare `StoreApi<EditorStore>` type can't see the immer-augmented
+          // signature, hence the cast — runtime behavior is fully covered by
+          // immer's `produce`.
+          const setState = requireEditorStore().setState as (
+            updater: (state: EditorStore) => void,
+          ) => void
+          setState((state) => {
             mutate(state)
           })
         },

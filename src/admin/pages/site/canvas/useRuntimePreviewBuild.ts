@@ -121,10 +121,11 @@ export function useRuntimePreviewBuild({
   // semantically-equivalent template-context object rotations, so listing the
   // raw inputs as deps would cause spurious rebuilds.
   const kickOffBuild = useEffectEvent(() => {
-    if (page === null) return null
+    if (page === null || buildSignature === null) return null
     const pageId = page.id
     const capturedBreakpointId = breakpointId
     const capturedTemplateContext = templateContext
+    const capturedSignature = buildSignature
 
     let cancelled = false
     let cleanup: (() => void) | null = null
@@ -148,7 +149,7 @@ export function useRuntimePreviewBuild({
           const materialized = materializeRuntimePreviewDocument(result)
           cleanup = materialized.revoke
           setBuild({
-            signature: buildSignature,
+            signature: capturedSignature,
             srcDoc: materialized.html,
             diagnostics: result.diagnostics,
             status: result.diagnostics.some((d) => d.severity === 'error')
@@ -159,7 +160,7 @@ export function useRuntimePreviewBuild({
         .catch((error) => {
           if (cancelled) return
           setBuild({
-            signature: buildSignature,
+            signature: capturedSignature,
             srcDoc: '',
             diagnostics: [
               {

@@ -7,7 +7,7 @@
  *
  * §3 of the master plan: TypeBox at every untyped boundary.
  */
-import { Type, type Static } from '@core/utils/typeboxHelpers'
+import { Type } from '@core/utils/typeboxHelpers'
 
 // ─── Media provider ───────────────────────────────────────────────────────────
 // GET /admin/api/cms/media?query=<q>&limit=<n>

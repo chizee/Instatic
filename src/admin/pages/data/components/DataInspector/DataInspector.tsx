@@ -13,9 +13,6 @@ import { TableSettings } from './TableSettings'
 // Types
 // ---------------------------------------------------------------------------
 
-/** Inspector shows either a selected row's detail or the table settings. */
-type InspectorMode = 'row' | 'settings'
-
 export interface DataInspectorProps {
   table: DataTable
   /** All tables — used for relation target lookups. */

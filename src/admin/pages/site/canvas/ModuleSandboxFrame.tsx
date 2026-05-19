@@ -7,6 +7,7 @@ import {
 } from '@core/module-engine/dependencies'
 import type { SiteDocument } from '@core/page-tree/schemas'
 import { useEditorStore } from '@site/store/store'
+import type { FocusedPanel } from '@site/store/slices/uiSlice'
 import { Button } from '@ui/components/Button'
 import { CanvasModulePlaceholder } from '@ui/components/CanvasModulePlaceholder'
 import { PackageSolidIcon } from 'pixel-art-icons/icons/package-solid'
@@ -231,7 +232,7 @@ interface SandboxIframeBodyProps {
   classCSS: string
   nodeId: string
   selectNode: (id: string) => void
-  setFocusedPanel: (panel: string) => void
+  setFocusedPanel: (panel: FocusedPanel) => void
 }
 
 function SandboxIframeBody({

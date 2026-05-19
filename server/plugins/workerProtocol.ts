@@ -32,7 +32,7 @@
 import { Type, type Static, type TSchema } from '@sinclair/typebox'
 import { Value } from '@sinclair/typebox/value'
 import { PropertySchemaSchema } from '@core/module-engine/propertySchema'
-import type { PluginManifest, PluginPermission } from '@core/plugin-sdk'
+import type { PluginManifest } from '@core/plugin-sdk'
 
 // ---------------------------------------------------------------------------
 // Shared serialization helpers
