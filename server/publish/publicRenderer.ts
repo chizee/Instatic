@@ -37,11 +37,14 @@ export async function renderPublishedSnapshot(
   if (!page) throw new Error(`Published page "${snapshot.pageId}" not found in snapshot`)
   await hookBus.emit('publish.before', { siteId: snapshot.site.id, pageId: snapshot.pageId })
   const cssBundle = buildSiteCssBundle(snapshot.site, registry)
-  // Both pre-fetches run in parallel — neither depends on the other and
-  // both hit the DB independently.
-  const [loopData, mediaAssets] = await Promise.all([
+  // Pre-fetches run in parallel — none depends on the others and each hits
+  // the DB independently. `collectFrontendInjections` is folded in here
+  // because `publishPage` doesn't need it; running it concurrently saves a
+  // round-trip on every published-page render.
+  const [loopData, mediaAssets, frontendInjections] = await Promise.all([
     prefetchLoopData(page, snapshot.site, ctx.db, ctx.url),
     prefetchMediaAssets(page, registry, ctx.db),
+    collectFrontendInjections(ctx.db),
   ])
   const baseHtml = publishPage(page, snapshot.site, registry, {
     runtimeAssets: snapshot.runtimeAssets,
@@ -60,7 +63,7 @@ export async function renderPublishedSnapshot(
       ? { entryStack: [], route: buildRouteFrame(ctx.url.toString()) }
       : undefined,
   }).html
-  const withInjections = injectFrontendAssets(baseHtml, await collectFrontendInjections(ctx.db))
+  const withInjections = injectFrontendAssets(baseHtml, frontendInjections)
   const filtered = await hookBus.applyFilter('publish.html', withInjections)
   await hookBus.emit('publish.after', { siteId: snapshot.site.id, pageId: snapshot.pageId })
   return filtered
@@ -76,9 +79,10 @@ export async function renderPublishedDataRowTemplate(
 
   await hookBus.emit('publish.before', { siteId: snapshot.site.id, pageId: template.id })
   const cssBundle = buildSiteCssBundle(snapshot.site, registry)
-  const [loopData, mediaAssets] = await Promise.all([
+  const [loopData, mediaAssets, frontendInjections] = await Promise.all([
     prefetchLoopData(template, snapshot.site, ctx.db, ctx.url),
     prefetchMediaAssets(template, registry, ctx.db),
+    collectFrontendInjections(ctx.db),
   ])
   const baseHtml = publishPage(template, snapshot.site, registry, {
     // Seed the entry stack with the published row + route frame from
@@ -99,7 +103,7 @@ export async function renderPublishedDataRowTemplate(
     mediaAssets,
     loopEndpointBaseUrl: LOOP_ENDPOINT_BASE_URL,
   }).html
-  const withInjections = injectFrontendAssets(baseHtml, await collectFrontendInjections(ctx.db))
+  const withInjections = injectFrontendAssets(baseHtml, frontendInjections)
   const filtered = await hookBus.applyFilter('publish.html', withInjections)
   await hookBus.emit('publish.after', { siteId: snapshot.site.id, pageId: template.id })
   return filtered

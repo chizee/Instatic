@@ -13,6 +13,7 @@
 import type { Page, PageNode, SiteDocument } from '@core/page-tree/schemas'
 import type { AnyModuleDefinition, IModuleRegistry } from '@core/module-engine/types'
 import { resolveProps } from '@core/page-tree/selectors'
+import { selectVisualComponentById } from '@core/page-tree/siteSelectors'
 import { resolveDynamicProps, type TemplateRenderDataContext } from '@core/templates/dynamicBindings'
 import { buildPageFrame, buildSiteFrame, buildRouteFrame } from '@core/templates/contextFrames'
 import { classNamesForClassIds } from '@core/page-tree/classNames'
@@ -249,7 +250,7 @@ function renderVisualComponentRef(node: PageNode, ctx: RenderContext): string {
       ? (node.props.propOverrides as Record<string, unknown>)
       : {}
 
-  const vc = ctx.site.visualComponents.find((v) => v.id === componentId)
+  const vc = selectVisualComponentById(ctx.site, componentId)
   if (!vc) {
     return `<!-- pb: unknown component "${escapeHtml(componentId)}" -->`
   }

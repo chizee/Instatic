@@ -31,7 +31,6 @@ import {
 } from './catalog'
 
 export const EDITOR_PREFS_KEY = 'pb-editor-prefs'
-const EDITOR_PREFS_CHANGED_EVENT = 'pb-editor-prefs-changed'
 
 // ---------------------------------------------------------------------------
 // Schema and defaults — derived from the catalog
@@ -69,17 +68,90 @@ const DEFAULT_EDITOR_PREFS: Required<EditorPrefs> = (() => {
 })()
 
 // ---------------------------------------------------------------------------
-// Storage IO
+// Storage IO + in-memory cache
+//
+// `readEditorPrefs` is called on every preference read (auto-save scheduler
+// tick, every `useEditorPreference` mount, every command-palette telemetry
+// fan-out, etc.). The dominant per-read cost is `JSON.parse` + TypeBox
+// validation (~0.5 ms), not `localStorage.getItem` itself. We cache the
+// PARSED snapshot alongside the raw string it was parsed from. Every read
+// still does a fast `localStorage.getItem` and compares raw strings: a
+// match returns the cached object (no JSON.parse, no TypeBox); a mismatch
+// re-parses.
+//
+// Why compare the raw string instead of just trusting a write-through cache?
+//   - Tests and `localStorage.clear()` mutate storage without going through
+//     `writeEditorPrefs`. The raw-string check picks those changes up on
+//     the next read.
+//   - Cross-tab updates fire a `storage` event; the listener clears the
+//     cache so subscribers re-read fresh.
+//   - The subscription path is centralised through `notifySubscribers`
+//     ("invalidate, then notify") so listeners never observe a stale cache
+//     after a change event.
+//
+// SSR / non-browser callers (architecture tests, etc.) just see a cold read
+// every time because `globalThis.window` is undefined.
 // ---------------------------------------------------------------------------
+
+interface CachedPrefsEntry {
+  /** Raw string read from `localStorage`, or `null` if storage was empty. */
+  raw: string | null
+  /** Parsed snapshot. Shared by reference across reads — never mutated. */
+  prefs: EditorPrefs
+}
+
+let cachedPrefsEntry: CachedPrefsEntry | undefined
+
+/** Subscribers registered via `subscribeToEditorPrefsChanged`. */
+const prefsChangeSubscribers = new Set<() => void>()
+
+/**
+ * Once-per-load wiring of the cross-tab storage listener. Lazy so SSR /
+ * test environments without `window` don't crash on module load.
+ */
+let storageListenerWired = false
+function ensureStorageListenerWired(): void {
+  if (storageListenerWired) return
+  const win = globalThis.window
+  if (!win) return
+  storageListenerWired = true
+  win.addEventListener('storage', (event) => {
+    if (event.key !== EDITOR_PREFS_KEY) return
+    // Invalidate FIRST so subscribers re-read fresh data.
+    cachedPrefsEntry = undefined
+    notifySubscribers()
+  })
+}
+
+function notifySubscribers(): void {
+  for (const listener of prefsChangeSubscribers) {
+    try {
+      listener()
+    } catch (err) {
+      // One bad subscriber must not break the rest.
+      console.error('[editor-preferences] subscriber threw:', err)
+    }
+  }
+}
 
 function readEditorPrefs(): EditorPrefs {
   const raw = globalThis.localStorage?.getItem(EDITOR_PREFS_KEY) ?? null
-  return parseJsonWithFallback(raw, EditorPrefsSchema, DEFAULT_EDITOR_PREFS)
+  if (cachedPrefsEntry && cachedPrefsEntry.raw === raw) {
+    return cachedPrefsEntry.prefs
+  }
+  const prefs = parseJsonWithFallback(raw, EditorPrefsSchema, DEFAULT_EDITOR_PREFS)
+  cachedPrefsEntry = { raw, prefs }
+  return prefs
 }
 
 function writeEditorPrefs(next: EditorPrefs): void {
+  const serialized = JSON.stringify(next)
+  // Update the cache synchronously so subscribers reading the latest value
+  // out of `notifyEditorPrefsChanged` see the new prefs even before the
+  // localStorage write completes.
+  cachedPrefsEntry = { raw: serialized, prefs: next }
   try {
-    globalThis.localStorage?.setItem(EDITOR_PREFS_KEY, JSON.stringify(next))
+    globalThis.localStorage?.setItem(EDITOR_PREFS_KEY, serialized)
     notifyEditorPrefsChanged()
   } catch {
     // localStorage may be unavailable (private mode, quota, etc.). Editor
@@ -151,29 +223,23 @@ export function readAutoSaveDelayMs(): number {
 
 // ---------------------------------------------------------------------------
 // Event bus
+//
+// Same-tab and cross-tab notifications fan out through a single in-process
+// subscriber list (`prefsChangeSubscribers`). The cross-tab `storage`
+// listener installed by `ensureStorageListenerWired` invalidates the cache
+// before notifying subscribers, so listeners that call back into
+// `readEditorPrefs` during the callback always see the fresh value.
 // ---------------------------------------------------------------------------
 
 function notifyEditorPrefsChanged(): void {
-  try {
-    globalThis.window?.dispatchEvent(new Event(EDITOR_PREFS_CHANGED_EVENT))
-  } catch {
-    // Preferences are best-effort local UI state.
-  }
+  notifySubscribers()
 }
 
 export function subscribeToEditorPrefsChanged(listener: () => void): () => void {
-  const win = globalThis.window
-  if (!win) return () => {}
-
-  const handleStorage = (event: StorageEvent) => {
-    if (event.key === EDITOR_PREFS_KEY) listener()
-  }
-
-  win.addEventListener(EDITOR_PREFS_CHANGED_EVENT, listener)
-  win.addEventListener('storage', handleStorage)
+  ensureStorageListenerWired()
+  prefsChangeSubscribers.add(listener)
   return () => {
-    win.removeEventListener(EDITOR_PREFS_CHANGED_EVENT, listener)
-    win.removeEventListener('storage', handleStorage)
+    prefsChangeSubscribers.delete(listener)
   }
 }
 

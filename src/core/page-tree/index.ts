@@ -59,3 +59,10 @@ export {
 export { cloneScopedClassesForNodeMap } from './scopedClassClone'
 
 export { getParent } from './selectors'
+
+export {
+  selectPageById,
+  selectPagesById,
+  selectVisualComponentById,
+  selectVisualComponentsById,
+} from './siteSelectors'
