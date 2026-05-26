@@ -2,7 +2,7 @@ import { useEffect, useSyncExternalStore } from 'react'
 import { useEditorStore } from '@site/store/store'
 import type { LeftSidebarPanelId } from '@site/store/slices/uiSlice'
 import type { IconComponent } from 'pixel-art-icons/types'
-import { Bulletlist2SharpIcon } from 'pixel-art-icons/icons/bulletlist-2-sharp'
+import { DatabaseSolidIcon } from 'pixel-art-icons/icons/database-solid'
 import { AiSettingsSolidIcon } from 'pixel-art-icons/icons/ai-settings-solid'
 import { FilesStack2SolidIcon } from 'pixel-art-icons/icons/files-stack-2-solid'
 import { ImagesSolidIcon } from 'pixel-art-icons/icons/images-solid'
@@ -53,8 +53,8 @@ const PRIMARY_RAIL_ITEMS: PrimaryRailItem[] = [
   {
     id: 'layers',
     label: 'Layers',
-    icon: Bulletlist2SharpIcon,
-    iconName: 'bulletlist-2-sharp',
+    icon: DatabaseSolidIcon,
+    iconName: 'database-solid',
     accent: 'mint',
     // No keyboard shortcut registered for the Layers panel.
   },

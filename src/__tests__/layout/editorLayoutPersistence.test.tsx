@@ -415,7 +415,7 @@ describe('AdminCanvasLayout — permanent panel rail', () => {
       'panel-rail-colors',
     ])
     expect(primaryButtons.map((button) => button.getAttribute('data-icon'))).toEqual([
-      'bulletlist-2-sharp',
+      'database-solid',
       'ai-settings-solid',
       'files-stack-2',
       'paint-bucket',
