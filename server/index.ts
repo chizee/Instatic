@@ -6,7 +6,7 @@ import { readServerConfig } from './config'
 import { DEV_ORIGIN_ALLOWLIST, stampSocketIp } from './auth/security'
 import { startConversationPurgeTick } from './ai/boot'
 
-await import('./domEnvironment')
+await import('./richtextSanitizer')
 const { handleServerRequest } = await import('./router')
 const { activateInstalledServerPlugins } = await import('./plugins/runtime')
 const { mediaStorageRegistry } = await import('@core/plugins/mediaStorageRegistry')

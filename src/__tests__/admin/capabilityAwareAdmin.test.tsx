@@ -62,6 +62,8 @@ function makeTable(id: string, name: string, slug: string) {
     singularLabel: name.replace(/s$/, ''),
     pluralLabel: name,
     primaryFieldId: 'title',
+    system: id === 'posts' || id === 'pages' || id === 'components',
+    rowCount: 0,
     fields: [
       { type: 'text', id: 'title', label: 'Title', required: true, builtIn: true },
       { type: 'text', id: 'slug', label: 'Slug', required: true, builtIn: true },
@@ -185,7 +187,7 @@ describe('capability-aware admin UI', () => {
             slug: 'own-draft',
           }, {
             authorUserId: 'editor_1',
-            author: { id: 'editor_1', email: 'editor@example.com', displayName: 'Editor', roleName: 'Editor' },
+            author: { id: 'editor_1', email: 'editor@example.com', displayName: 'Editor', roleSlug: 'editor', roleName: 'Editor' },
             createdByUserId: 'editor_1',
             updatedByUserId: 'editor_1',
           })],
@@ -241,7 +243,7 @@ describe('capability-aware admin UI', () => {
             slug: 'publishable-draft',
           }, {
             authorUserId: 'editor_1',
-            author: { id: 'editor_1', email: 'editor@example.com', displayName: 'Editor', roleName: 'Editor' },
+            author: { id: 'editor_1', email: 'editor@example.com', displayName: 'Editor', roleSlug: 'editor', roleName: 'Editor' },
             createdByUserId: 'editor_1',
             updatedByUserId: 'editor_1',
           })],
@@ -256,7 +258,7 @@ describe('capability-aware admin UI', () => {
           }, {
             status: 'published',
             authorUserId: 'editor_1',
-            author: { id: 'editor_1', email: 'editor@example.com', displayName: 'Editor', roleName: 'Editor' },
+            author: { id: 'editor_1', email: 'editor@example.com', displayName: 'Editor', roleSlug: 'editor', roleName: 'Editor' },
             createdByUserId: 'editor_1',
             updatedByUserId: 'editor_1',
             publishedByUserId: 'editor_1',

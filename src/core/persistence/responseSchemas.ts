@@ -22,6 +22,7 @@
  */
 
 import { Type, type Static } from '@sinclair/typebox'
+import { DataRowSchema } from '@core/data/schemas'
 export { BundlePreviewSchema, ImportResultSchema } from '@core/data/bundleSchema'
 export type { BundlePreview, ImportResult } from '@core/data/bundleSchema'
 
@@ -208,21 +209,21 @@ export const CmsSiteEnvelopeSchema = Type.Object(
 
 /**
  * Envelope for GET /admin/api/cms/pages.
- * Inner items are DataRow objects; validated shallowly here — deep validation
- * runs via pageFromRow + validatePages in the adapter.
+ * Inner items are DataRow objects; validate them at the HTTP boundary before
+ * converting through pageFromRow + validatePages in the adapter.
  */
 export const CmsPagesEnvelopeSchema = Type.Object(
-  { rows: Type.Optional(Type.Array(Type.Unknown())) },
+  { rows: Type.Optional(Type.Array(DataRowSchema)) },
   { additionalProperties: true },
 )
 
 /**
  * Envelope for GET /admin/api/cms/components.
- * Inner items are DataRow objects; validated shallowly here — deep validation
- * runs via visualComponentFromRow + validateVisualComponents in the adapter.
+ * Inner items are DataRow objects; validate them at the HTTP boundary before
+ * converting through visualComponentFromRow + validateVisualComponents.
  */
 export const CmsComponentsEnvelopeSchema = Type.Object(
-  { rows: Type.Optional(Type.Array(Type.Unknown())) },
+  { rows: Type.Optional(Type.Array(DataRowSchema)) },
   { additionalProperties: true },
 )
 

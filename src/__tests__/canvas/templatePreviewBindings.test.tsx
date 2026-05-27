@@ -31,6 +31,8 @@ const postsTable = {
     { type: 'text', id: 'seoTitle', label: 'SEO title', builtIn: true },
     { type: 'longText', id: 'seoDescription', label: 'SEO description', builtIn: true },
   ],
+  system: true,
+  rowCount: 0,
   createdByUserId: null,
   updatedByUserId: null,
   createdAt: '2026-05-01T10:00:00.000Z',

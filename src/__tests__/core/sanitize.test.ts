@@ -199,13 +199,16 @@ describe('sanitizeRichtext() in server runtime', () => {
     }
   })
 
-  it('preserves safe richtext when the server DOM environment is installed', () => {
+  it('preserves safe richtext through the explicit server sanitizer without DOM globals', () => {
     const result = Bun.spawnSync({
       cmd: [
         process.execPath,
         '-e',
         `
-          await import('./server/domEnvironment.ts')
+          await import('./server/richtextSanitizer.ts')
+          if ('window' in globalThis || 'document' in globalThis) {
+            throw new Error('server sanitizer installed DOM globals')
+          }
           const { sanitizeRichtext } = await import('./src/core/sanitize.ts')
           const sanitized = sanitizeRichtext('<p><strong>Safe</strong> <a href="https://example.com">Link</a></p>')
           if (!sanitized.includes('<strong>Safe</strong>')) {

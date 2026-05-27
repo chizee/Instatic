@@ -6,7 +6,6 @@ import { CmsSiteEnvelopeSchema, CmsPagesEnvelopeSchema, CmsComponentsEnvelopeSch
 import { validateSite, validatePages, validateVisualComponents } from './validate'
 import { pageFromRow } from '@core/data/pageFromRow'
 import { visualComponentFromRow } from '@core/data/componentFromRow'
-import type { DataRow } from '@core/data/schemas'
 import type { VisualComponent } from '@core/visualComponents/schemas'
 
 type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
@@ -120,7 +119,7 @@ export class CmsAdapter implements IPersistenceAdapter {
     const shell: SiteShell = validateSite(shellBody.site)
 
     // Convert DataRow[] → VisualComponent[] → validate
-    const rawVCRows = (componentsBody.rows ?? []) as DataRow[]
+    const rawVCRows = componentsBody.rows ?? []
     const rawVCs = rawVCRows.flatMap((row) => {
       const vc = visualComponentFromRow(row)
       return vc ? [vc] : []
@@ -128,7 +127,7 @@ export class CmsAdapter implements IPersistenceAdapter {
     const visualComponents: VisualComponent[] = validateVisualComponents(rawVCs)
 
     // Convert DataRow[] → Page[] → validate (passes VCs for ref/slot checks)
-    const rawDataRows = (pagesBody.rows ?? []) as DataRow[]
+    const rawDataRows = pagesBody.rows ?? []
     const rawPages = rawDataRows.map(pageFromRow)
     const pages = validatePages(shell, rawPages, visualComponents)
 

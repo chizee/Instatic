@@ -35,7 +35,7 @@ type DOMPurifyHookNode = {
   setAttribute?: (name: string, value: string) => void
 }
 
-type DOMPurifyRuntime = {
+export type DOMPurifyRuntime = {
   sanitize?: (value: string, config?: Config) => unknown
   addHook?: (hookName: 'afterSanitizeAttributes', callback: (node: DOMPurifyHookNode) => void) => void
 }
@@ -44,19 +44,23 @@ type DOMPurifyFactory = DOMPurifyRuntime & ((window: Window) => DOMPurifyRuntime
 
 const importedDOMPurify = DOMPurify as unknown as DOMPurifyFactory
 let activeDOMPurify: DOMPurifyRuntime | null = null
-let linkHookInstalled = false
+const purifiersWithLinkHook = new WeakSet<object>()
 
 function installLinkHook(purifier: DOMPurifyRuntime): DOMPurifyRuntime {
-  if (!linkHookInstalled && typeof purifier.addHook === 'function') {
+  if (!purifiersWithLinkHook.has(purifier) && typeof purifier.addHook === 'function') {
     purifier.addHook('afterSanitizeAttributes', (node) => {
       if (node.tagName === 'A') {
         node.setAttribute?.('target', '_blank')
         node.setAttribute?.('rel', 'noopener noreferrer')
       }
     })
-    linkHookInstalled = true
+    purifiersWithLinkHook.add(purifier)
   }
   return purifier
+}
+
+export function configureRichtextSanitizer(purifier: DOMPurifyRuntime | null): void {
+  activeDOMPurify = purifier ? installLinkHook(purifier) : null
 }
 
 function getDOMPurify(): DOMPurifyRuntime | null {
@@ -148,8 +152,10 @@ export function sanitizeRichtext(
   const str = String(value ?? '')
   if (!str.trim()) return ''
 
-  // DOMPurify requires a live DOM. In environments where it's unavailable
-  // (e.g. one-off server scripts), fall back to plain-text stripping.
+  // DOMPurify requires a live DOM-backed runtime. The browser has one
+  // naturally; the Bun server installs an explicit runtime in
+  // `server/richtextSanitizer.ts`. One-off scripts that do neither get the
+  // conservative plain-text fallback.
   const purifier = getDOMPurify()
   if (!purifier || typeof purifier.sanitize !== 'function') {
     const stripped = stripHtmlFallback(str)

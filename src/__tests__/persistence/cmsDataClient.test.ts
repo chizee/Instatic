@@ -15,6 +15,53 @@ import {
   listCmsDataAuthors,
 } from '@core/persistence/cmsData'
 
+const now = '2026-05-01T10:00:00.000Z'
+
+function tableFixture(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'posts',
+    name: 'Posts',
+    slug: 'posts',
+    kind: 'postType',
+    routeBase: '/posts',
+    singularLabel: 'Post',
+    pluralLabel: 'Posts',
+    primaryFieldId: 'title',
+    fields: [],
+    system: true,
+    rowCount: 0,
+    createdByUserId: null,
+    updatedByUserId: null,
+    createdAt: now,
+    updatedAt: now,
+    ...overrides,
+  }
+}
+
+function rowFixture(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'row_1',
+    tableId: 'posts',
+    cells: { title: 'Hello', slug: 'hello', body: '', featuredMedia: null, seoTitle: '', seoDescription: '' },
+    slug: 'hello',
+    status: 'draft',
+    authorUserId: null,
+    createdByUserId: null,
+    updatedByUserId: null,
+    publishedByUserId: null,
+    author: null,
+    createdBy: null,
+    updatedBy: null,
+    publishedBy: null,
+    createdAt: now,
+    updatedAt: now,
+    publishedAt: null,
+    scheduledPublishAt: null,
+    deletedAt: null,
+    ...overrides,
+  }
+}
+
 describe('CMS data client', () => {
   it('lists data tables with session credentials', async () => {
     const calls: Array<{ input: RequestInfo | URL; init?: RequestInit }> = []
@@ -22,21 +69,7 @@ describe('CMS data client', () => {
     const tables = await listCmsDataTables(async (input, init) => {
       calls.push({ input, init })
       return new Response(JSON.stringify({
-        tables: [{
-          id: 'posts',
-          name: 'Posts',
-          slug: 'posts',
-          kind: 'postType',
-          routeBase: '/posts',
-          singularLabel: 'Post',
-          pluralLabel: 'Posts',
-          primaryFieldId: 'title',
-          fields: [],
-          createdByUserId: null,
-          updatedByUserId: null,
-          createdAt: '2026-05-01T10:00:00.000Z',
-          updatedAt: '2026-05-01T10:00:00.000Z',
-        }],
+        tables: [tableFixture()],
       }), { status: 200 })
     })
 
@@ -62,16 +95,7 @@ describe('CMS data client', () => {
     const table = await updateCmsDataTable('posts', update, async (input, init) => {
       calls.push({ input, init })
       return new Response(JSON.stringify({
-        table: {
-          id: 'posts',
-          kind: 'postType',
-          primaryFieldId: 'title',
-          createdByUserId: null,
-          updatedByUserId: null,
-          createdAt: '2026-05-01T10:00:00.000Z',
-          updatedAt: '2026-05-01T10:02:00.000Z',
-          ...update,
-        },
+        table: tableFixture({ updatedAt: '2026-05-01T10:02:00.000Z', ...update }),
       }), { status: 200 })
     })
 
@@ -107,14 +131,11 @@ describe('CMS data client', () => {
     const table = await createCmsDataTable(input, async (requestInput, init) => {
       calls.push({ input: requestInput, init })
       return new Response(JSON.stringify({
-        table: {
+        table: tableFixture({
           id: 'products',
-          createdByUserId: null,
-          updatedByUserId: null,
-          createdAt: '2026-05-01T10:00:00.000Z',
-          updatedAt: '2026-05-01T10:00:00.000Z',
+          system: false,
           ...input,
-        },
+        }),
       }), { status: 201 })
     })
 
@@ -142,17 +163,10 @@ describe('CMS data client', () => {
     await createCmsDataRow('posts', { cells: { title: 'Hello' } }, async (input, init) => {
       calls.push({ input, init })
       return new Response(JSON.stringify({
-        row: {
-          id: 'row_1',
-          tableId: 'posts',
-          status: 'draft',
-          authorUserId: null,
+        row: rowFixture({
           cells: { title: 'Hello', slug: '', body: '', featuredMedia: null, seoTitle: '', seoDescription: '' },
-          createdAt: '2026-05-01T10:00:00.000Z',
-          updatedAt: '2026-05-01T10:00:00.000Z',
-          publishedAt: null,
-          scheduledPublishAt: null,
-        },
+          slug: '',
+        }),
       }), { status: 201 })
     })
 
@@ -216,23 +230,23 @@ describe('CMS data client', () => {
     await saveCmsDataRowDraft('row_1', draft, async (input, init) => {
       calls.push({ input, init })
       return new Response(JSON.stringify({
-        row: {
-          id: 'row_1',
-          tableId: 'posts',
-          status: 'draft',
+        row: rowFixture({
           authorUserId: null,
           cells: draft.cells,
-          createdAt: '2026-05-01T10:00:00.000Z',
           updatedAt: '2026-05-01T10:01:00.000Z',
-          publishedAt: null,
-          scheduledPublishAt: null,
-        },
+        }),
       }), { status: 200 })
     })
 
     await publishCmsDataRow('row_1', async (input, init) => {
       calls.push({ input, init })
-      return new Response(JSON.stringify({ row: { id: 'row_1', status: 'published' } }), { status: 200 })
+      return new Response(JSON.stringify({
+        row: rowFixture({
+          status: 'published',
+          publishedByUserId: 'user_owner',
+          publishedAt: '2026-05-01T10:02:00.000Z',
+        }),
+      }), { status: 200 })
     })
 
     expect(calls[0]).toMatchObject({
@@ -256,17 +270,10 @@ describe('CMS data client', () => {
     const row = await updateCmsDataRowStatus('row_1', 'unpublished', async (input, init) => {
       calls.push({ input, init })
       return new Response(JSON.stringify({
-        row: {
-          id: 'row_1',
-          tableId: 'posts',
+        row: rowFixture({
           status: 'unpublished',
-          authorUserId: null,
-          cells: { title: 'Hello', slug: 'hello', body: '# Hello', featuredMedia: null, seoTitle: '', seoDescription: '' },
-          createdAt: '2026-05-01T10:00:00.000Z',
           updatedAt: '2026-05-01T10:03:00.000Z',
-          publishedAt: null,
-          scheduledPublishAt: null,
-        },
+        }),
       }), { status: 200 })
     })
 
@@ -288,17 +295,10 @@ describe('CMS data client', () => {
     const row = await updateCmsDataRowTable('row_1', 'products', async (input, init) => {
       calls.push({ input, init })
       return new Response(JSON.stringify({
-        row: {
-          id: 'row_1',
+        row: rowFixture({
           tableId: 'products',
-          status: 'draft',
-          authorUserId: null,
-          cells: { title: 'Hello', slug: 'hello', body: '', featuredMedia: null, seoTitle: '', seoDescription: '' },
-          createdAt: '2026-05-01T10:00:00.000Z',
           updatedAt: '2026-05-01T10:03:00.000Z',
-          publishedAt: null,
-          scheduledPublishAt: null,
-        },
+        }),
       }), { status: 200 })
     })
 
@@ -320,17 +320,10 @@ describe('CMS data client', () => {
     const row = await updateCmsDataRowAuthor('row_1', 'user_author_2', async (input, init) => {
       calls.push({ input, init })
       return new Response(JSON.stringify({
-        row: {
-          id: 'row_1',
-          tableId: 'posts',
-          status: 'draft',
+        row: rowFixture({
           authorUserId: 'user_author_2',
-          cells: { title: 'Hello', slug: 'hello', body: '', featuredMedia: null, seoTitle: '', seoDescription: '' },
-          createdAt: '2026-05-01T10:00:00.000Z',
           updatedAt: '2026-05-01T10:03:00.000Z',
-          publishedAt: null,
-          scheduledPublishAt: null,
-        },
+        }),
       }), { status: 200 })
     })
 
@@ -352,38 +345,26 @@ describe('CMS data client', () => {
     await deleteCmsDataRow('row_1', async (input, init) => {
       calls.push({ input, init })
       return new Response(JSON.stringify({
-        row: {
-          id: 'row_1',
-          tableId: 'posts',
-          status: 'draft',
-          authorUserId: null,
-          cells: { title: 'Hello', slug: 'hello', body: '', featuredMedia: null, seoTitle: '', seoDescription: '' },
-          createdAt: '2026-05-01T10:00:00.000Z',
+        row: rowFixture({
           updatedAt: '2026-05-01T10:03:00.000Z',
-          publishedAt: null,
-          scheduledPublishAt: null,
-        },
+        }),
       }), { status: 200 })
     })
 
     await deleteCmsDataTable('products', async (input, init) => {
       calls.push({ input, init })
       return new Response(JSON.stringify({
-        table: {
+        table: tableFixture({
           id: 'products',
           name: 'Products',
           slug: 'products',
-          kind: 'postType',
+          kind: 'data',
           routeBase: '/products',
           singularLabel: 'Product',
           pluralLabel: 'Products',
-          primaryFieldId: 'title',
-          fields: [],
-          createdByUserId: null,
-          updatedByUserId: null,
-          createdAt: '2026-05-01T10:00:00.000Z',
+          system: false,
           updatedAt: '2026-05-01T10:03:00.000Z',
-        },
+        }),
       }), { status: 200 })
     })
 
@@ -402,5 +383,17 @@ describe('CMS data client', () => {
       listCmsDataTables(async () =>
         new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 })),
     ).rejects.toThrow('Unauthorized')
+  })
+
+  it('rejects malformed table payloads at the HTTP boundary', async () => {
+    await expect(
+      listCmsDataTables(async () =>
+        new Response(JSON.stringify({
+          tables: [{
+            id: 'bad-table',
+            slug: 'bad-table',
+          }],
+        }), { status: 200 })),
+    ).rejects.toThrow('/tables/0')
   })
 })

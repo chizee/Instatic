@@ -143,10 +143,9 @@ function renderStandardNode(
  * a meaningful fallback (skeleton, "Loading…" text, etc.).
  *
  * Sanitisation: `sanitizeRichtext` is called on the placeholder string.
- * At publish time the server has no DOM (no DOMPurify), so the call falls
- * back to `stripHtmlFallback` — plain-text stripping. This is acceptable
- * hardening: module authors get their fallback text preserved; any injected
- * `<script>` / `<style>` content is removed before it reaches the page artefact.
+ * The Bun server configures an explicit DOMPurify runtime at boot, so safe
+ * semantic fallback markup is preserved while scripts, event handlers, and
+ * unsafe URLs are stripped before they reach the page artefact.
  */
 function renderHolePlaceholder(
   node: PageNode,
@@ -158,8 +157,6 @@ function renderHolePlaceholder(
   ctx.holeNodeIds?.add(node.id)
 
   const rawPlaceholder = def.staticPlaceholder?.(node.props as never) ?? ''
-  // Server-side sanitise — no DOM available at publish time, so sanitizeRichtext
-  // falls back to stripHtmlFallback (strips all tags). Acceptable for hardening.
   const sanitized = rawPlaceholder ? sanitizeRichtext(rawPlaceholder) : ''
 
   const safeId = escapeHtml(node.id)

@@ -11,9 +11,9 @@
  *   escapeHtml() here would double-escape ampersands in query strings.
  *
  * - Richtext / HTML props (`richtext` / `html` / `*richtext` / `*html`):
- *   passed through sanitizeRichtext() (DOMPurify when DOM is available,
- *   regex strip otherwise) as defense-in-depth on top of the editor-side
- *   sanitisation at write time.
+ *   passed through sanitizeRichtext() (DOMPurify when a runtime is available,
+ *   conservative tag stripping otherwise) as defense-in-depth on top of the
+ *   editor-side sanitisation at write time.
  *
  * - Plain strings: HTML-escaped via escapeHtml().
  *
@@ -56,7 +56,7 @@ function isRichtextKey(key: string): boolean {
  *
  * - String props → escapeHtml()
  * - URL props → isSafeUrl() (unsafe → '#'), no HTML escape (module's safeUrl() handles that)
- * - Richtext / HTML props → sanitizeRichtext() (DOMPurify; regex fallback)
+ * - Richtext / HTML props → sanitizeRichtext() (DOMPurify; text fallback)
  * - Non-string props → unchanged
  */
 export function escapeProps(
@@ -75,8 +75,8 @@ export function escapeProps(
       // DOMPurify runs at write time (editor/Properties Panel boundary); this is a
       // second pass at the publisher boundary so that corrupted or injected richtext
       // values cannot reach the published HTML unsanitized.
-      // sanitizeRichtext falls back to a regex strip if DOMPurify is unavailable
-      // (e.g. server-side Bun context with no DOM).
+      // sanitizeRichtext falls back to conservative tag stripping only in
+      // runtimes that have not installed DOMPurify (for example one-off scripts).
       escaped[key] = sanitizeRichtext(value)
     } else if (isUrlKey(key)) {
       // URLs: block javascript: and vbscript: schemes; pass safe URLs through raw

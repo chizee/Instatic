@@ -55,29 +55,45 @@ const roles = [
   },
 ]
 
-const users = [
-  {
-    id: 'owner_1',
-    email: 'hello@davidbabinec.com',
-    displayName: 'hello@davidbabinec.com',
-    status: 'active',
-    role: roles[0],
-    capabilities: roles[0].capabilities,
-    lastLoginAt: null,
-    createdAt: now,
-    updatedAt: now,
-  },
-  {
-    id: 'user_1',
-    email: 'test@test.com',
-    displayName: 'Tester One',
+function userFixture(overrides: Partial<CmsCurrentUser>): CmsCurrentUser {
+  return {
+    id: 'user',
+    email: 'user@example.com',
+    displayName: 'User',
     status: 'active',
     role: roles[2],
     capabilities: roles[2].capabilities,
     lastLoginAt: null,
+    failedLoginCount: 0,
+    lockedUntil: null,
+    passwordUpdatedAt: null,
+    mfaEnabled: false,
+    mfaEnabledAt: null,
+    mfaRecoveryCodesRemaining: 0,
+    avatarMediaId: null,
+    avatarUrl: null,
+    gravatarHash: '',
     createdAt: now,
     updatedAt: now,
-  },
+    ...overrides,
+  }
+}
+
+const users = [
+  userFixture({
+    id: 'owner_1',
+    email: 'hello@davidbabinec.com',
+    displayName: 'hello@davidbabinec.com',
+    role: roles[0],
+    capabilities: roles[0].capabilities,
+  }),
+  userFixture({
+    id: 'user_1',
+    email: 'test@test.com',
+    displayName: 'Tester One',
+    role: roles[2],
+    capabilities: roles[2].capabilities,
+  }),
 ]
 
 const auditEvents = [

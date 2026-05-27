@@ -29,51 +29,57 @@ interface CmsStepUpInput {
   mfaCode?: string
 }
 
-export interface CmsCurrentUser {
-  id: string
-  email: string
-  displayName: string
-  status: 'active' | 'suspended'
-  role: {
-    id: string
-    slug: string
-    name: string
-    description: string
-    isSystem: boolean
-    capabilities: string[]
-  }
-  capabilities: string[]
-  lastLoginAt: string | null
-  failedLoginCount: number
-  lockedUntil: string | null
-  passwordUpdatedAt: string | null
-  mfaEnabled: boolean
-  mfaEnabledAt: string | null
-  mfaRecoveryCodesRemaining: number
+export const CmsCurrentUserRoleSchema = Type.Object({
+  id: Type.String(),
+  slug: Type.String(),
+  name: Type.String(),
+  description: Type.String(),
+  isSystem: Type.Boolean(),
+  capabilities: Type.Array(Type.String()),
+})
+
+export type CmsCurrentUserRole = Static<typeof CmsCurrentUserRoleSchema>
+
+export const CmsCurrentUserSchema = Type.Object({
+  id: Type.String(),
+  email: Type.String(),
+  displayName: Type.String(),
+  status: Type.Union([Type.Literal('active'), Type.Literal('suspended')]),
+  role: CmsCurrentUserRoleSchema,
+  capabilities: Type.Array(Type.String()),
+  lastLoginAt: Type.Union([Type.String(), Type.Null()]),
+  failedLoginCount: Type.Number(),
+  lockedUntil: Type.Union([Type.String(), Type.Null()]),
+  passwordUpdatedAt: Type.Union([Type.String(), Type.Null()]),
+  mfaEnabled: Type.Boolean(),
+  mfaEnabledAt: Type.Union([Type.String(), Type.Null()]),
+  mfaRecoveryCodesRemaining: Type.Number(),
   /**
    * Identifier of the media asset backing the avatar, or null when the user
    * relies on the Gravatar identicon fallback.
    */
-  avatarMediaId: string | null
+  avatarMediaId: Type.Union([Type.String(), Type.Null()]),
   /**
    * Resolved public path of the avatar image (e.g. `/uploads/abc-portrait.png`)
    * when one is uploaded, otherwise null. The Gravatar fallback URL is built
    * client-side from `gravatarHash`.
    */
-  avatarUrl: string | null
+  avatarUrl: Type.Union([Type.String(), Type.Null()]),
   /**
    * SHA-256 hex of the normalized email — drives the Gravatar identicon URL.
    * Always populated for authenticated users.
    */
-  gravatarHash: string
-  createdAt: string
-  updatedAt: string
-}
+  gravatarHash: Type.String(),
+  createdAt: Type.String(),
+  updatedAt: Type.String(),
+})
+
+export type CmsCurrentUser = Static<typeof CmsCurrentUserSchema>
 
 const CurrentUserEnvelope = Type.Object(
   {
-    user: Type.Optional(Type.Unknown()),
-    role: Type.Optional(Type.Unknown()),
+    user: CmsCurrentUserSchema,
+    role: Type.Optional(CmsCurrentUserRoleSchema),
     capabilities: Type.Optional(Type.Array(Type.String())),
   },
   { additionalProperties: true },
@@ -207,25 +213,24 @@ export async function getCurrentCmsUser(
     credentials: 'include',
   })
   const body = await readEnvelope(res, CurrentUserEnvelope, `CMS current user failed with ${res.status}`)
-  if (!body.user || typeof body.user !== 'object') throw new Error('CMS current user response was missing user')
-  return body.user as CmsCurrentUser
+  return body.user
 }
 
 // ─── Self-profile mutations (Account → Profile tab) ─────────────────────────
 
 const MeAvatarEnvelope = Type.Object(
-  { user: Type.Optional(Type.Unknown()) },
+  { user: CmsCurrentUserSchema },
   { additionalProperties: true },
 )
 
 const MeUserEnvelope = Type.Object(
-  { user: Type.Optional(Type.Unknown()) },
+  { user: CmsCurrentUserSchema },
   { additionalProperties: true },
 )
 
 const PasswordChangeEnvelope = Type.Object(
   {
-    user: Type.Optional(Type.Unknown()),
+    user: CmsCurrentUserSchema,
     revokedSessions: Type.Optional(Type.Number()),
   },
   { additionalProperties: true },
@@ -238,7 +243,7 @@ const TotpStartEnvelope = Type.Object({
 
 const RecoveryCodesEnvelope = Type.Object(
   {
-    user: Type.Optional(Type.Unknown()),
+    user: CmsCurrentUserSchema,
     recoveryCodes: Type.Array(Type.String()),
   },
   { additionalProperties: true },
@@ -268,10 +273,7 @@ export async function uploadCurrentUserAvatar(
     MeAvatarEnvelope,
     `CMS avatar upload failed with ${res.status}`,
   )
-  if (!body.user || typeof body.user !== 'object') {
-    throw new Error('CMS avatar upload response was missing user')
-  }
-  return body.user as CmsCurrentUser
+  return body.user
 }
 
 /**
@@ -292,10 +294,7 @@ export async function deleteCurrentUserAvatar(
     MeAvatarEnvelope,
     `CMS avatar delete failed with ${res.status}`,
   )
-  if (!body.user || typeof body.user !== 'object') {
-    throw new Error('CMS avatar delete response was missing user')
-  }
-  return body.user as CmsCurrentUser
+  return body.user
 }
 
 export async function changeCurrentUserPassword(
@@ -314,10 +313,7 @@ export async function changeCurrentUserPassword(
     PasswordChangeEnvelope,
     `CMS password change failed with ${res.status}`,
   )
-  if (!body.user || typeof body.user !== 'object') {
-    throw new Error('CMS password change response was missing user')
-  }
-  return body.user as CmsCurrentUser
+  return body.user
 }
 
 export async function startCurrentUserTotpSetup(
@@ -351,10 +347,7 @@ export async function enableCurrentUserTotp(
     RecoveryCodesEnvelope,
     `CMS MFA enable failed with ${res.status}`,
   )
-  if (!body.user || typeof body.user !== 'object') {
-    throw new Error('CMS MFA enable response was missing user')
-  }
-  return { user: body.user as CmsCurrentUser, recoveryCodes: body.recoveryCodes }
+  return { user: body.user, recoveryCodes: body.recoveryCodes }
 }
 
 export async function disableCurrentUserTotp(
@@ -370,10 +363,7 @@ export async function disableCurrentUserTotp(
     MeUserEnvelope,
     `CMS MFA disable failed with ${res.status}`,
   )
-  if (!body.user || typeof body.user !== 'object') {
-    throw new Error('CMS MFA disable response was missing user')
-  }
-  return body.user as CmsCurrentUser
+  return body.user
 }
 
 export async function regenerateCurrentUserRecoveryCodes(
@@ -389,10 +379,7 @@ export async function regenerateCurrentUserRecoveryCodes(
     RecoveryCodesEnvelope,
     `CMS recovery code regeneration failed with ${res.status}`,
   )
-  if (!body.user || typeof body.user !== 'object') {
-    throw new Error('CMS recovery code response was missing user')
-  }
-  return { user: body.user as CmsCurrentUser, recoveryCodes: body.recoveryCodes }
+  return { user: body.user, recoveryCodes: body.recoveryCodes }
 }
 
 // ─── Sessions (Account → Sessions tab) ───────────────────────────────────────
@@ -459,7 +446,7 @@ export async function revokeCmsSession(
 const CmsStepUpResponseSchema = Type.Object({
   ok: Type.Boolean(),
   stepUpExpiresAt: Type.String(),
-  user: Type.Optional(Type.Unknown()),
+  user: Type.Optional(CmsCurrentUserSchema),
 }, { additionalProperties: true })
 
 /**
@@ -487,12 +474,9 @@ export async function stepUpCms(
     CmsStepUpResponseSchema,
     `CMS step-up failed with ${res.status}`,
   )
-  if (body.user !== undefined && (body.user === null || typeof body.user !== 'object')) {
-    throw new Error('CMS step-up response user was invalid')
-  }
   return {
     stepUpExpiresAt: body.stepUpExpiresAt,
-    user: body.user as CmsCurrentUser | undefined,
+    user: body.user,
   }
 }
 

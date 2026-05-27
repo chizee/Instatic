@@ -26,7 +26,7 @@ import { Type, type Static } from '@core/utils/typeboxHelpers'
 // DataRowStatus
 // ---------------------------------------------------------------------------
 
-const DataRowStatusSchema = Type.Union([
+export const DataRowStatusSchema = Type.Union([
   Type.Literal('draft'),
   Type.Literal('published'),
   Type.Literal('unpublished'),
@@ -320,7 +320,7 @@ export type DataTableListItem = Static<typeof DataTableListItemSchema>
 // DataRowCells
 // ---------------------------------------------------------------------------
 
-const DataRowCellsSchema = Type.Record(Type.String(), Type.Unknown())
+export const DataRowCellsSchema = Type.Record(Type.String(), Type.Unknown())
 
 export type DataRowCells = Static<typeof DataRowCellsSchema>
 
@@ -328,7 +328,7 @@ export type DataRowCells = Static<typeof DataRowCellsSchema>
 // DataUserReference (was: ContentUserReference)
 // ---------------------------------------------------------------------------
 
-const DataUserReferenceSchema = Type.Object({
+export const DataUserReferenceSchema = Type.Object({
   id: Type.String(),
   email: Type.String(),
   displayName: Type.String(),
@@ -382,7 +382,7 @@ export type DataRow = Static<typeof DataRowSchema>
 // DataRowVersion — one row in data_row_versions.
 // ---------------------------------------------------------------------------
 
-const DataRowVersionSchema = Type.Object({
+export const DataRowVersionSchema = Type.Object({
   id: Type.String(),
   rowId: Type.String(),
   versionNumber: Type.Number(),
@@ -404,7 +404,7 @@ export type DataRowVersion = Static<typeof DataRowVersionSchema>
 // a media cell value (see `resolvePublishedRowMediaPath`).
 // ---------------------------------------------------------------------------
 
-const PublishedDataRowSchema = Type.Object({
+export const PublishedDataRowSchema = Type.Object({
   id: Type.String(),
   rowId: Type.String(),
   tableId: Type.String(),
@@ -436,7 +436,7 @@ export type PublishedDataRow = Static<typeof PublishedDataRowSchema>
 // DataRowRedirect — resolved redirect from an old public path.
 // ---------------------------------------------------------------------------
 
-const DataRowRedirectSchema = Type.Object({
+export const DataRowRedirectSchema = Type.Object({
   id: Type.String(),
   fromPath: Type.String(),
   targetPath: Type.String(),

@@ -1,41 +1,45 @@
-import { Type } from '@sinclair/typebox'
+import { Type, type Static } from '@sinclair/typebox'
 import { readEnvelope } from './httpJson'
 import { responseErrorMessage } from './httpErrors'
-import type { CmsCurrentUser } from './cmsAuth'
+import { CmsCurrentUserSchema, type CmsCurrentUser } from './cmsAuth'
 
 type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
 
-export interface CmsRole {
-  id: string
-  slug: string
-  name: string
-  description: string
-  isSystem: boolean
-  capabilities: string[]
-  createdAt: string
-  updatedAt: string
-}
+export const CmsRoleSchema = Type.Object({
+  id: Type.String(),
+  slug: Type.String(),
+  name: Type.String(),
+  description: Type.String(),
+  isSystem: Type.Boolean(),
+  capabilities: Type.Array(Type.String()),
+  createdAt: Type.String(),
+  updatedAt: Type.String(),
+})
 
-export interface CmsAuditEvent {
-  id: string
-  actorUserId: string | null
-  action: string
-  targetType: string | null
-  targetId: string | null
-  metadata: Record<string, unknown>
-  actorLabel: string | null
-  targetLabel: string | null
-  metadataLabels: Record<string, string>
-  ipAddress: string | null
-  userAgent: string | null
-  createdAt: string
-}
+export type CmsRole = Static<typeof CmsRoleSchema>
 
-const UsersEnvelope = Type.Object({ users: Type.Optional(Type.Array(Type.Unknown())) }, { additionalProperties: true })
-const UserEnvelope = Type.Object({ user: Type.Optional(Type.Unknown()) }, { additionalProperties: true })
-const RolesEnvelope = Type.Object({ roles: Type.Optional(Type.Array(Type.Unknown())) }, { additionalProperties: true })
-const RoleEnvelope = Type.Object({ role: Type.Optional(Type.Unknown()) }, { additionalProperties: true })
-const AuditEnvelope = Type.Object({ events: Type.Optional(Type.Array(Type.Unknown())) }, { additionalProperties: true })
+export const CmsAuditEventSchema = Type.Object({
+  id: Type.String(),
+  actorUserId: Type.Union([Type.String(), Type.Null()]),
+  action: Type.String(),
+  targetType: Type.Union([Type.String(), Type.Null()]),
+  targetId: Type.Union([Type.String(), Type.Null()]),
+  metadata: Type.Record(Type.String(), Type.Unknown()),
+  actorLabel: Type.Union([Type.String(), Type.Null()]),
+  targetLabel: Type.Union([Type.String(), Type.Null()]),
+  metadataLabels: Type.Record(Type.String(), Type.String()),
+  ipAddress: Type.Union([Type.String(), Type.Null()]),
+  userAgent: Type.Union([Type.String(), Type.Null()]),
+  createdAt: Type.String(),
+})
+
+export type CmsAuditEvent = Static<typeof CmsAuditEventSchema>
+
+const UsersEnvelope = Type.Object({ users: Type.Optional(Type.Array(CmsCurrentUserSchema)) }, { additionalProperties: true })
+const UserEnvelope = Type.Object({ user: Type.Optional(CmsCurrentUserSchema) }, { additionalProperties: true })
+const RolesEnvelope = Type.Object({ roles: Type.Optional(Type.Array(CmsRoleSchema)) }, { additionalProperties: true })
+const RoleEnvelope = Type.Object({ role: Type.Optional(CmsRoleSchema) }, { additionalProperties: true })
+const AuditEnvelope = Type.Object({ events: Type.Optional(Type.Array(CmsAuditEventSchema)) }, { additionalProperties: true })
 
 export async function listCmsUsers(
   fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
@@ -43,7 +47,7 @@ export async function listCmsUsers(
 ): Promise<CmsCurrentUser[]> {
   const res = await fetchImpl(`${basePath}/users`, { method: 'GET', credentials: 'include' })
   const body = await readEnvelope(res, UsersEnvelope, `CMS users failed with ${res.status}`)
-  return Array.isArray(body.users) ? body.users as CmsCurrentUser[] : []
+  return body.users ?? []
 }
 
 export async function createCmsUser(
@@ -59,7 +63,7 @@ export async function createCmsUser(
   })
   const body = await readEnvelope(res, UserEnvelope, `CMS user create failed with ${res.status}`)
   if (!body.user) throw new Error('CMS user create response was missing user')
-  return body.user as CmsCurrentUser
+  return body.user
 }
 
 export async function updateCmsUser(
@@ -76,7 +80,7 @@ export async function updateCmsUser(
   })
   const body = await readEnvelope(res, UserEnvelope, `CMS user update failed with ${res.status}`)
   if (!body.user) throw new Error('CMS user update response was missing user')
-  return body.user as CmsCurrentUser
+  return body.user
 }
 
 export async function deleteCmsUser(
@@ -97,7 +101,7 @@ export async function listCmsRoles(
 ): Promise<CmsRole[]> {
   const res = await fetchImpl(`${basePath}/roles`, { method: 'GET', credentials: 'include' })
   const body = await readEnvelope(res, RolesEnvelope, `CMS roles failed with ${res.status}`)
-  return Array.isArray(body.roles) ? body.roles as CmsRole[] : []
+  return body.roles ?? []
 }
 
 export async function createCmsRole(
@@ -113,7 +117,7 @@ export async function createCmsRole(
   })
   const body = await readEnvelope(res, RoleEnvelope, `CMS role create failed with ${res.status}`)
   if (!body.role) throw new Error('CMS role create response was missing role')
-  return body.role as CmsRole
+  return body.role
 }
 
 export async function updateCmsRole(
@@ -130,7 +134,7 @@ export async function updateCmsRole(
   })
   const body = await readEnvelope(res, RoleEnvelope, `CMS role update failed with ${res.status}`)
   if (!body.role) throw new Error('CMS role update response was missing role')
-  return body.role as CmsRole
+  return body.role
 }
 
 export async function deleteCmsRole(
@@ -151,5 +155,5 @@ export async function listCmsAuditEvents(
 ): Promise<CmsAuditEvent[]> {
   const res = await fetchImpl(`${basePath}/audit`, { method: 'GET', credentials: 'include' })
   const body = await readEnvelope(res, AuditEnvelope, `CMS audit events failed with ${res.status}`)
-  return Array.isArray(body.events) ? body.events as CmsAuditEvent[] : []
+  return body.events ?? []
 }

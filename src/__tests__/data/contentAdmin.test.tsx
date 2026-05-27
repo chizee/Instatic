@@ -101,6 +101,8 @@ function makeTable(
     pluralLabel,
     primaryFieldId: 'title',
     fields,
+    system: id === 'posts' || id === 'pages' || id === 'components',
+    rowCount: 0,
     createdByUserId: null,
     updatedByUserId: null,
     createdAt: '2026-05-01T10:00:00.000Z',

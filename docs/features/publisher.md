@@ -237,6 +237,7 @@ Editing the CSP manually is **not** safe — it's a derived value. Edit the sour
 | `server/publish/loopPrefetch.ts`                | Fetch every loop source's items before render so the walker is purely synchronous. |
 | `server/publish/runtime/packageServer.ts`       | Serve per-site `bun install` workspace under `/_pb/runtime/cache/`. |
 | `server/publish/loopRuntime.ts`                 | The loop runtime asset (small JS shim used by certain loop variants).|
+| `server/richtextSanitizer.ts`                   | Installs the server's happy-dom-backed DOMPurify runtime without global DOM objects. |
 
 ### `publishedHtmlPipeline.ts` — the plugin filter point
 

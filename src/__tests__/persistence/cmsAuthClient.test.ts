@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 import {
+  getCurrentCmsUser,
   getCmsSetupStatus,
   loginCms,
   logoutCms,
@@ -92,5 +93,17 @@ describe('CMS auth client', () => {
       input: '/admin/api/cms/me',
       init: { method: 'GET', credentials: 'include' },
     })
+  })
+
+  it('rejects malformed current-user payloads at the HTTP boundary', async () => {
+    await expect(
+      getCurrentCmsUser(async () =>
+        new Response(JSON.stringify({
+          user: {
+            id: 'user_1',
+            email: 'owner@example.com',
+          },
+        }), { status: 200 })),
+    ).rejects.toThrow('/user')
   })
 })
