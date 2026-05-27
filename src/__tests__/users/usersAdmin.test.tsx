@@ -465,8 +465,8 @@ describe('UsersPage', () => {
 
     fireEvent.click(within(adminMenu).getByRole('menuitem', { name: 'View' }))
     const viewRoleDialog = screen.getByRole('dialog', { name: 'View Role' })
-    expect(within(viewRoleDialog).getByText('plugins.manage')).toBeDefined()
-    expect(within(viewRoleDialog).getByText('users.manage')).toBeDefined()
+    expect(within(viewRoleDialog).getByText('Manage plugins')).toBeDefined()
+    expect(within(viewRoleDialog).getByText('Manage users')).toBeDefined()
     expect(within(viewRoleDialog).queryByRole('button', { name: /save role/i })).toBeNull()
 
     fireEvent.click(within(viewRoleDialog).getByRole('button', { name: 'Close dialog' }))
