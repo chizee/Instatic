@@ -14,7 +14,8 @@
  *   - `willAdd`      — bundle rows whose id does not exist locally
  *   - `currentLocal` — how many rows the local table currently has
  *
- * Requires `site.read` capability (read-only operation).
+ * Requires `data.export` capability (paired with the actual export
+ * endpoint — preview is the read-only dry-run that precedes import).
  */
 import type { DbClient } from '../../db/client'
 import { requireCapability } from '../../auth/authz'
@@ -37,7 +38,7 @@ export async function handleImportPreviewRoute(
   if (url.pathname !== `${CMS_API_PREFIX}/import/preview`) return null
   if (req.method !== 'POST') return jsonResponse({ error: 'Method not allowed' }, { status: 405 })
 
-  const user = await requireCapability(req, db, 'site.read')
+  const user = await requireCapability(req, db, 'data.export')
   if (user instanceof Response) return user
 
   const raw = await readJsonObject(req)

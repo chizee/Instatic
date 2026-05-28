@@ -29,7 +29,7 @@ const roles = [
     name: 'Admin',
     description: 'Full admin access.',
     isSystem: true,
-    capabilities: ['site.read', 'site.structure.edit','site.content.edit','site.style.edit', 'plugins.manage', 'users.manage', 'roles.manage', 'audit.read'],
+    capabilities: ['site.read', 'site.structure.edit','site.content.edit','site.style.edit', 'plugins.read', 'plugins.configure', 'plugins.install', 'plugins.lifecycle', 'users.manage', 'roles.manage', 'audit.read'],
     createdAt: now,
     updatedAt: now,
   },
@@ -49,7 +49,7 @@ const roles = [
     name: 'Ops',
     description: 'Can manage plugins and media.',
     isSystem: false,
-    capabilities: ['site.read', 'plugins.manage', 'media.manage'],
+    capabilities: ['site.read', 'plugins.read', 'plugins.configure', 'media.read', 'media.write'],
     createdAt: now,
     updatedAt: now,
   },
@@ -433,10 +433,10 @@ describe('UsersPage', () => {
     expect(within(adminRole).getByText('Admin')).toBeDefined()
     expect(within(adminRole).queryByText('admin')).toBeNull()
     expect(within(adminRole).getByText('Full admin access.')).toBeDefined()
-    expect(within(adminRole).getByText('8 capabilities')).toBeDefined()
+    expect(within(adminRole).getByText('11 capabilities')).toBeDefined()
     expect(within(adminRole).queryByText('Plugins')).toBeNull()
     expect(within(adminRole).queryByText('Users & Roles')).toBeNull()
-    expect(within(adminRole).queryByText('plugins.manage')).toBeNull()
+    expect(within(adminRole).queryByText('plugins.read')).toBeNull()
     expect(within(adminRole).queryByText('users.manage')).toBeNull()
     expect(within(adminRole).getByText('System role').getAttribute('data-accent')).toBeTruthy()
     expect(within(adminRole).queryByRole('button', { name: /edit/i })).toBeNull()
@@ -452,8 +452,8 @@ describe('UsersPage', () => {
 
     const customRole = screen.getByLabelText('Role Ops')
     expect(within(customRole).getByText('Can manage plugins and media.')).toBeDefined()
-    expect(within(customRole).getByText('3 capabilities')).toBeDefined()
-    expect(within(customRole).queryByText('plugins.manage')).toBeNull()
+    expect(within(customRole).getByText('5 capabilities')).toBeDefined()
+    expect(within(customRole).queryByText('plugins.read')).toBeNull()
     expect(within(customRole).queryByRole('button', { name: /view ops/i })).toBeNull()
     expect(within(customRole).queryByRole('button', { name: /edit ops/i })).toBeNull()
     expect(within(customRole).queryByRole('button', { name: /delete ops/i })).toBeNull()
@@ -465,7 +465,8 @@ describe('UsersPage', () => {
 
     fireEvent.click(within(adminMenu).getByRole('menuitem', { name: 'View' }))
     const viewRoleDialog = screen.getByRole('dialog', { name: 'View Role' })
-    expect(within(viewRoleDialog).getByText('Manage plugins')).toBeDefined()
+    // Admin row carries the split plugin caps; the picker shows their labels.
+    expect(within(viewRoleDialog).getByText('Browse installed plugins')).toBeDefined()
     expect(within(viewRoleDialog).getByText('Manage users')).toBeDefined()
     expect(within(viewRoleDialog).queryByRole('button', { name: /save role/i })).toBeNull()
 

@@ -7,21 +7,24 @@
  * Adding a new scope:
  *   1. Create `server/ai/tools/<scope>/` with its tool files + index.ts.
  *   2. Import its barrel here.
- *   3. Add a switch arm in `selectToolsForScope`.
+ *   3. Add a switch arm in `scopeToolset`.
  *   4. The `ai-tools-typebox-only.test.ts` gate ensures every file under
  *      `server/ai/tools/**` uses TypeBox (not Zod) — covered automatically.
+ *
+ * Capability filtering: `selectToolsForScope` takes the caller's capability
+ * set and filters out tools tagged `mutates: true` for callers without
+ * `ai.tools.write`. A `ai.chat`-only user (e.g. a Client persona that the
+ * operator has granted chat but withheld write) cannot have the model
+ * issue a write call — the write tools are never registered with the
+ * driver in the first place.
  */
 
+import type { CoreCapability } from '../../auth/capabilities'
 import type { AiTool, ToolScope } from './types'
 import { siteTools } from './site'
 import { contentTools } from './content'
 
-/**
- * Returns the tools available for one chat scope. The runtime hands this
- * array to the driver verbatim; drivers translate each `AiTool.inputSchema`
- * (TypeBox) into their SDK's native tool format.
- */
-export function selectToolsForScope(scope: ToolScope): AiTool[] {
+function scopeToolset(scope: ToolScope): AiTool[] {
   switch (scope) {
     case 'site':
       return siteTools
@@ -37,12 +40,31 @@ export function selectToolsForScope(scope: ToolScope): AiTool[] {
 }
 
 /**
- * Look up a single tool by name within a scope. Returns undefined when no
- * matching tool is registered — handlers use this to route inbound
- * tool-result POSTs.
+ * Returns the tools available for one chat scope, filtered against the
+ * caller's capability set. The runtime hands this array to the driver
+ * verbatim; drivers translate each `AiTool.inputSchema` (TypeBox) into
+ * their SDK's native tool format.
+ *
+ * Filtering rule: a caller without `ai.tools.write` does not see tools
+ * tagged `mutates: true`. Read tools (`mutates: false` or undefined) are
+ * always included.
+ */
+export function selectToolsForScope(
+  scope: ToolScope,
+  capabilities: readonly CoreCapability[],
+): AiTool[] {
+  const tools = scopeToolset(scope)
+  if (capabilities.includes('ai.tools.write')) return tools
+  return tools.filter((t) => !t.mutates)
+}
+
+/**
+ * Look up a single tool by name within a scope, ignoring capability filters.
+ * Used by handlers that route inbound tool-result POSTs and which run AFTER
+ * the chat handler has already filtered the registered toolset.
  */
 export function getToolByName(scope: ToolScope, toolName: string): AiTool | undefined {
-  return selectToolsForScope(scope).find((t) => t.name === toolName)
+  return scopeToolset(scope).find((t) => t.name === toolName)
 }
 
 export type { AiTool, ToolScope } from './types'

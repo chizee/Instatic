@@ -45,16 +45,20 @@ export const sqliteMigrations: Migration[] = [
         updated_at text not null default current_timestamp
       );
 
-      -- Built-in roles seed. The Owner row is also force-resynced on every
-      -- server boot (see syncSystemRoles in server/repositories/roles.ts),
-      -- so adding new capabilities to code automatically propagates to the
-      -- Owner without a migration. Other built-ins are inserted on first
-      -- boot only - subsequent edits via the admin UI are preserved.
+      -- Built-in roles seed. Owner AND Admin rows are force-resynced from
+      -- code on every server boot (see syncSystemRoles in
+      -- server/repositories/roles.ts), so adding new capabilities to code
+      -- automatically propagates to both without a migration. The seeded
+      -- capability lists below are the initial snapshot — the boot-time
+      -- sync immediately overrides them with whatever the SYSTEM_ROLES
+      -- arrays in server/auth/capabilities.ts declare. Client and Member
+      -- are inserted on first boot only; subsequent edits via the admin
+      -- UI are preserved.
       insert into roles (id, slug, name, description, is_system, capabilities_json)
       values
-        ('owner', 'owner', 'Owner', 'Permanent installation owner with full system access.', 1, '["dashboard.read","site.read","site.structure.edit","site.content.edit","site.style.edit","pages.edit","pages.publish","content.create","content.edit.own","content.edit.any","content.publish.own","content.publish.any","content.manage","media.manage","runtime.manage","plugins.manage","users.manage","roles.manage","audit.read","ai.use","ai.providers.manage","ai.audit.read"]'),
-        ('admin', 'admin', 'Admin', 'Full admin access (cannot manage roles).', 1, '["dashboard.read","site.read","site.structure.edit","site.content.edit","site.style.edit","pages.edit","pages.publish","content.create","content.edit.own","content.edit.any","content.publish.own","content.publish.any","content.manage","media.manage","runtime.manage","plugins.manage","users.manage","audit.read","ai.use","ai.providers.manage","ai.audit.read"]'),
-        ('client', 'client', 'Client', 'Can edit page copy (text, images, links) but not structure or styles.', 1, '["dashboard.read","site.read","site.content.edit"]'),
+        ('owner', 'owner', 'Owner', 'Permanent installation owner with full system access.', 1, '["dashboard.read","site.read","site.structure.edit","site.content.edit","site.style.edit","pages.edit","pages.publish","content.create","content.edit.own","content.edit.any","content.publish.own","content.publish.any","content.manage","media.read","media.write","media.replace","media.delete","runtime.dependencies","storage.elect","storage.migrate","plugins.read","plugins.configure","plugins.install","plugins.lifecycle","users.manage","roles.manage","audit.read","data.tables.read","data.tables.manage","data.rows.move","data.export","data.import","ai.chat","ai.tools.write","ai.providers.manage","ai.audit.read"]'),
+        ('admin', 'admin', 'Admin', 'Full admin access (cannot manage roles).', 1, '["dashboard.read","site.read","site.structure.edit","site.content.edit","site.style.edit","pages.edit","pages.publish","content.create","content.edit.own","content.edit.any","content.publish.own","content.publish.any","content.manage","media.read","media.write","media.replace","media.delete","runtime.dependencies","storage.elect","storage.migrate","plugins.read","plugins.configure","plugins.install","plugins.lifecycle","users.manage","audit.read","data.tables.read","data.tables.manage","data.rows.move","data.export","data.import","ai.chat","ai.tools.write","ai.providers.manage","ai.audit.read"]'),
+        ('client', 'client', 'Client', 'Can edit page copy (text, images, links) but not structure or styles.', 1, '["dashboard.read","site.read","site.content.edit","media.read","data.tables.read"]'),
         ('member', 'member', 'Member', 'Public-facing member account — no admin access by default.', 1, '[]')
       on conflict (id) do update
         set slug = excluded.slug,

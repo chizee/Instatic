@@ -52,12 +52,19 @@ export async function createSession(
      */
     deviceLabel?: string
     mfaPassedAt?: Date | null
+    /**
+     * Pre-open a step-up window on the row. Production code never sets
+     * this at session creation — step-up is opened by `rotateSessionToken`
+     * after a fresh password re-entry. Tests use it to skip the step-up
+     * dance when verifying handlers that require a step-up gate.
+     */
+    stepUpExpiresAt?: Date | null
   },
 ): Promise<void> {
   const deviceLabel = input.deviceLabel ?? deriveDeviceLabel(input.userAgent)
   await db`
-    insert into sessions (id_hash, user_id, expires_at, ip_address, user_agent, device_label, mfa_passed_at)
-    values (${input.idHash}, ${input.userId}, ${input.expiresAt}, ${input.ipAddress}, ${input.userAgent}, ${deviceLabel}, ${input.mfaPassedAt ?? null})
+    insert into sessions (id_hash, user_id, expires_at, ip_address, user_agent, device_label, mfa_passed_at, step_up_expires_at)
+    values (${input.idHash}, ${input.userId}, ${input.expiresAt}, ${input.ipAddress}, ${input.userAgent}, ${deviceLabel}, ${input.mfaPassedAt ?? null}, ${input.stepUpExpiresAt ?? null})
   `
 }
 

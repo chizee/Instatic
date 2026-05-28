@@ -1,18 +1,30 @@
 /**
  * Capability guards for data table and row endpoints.
  *
- * Capability strings stay `content.*` — the resources moved from the old
- * `content_*` tables to the unified `data_*` store, but user-facing
- * capability identifiers remain stable so no role configuration changes are
- * needed.
+ * Two capability families:
  *
- * Mapping:
- *   content.create       — create new rows
- *   content.edit.own     — read / edit own rows
- *   content.edit.any     — read / edit all rows
- *   content.publish.own  — publish own rows
- *   content.publish.any  — publish all rows
- *   content.manage       — tables CRUD + all row operations
+ *   content.*  — row-level editorial: who can create / edit / publish rows,
+ *                including the own-vs-any split. Drives the Content
+ *                workspace and the per-row gating in the Data grid.
+ *
+ *     content.create       — create new rows
+ *     content.edit.own     — read / edit own rows
+ *     content.edit.any     — read / edit all rows
+ *     content.publish.own  — publish own rows
+ *     content.publish.any  — publish all rows
+ *     content.manage       — every row operation (super-set of the above)
+ *
+ *   data.*     — structural / workspace-level: schema design, cross-table
+ *                row moves, bundle export/import. Decoupled from `content.*`
+ *                so a "data architect" persona can design tables without
+ *                being able to read/write row content.
+ *
+ *     data.tables.read     — open Data workspace, browse tables + fields
+ *     data.tables.manage   — create/rename/delete tables, edit fields
+ *     data.rows.move       — cross-collection row move
+ *     data.export          — bundle export + import preview (read-only)
+ *     data.import          — bundle import (replace mode also needs
+ *                            `content.manage` AND step-up)
  */
 import type { CoreCapability } from '../../../auth/capabilities'
 import {
@@ -74,8 +86,43 @@ export async function requireDataAccess(req: Request, db: DbClient): Promise<Aut
   return requireAnyCapability(req, db, DATA_ACCESS_CAPABILITIES)
 }
 
-export async function requireDataManager(req: Request, db: DbClient): Promise<AuthUser | Response> {
-  return requireCapability(req, db, 'content.manage')
+/**
+ * Schema-level read — open the Data workspace, browse tables + their
+ * field schemas. Granted independently from row content access so a
+ * read-only stakeholder persona is expressible.
+ */
+export async function requireDataTablesRead(req: Request, db: DbClient): Promise<AuthUser | Response> {
+  return requireAnyCapability(req, db, ['data.tables.read', 'data.tables.manage'])
+}
+
+/**
+ * Schema-level mutation — create/rename/delete tables, edit fields.
+ * Was `content.manage`; split so the table-design power is separable
+ * from row-content power.
+ */
+export async function requireDataTablesManager(req: Request, db: DbClient): Promise<AuthUser | Response> {
+  return requireCapability(req, db, 'data.tables.manage')
+}
+
+/**
+ * Cross-collection row move — `PATCH /data/rows/:id/table`. Split out
+ * because moving a row to a different table changes its public URL
+ * (different route base) and is structurally distinct from editing a
+ * row's cells.
+ */
+export async function requireDataRowMover(req: Request, db: DbClient): Promise<AuthUser | Response> {
+  return requireCapability(req, db, 'data.rows.move')
+}
+
+/**
+ * Bundle export + import preview. Read-only — never mutates DB or
+ * filesystem. Gate is distinct from `site.read` because export bytes
+ * include every author's drafts, which `site.read` alone should not
+ * imply (Client holds `site.read` but should not be able to download
+ * other authors' drafts).
+ */
+export async function requireDataExporter(req: Request, db: DbClient): Promise<AuthUser | Response> {
+  return requireCapability(req, db, 'data.export')
 }
 
 export async function requireDataEditor(req: Request, db: DbClient): Promise<AuthUser | Response> {

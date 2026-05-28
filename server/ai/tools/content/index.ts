@@ -11,9 +11,11 @@ import type { AiTool } from '../types'
 import { contentReadTools } from './readTools'
 import { contentWriteTools } from './writeTools'
 
+// Stamp the `mutates` flag so `selectToolsForScope` can filter write tools
+// out for callers without `ai.tools.write`. Read tools default to false.
 export const contentTools: AiTool[] = [
-  ...contentReadTools,
-  ...contentWriteTools,
+  ...contentReadTools.map((t) => ({ ...t, mutates: false })),
+  ...contentWriteTools.map((t) => ({ ...t, mutates: true })),
 ]
 
 export { buildContentSystemPrompt } from './systemPrompt'

@@ -52,22 +52,62 @@ globalThis.__buildApi = function buildApi() {
     return '/' + t.replace(/^\\/+|\\/+$/g, '');
   }
 
+  // Route registration with a tagged access discriminator. Three shapes:
+  //
+  //   api.cms.routes.get(path, capability, handler)
+  //       Standard gated route. The capability argument is a core
+  //       capability string (e.g. 'content.manage'). Internally builds
+  //       an access record of kind "capability".
+  //
+  //   api.cms.routes.authenticated.get(path, handler)
+  //       Any logged-in user. No capability check, but session cookie
+  //       required. Builds an access record of kind "authenticated".
+  //
+  //   api.cms.routes.public.get(path, handler)
+  //       Anonymous-callable. NO authentication. Requires the plugin to
+  //       declare cms.routes.public in its permissions so the operator
+  //       sees the warning at install time.
   function makeRoute(method) {
     return function (path, capability, handler) {
       assertPermission('cms.routes');
       if (typeof handler !== 'function') throw new TypeError('Route handler must be a function');
       const routeKey = method + ':' + normalizePath(path);
       globalThis.__plugin_handlers.routes[routeKey] = handler;
-      return call('cms.routes.register', [{ method: method, path: normalizePath(path), capability: capability, routeKey: routeKey }]);
+      return call('cms.routes.register', [{
+        method: method,
+        path: normalizePath(path),
+        access: { kind: 'capability', capability: capability },
+        routeKey: routeKey,
+      }]);
     };
   }
-  function registerPublic(method) {
+  function registerAuthenticated(method) {
     return function (path, handler) {
       assertPermission('cms.routes');
       if (typeof handler !== 'function') throw new TypeError('Route handler must be a function');
       const routeKey = method + ':' + normalizePath(path);
       globalThis.__plugin_handlers.routes[routeKey] = handler;
-      return call('cms.routes.register', [{ method: method, path: normalizePath(path), capability: null, routeKey: routeKey }]);
+      return call('cms.routes.register', [{
+        method: method,
+        path: normalizePath(path),
+        access: { kind: 'authenticated' },
+        routeKey: routeKey,
+      }]);
+    };
+  }
+  function registerPublic(method) {
+    return function (path, handler) {
+      assertPermission('cms.routes');
+      assertPermission('cms.routes.public');
+      if (typeof handler !== 'function') throw new TypeError('Route handler must be a function');
+      const routeKey = method + ':' + normalizePath(path);
+      globalThis.__plugin_handlers.routes[routeKey] = handler;
+      return call('cms.routes.register', [{
+        method: method,
+        path: normalizePath(path),
+        access: { kind: 'public' },
+        routeKey: routeKey,
+      }]);
     };
   }
 
@@ -313,14 +353,29 @@ globalThis.__buildApi = function buildApi() {
     },
     cms: {
       routes: {
+        // Capability-gated routes — most common shape.
+        // Usage: api.cms.routes.get('/path', 'content.manage', handler)
         get: makeRoute('GET'),
         post: makeRoute('POST'),
         patch: makeRoute('PATCH'),
         delete: makeRoute('DELETE'),
-        getPublic:    registerPublic('GET'),
-        postPublic:   registerPublic('POST'),
-        patchPublic:  registerPublic('PATCH'),
-        deletePublic: registerPublic('DELETE'),
+        // Authenticated-only routes (any logged-in user).
+        // Usage: api.cms.routes.authenticated.get('/path', handler)
+        authenticated: {
+          get: registerAuthenticated('GET'),
+          post: registerAuthenticated('POST'),
+          patch: registerAuthenticated('PATCH'),
+          delete: registerAuthenticated('DELETE'),
+        },
+        // Public routes — anonymous-callable. Plugin must declare
+        // cms.routes.public in its manifest permissions.
+        // Usage: api.cms.routes.public.get('/path', handler)
+        public: {
+          get: registerPublic('GET'),
+          post: registerPublic('POST'),
+          patch: registerPublic('PATCH'),
+          delete: registerPublic('DELETE'),
+        },
       },
       storage: { collection: collection },
       hooks: { on: on, filter: filter, emit: emit },

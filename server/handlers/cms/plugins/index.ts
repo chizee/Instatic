@@ -1,5 +1,8 @@
 /**
- * Plugin admin endpoints (gated by `plugins.manage`).
+ * Plugin admin endpoints — capabilities split per-route. The dispatcher
+ * resolves each request to a (`plugins.read` / `plugins.configure` /
+ * `plugins.install` / `plugins.lifecycle`) gate plus optional step-up.
+ * See `resolvePluginRoutePolicy` below for the matrix.
  *
  *   GET    /admin/api/cms/plugins                                   — list installed plugins + admin pages
  *   POST   /admin/api/cms/plugins                                   — install from a manifest JSON body
@@ -20,7 +23,8 @@
  *                                                                     the plugin's own server module
  *
  * `handlePluginsRoutes` is a thin dispatcher: it matches the URL pattern,
- * runs the `plugins.manage` capability check, and forwards to one of the
+ * resolves the per-route capability + step-up policy via
+ * `resolvePluginRoutePolicy`, runs the gate, and forwards to one of the
  * per-route handlers in the topic files (`install.ts`, `state.ts`,
  * `settings.ts`, `pack.ts`, `records.ts`, `events.ts`). The lifecycle hook
  * orchestration lives in `lifecycle.ts`; cross-cutting helpers
@@ -28,6 +32,7 @@
  * live in `shared.ts`.
  */
 import type { DbClient } from '../../../db/client'
+import type { CoreCapability } from '../../../auth/capabilities'
 import { requireCapability, requireStepUp } from '../../../auth/authz'
 import {
   handleServerPluginRuntimeRequest,
@@ -73,44 +78,90 @@ const PLUGIN_SCHEDULE_RESUME_PATTERN = /^\/admin\/api\/cms\/plugins\/([^/]+)\/sc
 const PLUGIN_EVENTS_PATH = '/admin/api/cms/plugins/events'
 
 // ---------------------------------------------------------------------------
-// Step-up policy
+// Per-route capability + step-up policy
+//
+// The legacy single-capability gate (`plugins.manage`) collapsed four very
+// different blast radii — view, configure, install (RCE-class), lifecycle —
+// into one grant. We split per-route so a "Site Operator" custom role can
+// hold `plugins.lifecycle` without also being able to install new plugins.
+//
+// `resolvePluginRoutePolicy` returns the required capability + step-up
+// expectation for the matched route. The capability is required ALWAYS;
+// step-up is required only for `stepUp: true` entries (a fresh password
+// re-entry on top, mirroring users.ts delete / password.change).
 // ---------------------------------------------------------------------------
 
-/**
- * Plugin admin actions that run third-party code, modify the worker
- * registry, or rewrite on-disk plugin assets — i.e. anything with
- * host-RCE-class impact if a cookie were stolen or an XSS dropped a
- * forged request through the admin shell.
- *
- * Matches the step-up pattern used for `users.manage` (delete / suspend /
- * password change): a fresh password re-entry within the last 15 min is
- * required on top of the `plugins.manage` capability. Read-only routes
- * (listing, masked settings, inspect-package, events SSE) and plugin
- * record CRUD (which is bounded by a separately-installed plugin's own
- * schema) are deliberately not in this list.
- */
-function requiresStepUp(method: string, pathname: string): boolean {
-  // Fresh install / upgrade — uploads + executes arbitrary plugin code.
-  if (method === 'POST' && pathname === '/admin/api/cms/plugins') return true
-  if (method === 'POST' && pathname === '/admin/api/cms/plugins/package') return true
+interface PluginRoutePolicy {
+  capability: CoreCapability
+  stepUp: boolean
+}
 
-  // Per-plugin mutations — every branch below re-runs a lifecycle hook
-  // (activate / deactivate / uninstall / migrate) or rewrites runtime
-  // state in a way the plugin's own server code observes.
-  if (method === 'PATCH' && PLUGIN_ITEM_PATTERN.test(pathname)) return true
-  if (method === 'DELETE' && PLUGIN_ITEM_PATTERN.test(pathname)) return true
-  if (method === 'POST' && PLUGIN_RESTART_PATTERN.test(pathname)) return true
-  if (method === 'POST' && PLUGIN_PACK_INSTALL_PATTERN.test(pathname)) return true
-  if (method === 'PUT' && PLUGIN_SETTINGS_PATTERN.test(pathname)) return true
+function resolvePluginRoutePolicy(method: string, pathname: string): PluginRoutePolicy {
+  // Fresh install / upgrade — uploads + executes arbitrary plugin code. RCE.
+  if (method === 'POST' && pathname === '/admin/api/cms/plugins') {
+    return { capability: 'plugins.install', stepUp: true }
+  }
+  if (method === 'POST' && pathname === '/admin/api/cms/plugins/package') {
+    return { capability: 'plugins.install', stepUp: true }
+  }
+  if (method === 'POST' && pathname === '/admin/api/cms/plugins/inspect-package') {
+    // Read-only — inspect a .zip before deciding to install. Same audience
+    // as the install endpoint (someone deciding whether to run untrusted
+    // code), but the operation itself never touches the host.
+    return { capability: 'plugins.install', stepUp: false }
+  }
+  // Pack install — re-syncs a plugin's bundled modules/loops/VCs into the
+  // draft site. Runs plugin code in the worker.
+  if (method === 'POST' && PLUGIN_PACK_INSTALL_PATTERN.test(pathname)) {
+    return { capability: 'plugins.install', stepUp: true }
+  }
+
+  // PATCH/DELETE on the item endpoint = enable/disable/uninstall.
+  if (method === 'DELETE' && PLUGIN_ITEM_PATTERN.test(pathname)) {
+    // Uninstall = the install endpoint's inverse; RCE-class risk if
+    // forged (deletes plugin assets, runs the uninstall lifecycle hook).
+    return { capability: 'plugins.install', stepUp: true }
+  }
+  if (method === 'PATCH' && PLUGIN_ITEM_PATTERN.test(pathname)) {
+    // Enable / disable — runs activate / deactivate hooks; lifecycle.
+    return { capability: 'plugins.lifecycle', stepUp: true }
+  }
+  if (method === 'POST' && PLUGIN_RESTART_PATTERN.test(pathname)) {
+    return { capability: 'plugins.lifecycle', stepUp: true }
+  }
 
   // Schedule mutations — run-now fires arbitrary plugin code immediately;
-  // pause/resume change which schedules tick. All three deserve a fresh
-  // password window on top of `plugins.manage`.
-  if (method === 'POST' && PLUGIN_SCHEDULE_RUN_NOW_PATTERN.test(pathname)) return true
-  if (method === 'POST' && PLUGIN_SCHEDULE_PAUSE_PATTERN.test(pathname)) return true
-  if (method === 'POST' && PLUGIN_SCHEDULE_RESUME_PATTERN.test(pathname)) return true
+  // pause/resume change which schedules tick.
+  if (method === 'POST' && PLUGIN_SCHEDULE_RUN_NOW_PATTERN.test(pathname)) {
+    return { capability: 'plugins.lifecycle', stepUp: true }
+  }
+  if (method === 'POST' && PLUGIN_SCHEDULE_PAUSE_PATTERN.test(pathname)) {
+    return { capability: 'plugins.lifecycle', stepUp: true }
+  }
+  if (method === 'POST' && PLUGIN_SCHEDULE_RESUME_PATTERN.test(pathname)) {
+    return { capability: 'plugins.lifecycle', stepUp: true }
+  }
 
-  return false
+  // Per-plugin settings — bounded by the plugin's own schema, but step-up
+  // gated because settings changes fire the plugin's `settings.changed`
+  // hook with the new values.
+  if (method === 'PUT' && PLUGIN_SETTINGS_PATTERN.test(pathname)) {
+    return { capability: 'plugins.configure', stepUp: true }
+  }
+  if (method === 'GET' && PLUGIN_SETTINGS_PATTERN.test(pathname)) {
+    return { capability: 'plugins.configure', stepUp: false }
+  }
+
+  // Per-plugin records — bounded by the plugin's own resource schemas.
+  // Read = `plugins.read`; write = `plugins.configure` (settings-class).
+  if (PLUGIN_RECORD_ITEM_PATTERN.test(pathname) || PLUGIN_RECORDS_PATTERN.test(pathname)) {
+    if (method === 'GET') return { capability: 'plugins.read', stepUp: false }
+    return { capability: 'plugins.configure', stepUp: false }
+  }
+
+  // Read-only routes — collection list, schedules list, events SSE.
+  // Anyone with the read cap can inspect plugin state.
+  return { capability: 'plugins.read', stepUp: false }
 }
 
 // ---------------------------------------------------------------------------
@@ -143,18 +194,14 @@ export async function handlePluginsRoutes(
     )
   }
 
-  // Every CMS-side plugin route requires `plugins.manage`.
+  // Per-route capability + step-up gate. See `resolvePluginRoutePolicy`
+  // above for the matrix. Splits the old `plugins.manage` mega-cap into
+  // `plugins.read / configure / install / lifecycle`.
   if (!isPluginAdminPath(pathname)) return null
-  const user = await requireCapability(req, db, 'plugins.manage')
+  const policy = resolvePluginRoutePolicy(req.method, pathname)
+  const user = await requireCapability(req, db, policy.capability)
   if (user instanceof Response) return user
-
-  // Sensitive plugin actions (install / upgrade / enable / disable /
-  // uninstall / restart / pack install / settings update) additionally
-  // require a fresh step-up window. The capability check already gates
-  // who is allowed at all; step-up further requires a recent password
-  // re-entry so a stolen session cookie alone cannot land plugin code
-  // on the host.
-  if (requiresStepUp(req.method, pathname)) {
+  if (policy.stepUp) {
     const stepUp = await requireStepUp(req, db)
     if (stepUp instanceof Response) return stepUp
   }
@@ -187,8 +234,9 @@ export async function handlePluginsRoutes(
   }
 
   // Schedule routes — read-only list, plus mutation endpoints
-  // (run-now / pause / resume). The mutation ones are step-up-gated
-  // above; the list is read-only and only needs `plugins.manage`.
+  // (run-now / pause / resume). The mutation ones are gated by
+  // `plugins.lifecycle` + step-up (set by `resolvePluginRoutePolicy`);
+  // the list is read-only and only needs `plugins.read`.
   const scheduleRunNowMatch = pathname.match(PLUGIN_SCHEDULE_RUN_NOW_PATTERN)
   if (scheduleRunNowMatch) {
     return handlePluginScheduleRunNow(

@@ -150,8 +150,14 @@ function renderEditorLayout({
     'site.style.edit',
     'pages.edit',
     'pages.publish',
-    'media.manage',
-    'plugins.manage',
+    'media.read',
+    'media.write',
+    'media.replace',
+    'media.delete',
+    'plugins.read',
+    'plugins.configure',
+    'plugins.install',
+    'plugins.lifecycle',
   ])
   render(
     <MemoryRouter>

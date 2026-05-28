@@ -1,19 +1,28 @@
 /**
- * Media library endpoints (gated by `media.manage`).
+ * Media library endpoints — capabilities split per-operation.
  *
  *   GET    /admin/api/cms/media                — list every uploaded asset
  *                                                  (?trash=1 → trashed items only)
+ *                                                  (`media.read`)
  *   POST   /admin/api/cms/media                — upload a new image/video
  *                                                  (multipart `file=`, max 50MB)
+ *                                                  (`media.write`)
  *   PATCH  /admin/api/cms/media/:id            — rename / edit metadata
+ *                                                  (`media.write`)
  *   DELETE /admin/api/cms/media/:id            — soft delete by default,
  *                                                  ?purge=1 hard-deletes (only
  *                                                  permitted on already-trashed
  *                                                  assets) and removes the file
+ *                                                  (`media.delete`)
  *   POST   /admin/api/cms/media/:id/restore    — restore a soft-deleted asset
+ *                                                  (`media.write`)
  *   POST   /admin/api/cms/media/:id/replace    — overwrite the bytes for an asset
+ *                                                  (`media.replace` — uniquely
+ *                                                  dangerous: silently swaps the
+ *                                                  bytes every page references)
  *   POST   /admin/api/cms/media/:id/folders    — add/remove folder memberships
  *                                                  body: { add?: string[], remove?: string[] }
+ *                                                  (`media.write`)
  *
  * The upload pipeline (multipart parse, magic-byte MIME sniff, sanitised
  * on-disk filename, media row insert) lives in `./mediaUpload.ts` and is
@@ -115,7 +124,7 @@ function readMetadataPatch(body: Record<string, unknown>): UpdateMediaAssetMetad
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function handleListMedia(req: Request, db: DbClient): Promise<Response> {
-  const user = await requireCapability(req, db, 'media.manage')
+  const user = await requireCapability(req, db, 'media.read')
   if (user instanceof Response) return user
 
   const url = new URL(req.url)
@@ -149,7 +158,7 @@ async function handleUploadMedia(
   db: DbClient,
   _options: CmsHandlerOptions,
 ): Promise<Response> {
-  const user = await requireCapability(req, db, 'media.manage')
+  const user = await requireCapability(req, db, 'media.write')
   if (user instanceof Response) return user
 
   const file = await readUploadedFile(req)
@@ -174,7 +183,7 @@ async function handleRestoreMedia(
   _options: CmsHandlerOptions,
   params: RouteParams,
 ): Promise<Response> {
-  const user = await requireCapability(req, db, 'media.manage')
+  const user = await requireCapability(req, db, 'media.write')
   if (user instanceof Response) return user
 
   const restored = await restoreMediaAsset(db, params.id)
@@ -188,7 +197,10 @@ async function handleReplaceMedia(
   _options: CmsHandlerOptions,
   params: RouteParams,
 ): Promise<Response> {
-  const user = await requireCapability(req, db, 'media.manage')
+  // `media.replace` is split out of `media.write` — uniquely dangerous
+  // because it silently swaps the bytes for every page that references
+  // this asset (variants regenerate too).
+  const user = await requireCapability(req, db, 'media.replace')
   if (user instanceof Response) return user
 
   const file = await readUploadedFile(req)
@@ -213,7 +225,7 @@ async function handleAssignMediaFolders(
   _options: CmsHandlerOptions,
   params: RouteParams,
 ): Promise<Response> {
-  const user = await requireCapability(req, db, 'media.manage')
+  const user = await requireCapability(req, db, 'media.write')
   if (user instanceof Response) return user
 
   const body = await readJsonObject(req)
@@ -233,7 +245,7 @@ async function handleUpdateMediaMetadata(
   _options: CmsHandlerOptions,
   params: RouteParams,
 ): Promise<Response> {
-  const user = await requireCapability(req, db, 'media.manage')
+  const user = await requireCapability(req, db, 'media.write')
   if (user instanceof Response) return user
 
   const body = await readJsonObject(req)
@@ -252,7 +264,7 @@ async function handleDeleteMedia(
   _options: CmsHandlerOptions,
   params: RouteParams,
 ): Promise<Response> {
-  const user = await requireCapability(req, db, 'media.manage')
+  const user = await requireCapability(req, db, 'media.delete')
   if (user instanceof Response) return user
 
   const url = new URL(req.url)

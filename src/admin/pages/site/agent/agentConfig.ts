@@ -7,8 +7,8 @@
  *
  * Endpoints live under `/admin/api/` so the session cookie scoped to
  * `Path=/admin` is sent by the browser. Outside `/admin/`, the cookie
- * wouldn't be carried and the `requireCapability('ai.use')` gate would
- * 401 every request.
+ * wouldn't be carried and the `requireCapability('ai.chat' /
+ * 'ai.tools.write')` gates would 401 every request.
  */
 
 /** Streaming chat endpoint — POSTs `{ conversationId, prompt, snapshot }`. */

@@ -1,9 +1,11 @@
 /**
  * Route registration handler — implements the `cms.routes.register` api-call.
  *
- * Validates the route capability against the core capability enum and upserts
- * the route entry into the plugin's host-side route map. Gated by the
- * `cms.routes` permission.
+ * Validates the tagged `access` discriminator and upserts the route entry
+ * into the plugin's host-side route map. Gated by the `cms.routes`
+ * permission. Public-access routes additionally require the plugin to hold
+ * `cms.routes.public` so the install-time consent dialog can flag the
+ * plugin to the operator before they approve it.
  */
 
 import { isCoreCapability } from '../../../auth/capabilities'
@@ -11,7 +13,7 @@ import type { RouteRegistrationApiCall } from '../../protocol/apiCallSchema'
 import type { DbClient } from '../../../db/client'
 import { assertHostPluginPermission } from '../registry'
 import { replyApiOk } from '../workerPool'
-import type { HostPluginRecord } from '../types'
+import type { HostPluginRecord, HostRouteAccess } from '../types'
 
 export async function handleRoutesRegister(
   msg: RouteRegistrationApiCall,
@@ -20,14 +22,34 @@ export async function handleRoutesRegister(
 ): Promise<void> {
   assertHostPluginPermission(entry, 'cms.routes')
   const [arg] = msg.args
-  if (arg.capability !== null && !isCoreCapability(arg.capability)) {
-    throw new Error(`Unknown plugin route capability: ${arg.capability}`)
+
+  let access: HostRouteAccess
+  switch (arg.access.kind) {
+    case 'capability':
+      if (!isCoreCapability(arg.access.capability)) {
+        throw new Error(`Unknown plugin route capability: ${arg.access.capability}`)
+      }
+      access = { kind: 'capability', capability: arg.access.capability }
+      break
+    case 'authenticated':
+      access = { kind: 'authenticated' }
+      break
+    case 'public':
+      // Public-access routes require an additional permission so the
+      // install consent flow surfaces "this plugin will register
+      // anonymously-callable endpoints" to the operator. Without this,
+      // a stolen permission grant could quietly mint a webhook the
+      // plugin author never disclosed in the install dialog.
+      assertHostPluginPermission(entry, 'cms.routes.public')
+      access = { kind: 'public' }
+      break
   }
+
   entry.routes.set(arg.routeKey, {
     pluginId: msg.pluginId,
     method: arg.method,
     path: arg.path,
-    capability: arg.capability,
+    access,
     routeKey: arg.routeKey,
   })
   replyApiOk(msg.pluginId, msg.correlationId)

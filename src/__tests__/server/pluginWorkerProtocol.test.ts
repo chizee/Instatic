@@ -28,7 +28,7 @@ describe('plugin worker IPC protocol', () => {
         args: [{
           method: 'POST',
           path: '/status',
-          capability: 'plugins.manage',
+          access: { kind: 'capability', capability: 'plugins.read' },
           routeKey: 'GET:/status',
         }],
       }),

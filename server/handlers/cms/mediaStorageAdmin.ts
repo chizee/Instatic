@@ -14,9 +14,11 @@
  *   POST   /admin/api/cms/media/storage/verify/:id   — run the adapter's verify()
  *                                                       and return its diagnosis
  *
- * All endpoints are gated by the `runtime.manage` capability (the same
- * capability that gates plugin install/uninstall — these toggles change
- * the runtime topology of the site).
+ * All endpoints are gated by the `storage.elect` capability (formerly
+ * `runtime.manage`, now split out — see B3 in the capabilities review).
+ * Electing an adapter changes which backend receives every future write
+ * for that role; that's a high-trust admin op distinct from "edit the
+ * site's package.json".
  *
  * Election is per-role. Reads always dispatch via the row's pinned
  * adapter id, so an election change doesn't strand existing assets —
@@ -61,7 +63,7 @@ function isMediaAssetRole(value: unknown): value is MediaAssetRole {
 }
 
 async function handleListStorage(req: Request, db: DbClient): Promise<Response> {
-  const user = await requireCapability(req, db, 'runtime.manage')
+  const user = await requireCapability(req, db, 'storage.elect')
   if (user instanceof Response) return user
 
   const installedAdapters = mediaStorageRegistry.list()
@@ -124,7 +126,7 @@ async function handleListStorage(req: Request, db: DbClient): Promise<Response> 
 }
 
 async function handleElectAdapter(req: Request, db: DbClient): Promise<Response> {
-  const user = await requireCapability(req, db, 'runtime.manage')
+  const user = await requireCapability(req, db, 'storage.elect')
   if (user instanceof Response) return user
 
   const body = await readJsonObject(req)
@@ -157,7 +159,7 @@ async function handleElectAdapter(req: Request, db: DbClient): Promise<Response>
 }
 
 async function handleElectDelegate(req: Request, db: DbClient): Promise<Response> {
-  const user = await requireCapability(req, db, 'runtime.manage')
+  const user = await requireCapability(req, db, 'storage.elect')
   if (user instanceof Response) return user
 
   const body = await readJsonObject(req)
@@ -194,7 +196,7 @@ async function handleVerifyAdapter(
   db: DbClient,
   adapterId: string,
 ): Promise<Response> {
-  const user = await requireCapability(req, db, 'runtime.manage')
+  const user = await requireCapability(req, db, 'storage.elect')
   if (user instanceof Response) return user
 
   const adapter = mediaStorageRegistry.resolveForRead(adapterId)

@@ -101,7 +101,7 @@ function makeFakeDb() {
           role_name: 'Owner',
           role_description: '',
           role_is_system: true,
-          role_capabilities_json: ['media.manage'],
+          role_capabilities_json: ['media.read', 'media.write', 'media.replace', 'media.delete'],
         } as Row] : [],
         rowCount: admin ? 1 : 0,
       }

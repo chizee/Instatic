@@ -16,7 +16,7 @@ export function getMediaCommands(): Command[] {
       iconName: 'image-solid',
       keywords: ['media', 'upload', 'file', 'image', 'video', 'asset', 'new', 'add'],
       workspaces: ['any'],
-      capability: 'media.manage',
+      capability: 'media.write',
       run: (ctx) => {
         queuePendingAction('media.upload')
         ctx.navigate('/admin/media')
@@ -32,7 +32,7 @@ export function getMediaCommands(): Command[] {
       iconName: 'box-stack-solid',
       keywords: ['media', 'folder', 'directory', 'organize', 'new', 'create', 'add'],
       workspaces: ['any'],
-      capability: 'media.manage',
+      capability: 'media.write',
       run: (ctx) => {
         queuePendingAction('media.newFolder')
         ctx.navigate('/admin/media')

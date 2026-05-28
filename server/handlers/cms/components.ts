@@ -12,7 +12,13 @@
  *                                   store). The server validates them, converts to
  *                                   cells via visualComponentToCells, and reconciles
  *                                   create/update/delete in one transaction.
- *                                   Gated by any of the three site-write capabilities.
+ *
+ *                                   **Gated by `site.structure.edit`** — the
+ *                                   reconcile soft-deletes any VC not in the
+ *                                   incoming set. The previous `SITE_WRITE_*`
+ *                                   gate let a Client with `site.content.edit`
+ *                                   only wipe every Visual Component by sending
+ *                                   `{ components: [] }`. (A1 fix.)
  *
  * The GET response returns raw DataRow objects (not VisualComponent objects) so
  * the client adapter can reconstruct VCs via visualComponentFromRow without a
@@ -20,8 +26,7 @@
  * validateVisualComponents immediately after conversion.
  */
 import type { DbClient } from '../../db/client'
-import { requireAnyCapability, requireCapability } from '../../auth/authz'
-import { SITE_WRITE_CAPABILITIES } from '../../auth/capabilities'
+import { requireCapability } from '../../auth/authz'
 import {
   listDataRows,
   createDataRow,
@@ -50,7 +55,8 @@ export async function handleComponentsRoutes(req: Request, db: DbClient): Promis
   }
 
   if (req.method === 'PUT') {
-    const user = await requireAnyCapability(req, db, SITE_WRITE_CAPABILITIES)
+    // Structural gate — reconcile soft-deletes missing VCs. See A1.
+    const user = await requireCapability(req, db, 'site.structure.edit')
     if (user instanceof Response) return user
 
     const body = await readJsonObject(req)

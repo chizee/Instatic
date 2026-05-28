@@ -16,7 +16,15 @@
  *   includeMedia — `1`/`0` (GET) or boolean (POST); default false
  *   includeSite  — `1`/`0` (GET, default 1) or boolean (POST, default true)
  *
- * Requires `site.read` capability.
+ * Requires the `data.export` capability — split out of `site.read` in
+ * B8 because the bundle bytes include every author's drafts, which
+ * `site.read` (held by Client) should not imply.
+ *
+ * Additionally: row visibility is filtered via `canSeeAllDataRows`.
+ * A caller without `content.edit.any` / `content.publish.any` /
+ * `content.manage` only exports their own rows. This closes the G5
+ * leak (the previous implementation returned every row regardless of
+ * the caller's content visibility scope).
  */
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
@@ -30,6 +38,7 @@ import { jsonResponse, readJsonObject } from '../../http'
 import { parseValue } from '@core/utils/typeboxHelpers'
 import { CMS_API_PREFIX, type CmsHandlerOptions } from './shared'
 import { ExportRequestSchema, type SiteBundle } from '@core/data/bundleSchema'
+import { canSeeAllDataRows } from './data/access'
 
 export async function handleExportRoute(
   req: Request,
@@ -42,7 +51,7 @@ export async function handleExportRoute(
     return jsonResponse({ error: 'Method not allowed' }, { status: 405 })
   }
 
-  const user = await requireCapability(req, db, 'site.read')
+  const user = await requireCapability(req, db, 'data.export')
   if (user instanceof Response) return user
 
   // Parse filter options from query string (GET) or JSON body (POST)
@@ -85,9 +94,15 @@ export async function handleExportRoute(
     tables = tables.filter((t) => tableFilter.has(t.id))
   }
 
-  // Load rows for the selected tables (parallel)
+  // Load rows for the selected tables (parallel). Visibility filtering:
+  // a caller without `content.edit.any` / `content.publish.any` /
+  // `content.manage` only sees their own rows in the bundle. Without
+  // this, a Client with `data.export` granted (which already implies
+  // limited content access) could download every author's drafts.
+  // (G5 fix — see capabilities review.)
+  const visibility = canSeeAllDataRows(user) ? {} : { ownerUserId: user.id }
   const rowsPerTable = await Promise.all(
-    tables.map((table) => listDataRows(db, table.id)),
+    tables.map((table) => listDataRows(db, table.id, visibility)),
   )
   let rows = rowsPerTable.flat()
 

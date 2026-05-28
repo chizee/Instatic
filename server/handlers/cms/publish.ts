@@ -16,7 +16,7 @@
  * A stolen session cookie alone shouldn't be enough to redeploy; the
  * caller must have re-entered their password within the last 15 min.
  * Step-up matches the pattern used by `users.manage` delete / suspend
- * and the entire `plugins.manage` mutation surface.
+ * and the `plugins.install` / `plugins.lifecycle` mutation surface.
  */
 import type { DbClient } from '../../db/client'
 import { requireCapability, requireStepUp } from '../../auth/authz'

@@ -1,13 +1,19 @@
 /**
- * Media folder endpoints (gated by `media.manage`).
+ * Media folder endpoints — capabilities mirror the asset endpoints.
  *
  *   GET    /admin/api/cms/media/folders         — flat list; client builds tree
+ *                                                  (`media.read` — folder tree
+ *                                                  is part of the library view)
  *   POST   /admin/api/cms/media/folders         — { name, parentId? }
+ *                                                  (`media.write`)
  *   PATCH  /admin/api/cms/media/folders/:id     — { name?, parentId?, sortOrder? }
+ *                                                  (`media.write`)
  *   DELETE /admin/api/cms/media/folders/:id     — cascade removes child folders +
  *                                                  asset membership rows (assets
  *                                                  themselves stay, just become
  *                                                  Uncategorized)
+ *                                                  (`media.delete` — destructive,
+ *                                                  matches asset delete gate)
  *
  * Slug is auto-generated from the name on create and on rename (when `name`
  * changes). Uniqueness scoped per parent (gated by a unique index on
@@ -60,7 +66,11 @@ export async function handleMediaFolderRoutes(
   const url = new URL(req.url)
 
   if (url.pathname === '/admin/api/cms/media/folders') {
-    const user = await requireCapability(req, db, 'media.manage')
+    // GET = read; POST = create. Two-step gate so a `media.read`-only
+    // caller can browse folders in the picker.
+    const user = req.method === 'GET'
+      ? await requireCapability(req, db, 'media.read')
+      : await requireCapability(req, db, 'media.write')
     if (user instanceof Response) return user
 
     if (req.method === 'GET') {
@@ -100,7 +110,11 @@ export async function handleMediaFolderRoutes(
 
   const folderItemMatch = url.pathname.match(/^\/admin\/api\/cms\/media\/folders\/([^/]+)$/)
   if (folderItemMatch) {
-    const user = await requireCapability(req, db, 'media.manage')
+    // PATCH = rename / reparent (write); DELETE = cascade delete folder
+    // (delete). Mirrors the asset-endpoint capability split.
+    const user = req.method === 'DELETE'
+      ? await requireCapability(req, db, 'media.delete')
+      : await requireCapability(req, db, 'media.write')
     if (user instanceof Response) return user
 
     const folderId = decodeURIComponent(folderItemMatch[1])

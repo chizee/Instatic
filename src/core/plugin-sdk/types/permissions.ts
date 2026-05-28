@@ -9,6 +9,12 @@ export const PLUGIN_PERMISSION_VALUES = [
   'cms.storage',
   // Server runtime
   'cms.routes',
+  // Anonymous-callable plugin routes (webhooks, public read endpoints).
+  // Required on top of `cms.routes` to register a route via
+  // `api.cms.routes.public.*`. Split out so the install consent dialog
+  // can flag the plugin as exposing public endpoints to the operator
+  // before they approve installation.
+  'cms.routes.public',
   'cms.hooks',
   // CMS pages — read and republish
   'cms.pages.read',

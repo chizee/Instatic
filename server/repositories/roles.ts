@@ -1,6 +1,7 @@
 import { nanoid } from 'nanoid'
 import type { DbClient } from '../db/client'
 import {
+  FORCE_SYNC_ROLE_IDS,
   normalizeCapabilities,
   OWNER_ROLE_ID,
   SYSTEM_ROLES,
@@ -168,21 +169,30 @@ export async function deleteCustomRole(db: DbClient, roleId: string): Promise<Ro
  * roles (owner, admin, client, member) always exist after a fresh install OR
  * an upgrade that introduces a new system role.
  *
- *  - Owner: name / description / capabilities are ALWAYS resynced from the
- *    code constants. Adding a new capability to `CORE_CAPABILITIES` therefore
- *    propagates to every existing installation on the next boot — owners are
- *    never stranded on a stale grant list.
- *  - Other system roles: inserted on first boot only. Subsequent boots leave
+ *  - Roles in `FORCE_SYNC_ROLE_IDS` (Owner + Admin) — name / description /
+ *    capabilities are ALWAYS resynced from the code constants. Adding a new
+ *    capability to `CORE_CAPABILITIES` and to the role's literal list in
+ *    `SYSTEM_ROLES` propagates to every existing installation on the next
+ *    boot — owners and admins are never stranded on a stale grant list, and
+ *    operators don't have to manually re-grant new capabilities through the
+ *    admin UI after every upgrade.
+ *  - Client / Member: inserted on first boot only. Subsequent boots leave
  *    the persisted row untouched so user-customised name / description /
  *    capabilities survive upgrades. Use the admin UI to edit them.
+ *
+ * The trade-off for Admin force-sync: if an operator hand-removes a
+ * capability from the Admin role through the UI, the boot sync restores
+ * it. That is intentional — capability grants for built-in roles are a
+ * code-level decision, not a runtime one. Operators who need a "limited
+ * admin" persona should create a custom role.
  *
  * Called from `server/index.ts` after `runMigrations`.
  */
 export async function syncSystemRoles(db: DbClient): Promise<void> {
   for (const role of SYSTEM_ROLES) {
-    const isOwner = role.id === OWNER_ROLE_ID
-    if (isOwner) {
-      // Force-resync the Owner row to whatever the code declares.
+    const forceSync = FORCE_SYNC_ROLE_IDS.includes(role.id)
+    if (forceSync) {
+      // Force-resync the row to whatever the code declares.
       await db`
         insert into roles (id, slug, name, description, is_system, capabilities_json)
         values (${role.id}, ${role.slug}, ${role.name}, ${role.description}, ${true}, ${role.capabilities})

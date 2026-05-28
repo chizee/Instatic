@@ -12,6 +12,28 @@ const CONTENT_ACCESS_CAPABILITIES: CoreCapability[] = [
   'content.manage',
 ]
 
+const DATA_WORKSPACE_READ_CAPABILITIES: CoreCapability[] = [
+  'data.tables.read',
+  'data.tables.manage',
+  // Also accept any `content.*` cap so the loop / template pickers in
+  // the site editor can still resolve data tables for someone whose
+  // workspace gate is content rather than data.
+  ...CONTENT_ACCESS_CAPABILITIES,
+]
+
+const PLUGIN_READ_CAPABILITIES: CoreCapability[] = [
+  'plugins.read',
+  'plugins.configure',
+  'plugins.install',
+  'plugins.lifecycle',
+]
+
+const RUNTIME_STORAGE_CAPABILITIES: CoreCapability[] = [
+  'runtime.dependencies',
+  'storage.elect',
+  'storage.migrate',
+]
+
 export function hasCapability(user: CmsCurrentUser | null, capability: CoreCapability): boolean {
   return Boolean(user?.capabilities.includes(capability))
 }
@@ -75,7 +97,10 @@ export function canCreateContent(user: CmsCurrentUser | null): boolean {
 }
 
 export function canManageContentCollections(user: CmsCurrentUser | null): boolean {
-  return hasCapability(user, 'content.manage')
+  // The Data workspace's "create table / edit fields" actions now live on
+  // `data.tables.manage`. Keep `content.manage` accepted too — historical
+  // installs and the content-row level granted them together.
+  return hasAnyCapability(user, ['data.tables.manage', 'content.manage'])
 }
 
 export function canEditAnyContent(user: CmsCurrentUser | null): boolean {
@@ -91,12 +116,77 @@ export function canPublishContentEntry(user: CmsCurrentUser | null, row: DataRow
     (ownsDataRow(user, row) && hasCapability(user, 'content.publish.own'))
 }
 
+// ---------------------------------------------------------------------------
+// Data workspace helpers
+// ---------------------------------------------------------------------------
+
+/** Caller can browse the Data workspace (schema viewer). */
+export function canReadDataTables(user: CmsCurrentUser | null): boolean {
+  return hasAnyCapability(user, ['data.tables.read', 'data.tables.manage'])
+}
+
+/** Caller can create/rename/delete tables and edit fields. */
+export function canManageDataTables(user: CmsCurrentUser | null): boolean {
+  return hasCapability(user, 'data.tables.manage')
+}
+
+/** Caller can move a row from one table to another (`PATCH /rows/:id/table`). */
+export function canMoveDataRow(user: CmsCurrentUser | null): boolean {
+  return hasCapability(user, 'data.rows.move')
+}
+
+/** Caller can export a SiteBundle and read the import preview. */
+export function canExportData(user: CmsCurrentUser | null): boolean {
+  return hasCapability(user, 'data.export')
+}
+
+/** Caller can run an import (replace mode also needs content.manage + step-up server-side). */
+export function canImportData(user: CmsCurrentUser | null): boolean {
+  return hasCapability(user, 'data.import')
+}
+
+// ---------------------------------------------------------------------------
+// Media workspace helpers
+// ---------------------------------------------------------------------------
+
+/** Caller can open the Media workspace and the picker. */
+export function canReadMedia(user: CmsCurrentUser | null): boolean {
+  return hasCapability(user, 'media.read')
+}
+
+/** Caller can upload assets and edit metadata. */
+export function canWriteMedia(user: CmsCurrentUser | null): boolean {
+  return hasCapability(user, 'media.write')
+}
+
+/** Caller can overwrite the bytes of an existing asset. */
+export function canReplaceMedia(user: CmsCurrentUser | null): boolean {
+  return hasCapability(user, 'media.replace')
+}
+
+/** Caller can soft-delete / purge assets. */
+export function canDeleteMedia(user: CmsCurrentUser | null): boolean {
+  return hasCapability(user, 'media.delete')
+}
+
+// ---------------------------------------------------------------------------
+// Workspace gating
+// ---------------------------------------------------------------------------
+
 function canAccessUsersWorkspace(user: CmsCurrentUser | null): boolean {
   return hasAnyCapability(user, ['users.manage', 'roles.manage', 'audit.read'])
 }
 
 function canAccessAiWorkspace(user: CmsCurrentUser | null): boolean {
   return hasAnyCapability(user, ['ai.providers.manage', 'ai.audit.read'])
+}
+
+function canAccessDataWorkspace(user: CmsCurrentUser | null): boolean {
+  return hasAnyCapability(user, DATA_WORKSPACE_READ_CAPABILITIES)
+}
+
+function canAccessPluginsWorkspace(user: CmsCurrentUser | null): boolean {
+  return hasAnyCapability(user, PLUGIN_READ_CAPABILITIES)
 }
 
 export function canAccessWorkspace(user: CmsCurrentUser | null, workspace: AdminWorkspace): boolean {
@@ -111,12 +201,12 @@ export function canAccessWorkspace(user: CmsCurrentUser | null, workspace: Admin
     case 'content':
       return canAccessContent(user)
     case 'data':
-      return canAccessContent(user)
+      return canAccessDataWorkspace(user)
     case 'media':
-      return hasCapability(user, 'media.manage')
+      return canReadMedia(user)
     case 'plugins':
     case 'pluginPage':
-      return hasCapability(user, 'plugins.manage')
+      return canAccessPluginsWorkspace(user)
     case 'users':
       return canAccessUsersWorkspace(user)
     case 'ai':
@@ -160,3 +250,9 @@ export function workspacePath(workspace: AdminWorkspace): string {
       return '/admin/account'
   }
 }
+
+// Reference unused imports so the linter doesn't strip them when not consumed
+// downstream yet (RUNTIME_STORAGE_CAPABILITIES is here for symmetry — the
+// runtime workspace doesn't currently have its own canAccess gate because
+// there is no dedicated runtime workspace; storage admin lives under media).
+void RUNTIME_STORAGE_CAPABILITIES

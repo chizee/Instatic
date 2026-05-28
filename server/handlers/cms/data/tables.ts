@@ -49,8 +49,10 @@ import {
   canSeeAllDataRows,
   requireDataAccess,
   requireDataCreator,
-  requireDataManager,
+  requireDataTablesManager,
+  requireDataTablesRead,
 } from './access'
+import { requireStepUp } from '../../../auth/authz'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -132,11 +134,37 @@ function extractRowSlug(table: DataTable, cells: Record<string, unknown>): strin
 // Per-route handlers
 // ---------------------------------------------------------------------------
 
+/**
+ * The tables list endpoint is read by two distinct audiences:
+ *   - Data workspace UI — gated by `data.tables.read` (schema browser).
+ *   - Loop / template pickers in the site editor — gated by any `content.*`
+ *     access cap because the picker only needs to know what tables exist
+ *     to choose a loop source.
+ *
+ * Either cap family is sufficient — the response is the same list of
+ * tables + counts. Mutations stay strict (`data.tables.manage`).
+ */
+async function requireAnyRead(req: Request, db: DbClient): Promise<AuthUser | Response> {
+  const tablesRead = await requireDataTablesRead(req, db)
+  if (!(tablesRead instanceof Response)) return tablesRead
+  return requireDataAccess(req, db)
+}
+
 async function handleTablesCollection(req: Request, db: DbClient): Promise<Response> {
+  // GET = schema-level read (`data.tables.read` — Data workspace floor;
+  // `content.*` callers also accepted because the loop picker calls this
+  // and they need to know what tables exist).
+  // POST = schema mutation (`data.tables.manage` + step-up — creating a
+  // table changes the public route surface of the site).
   const user = req.method === 'GET'
-    ? await requireDataAccess(req, db)
-    : await requireDataManager(req, db)
+    ? await requireAnyRead(req, db)
+    : await requireDataTablesManager(req, db)
   if (user instanceof Response) return user
+
+  if (req.method === 'POST') {
+    const stepUp = await requireStepUp(req, db)
+    if (stepUp instanceof Response) return stepUp
+  }
 
   if (req.method === 'GET') {
     const url = new URL(req.url)
@@ -197,18 +225,21 @@ async function handleTableItem(
   db: DbClient,
   tableId: string,
 ): Promise<Response> {
-  // GET is allowed for anyone with data access (loop previews, template
-  // resolvers, schema-driven UIs). Mutations stay gated by content.manage.
+  // GET = schema read (Data workspace OR loop pickers in site editor).
   if (req.method === 'GET') {
-    const user = await requireDataAccess(req, db)
+    const user = await requireAnyRead(req, db)
     if (user instanceof Response) return user
     const table = await getDataTable(db, tableId)
     if (!table) return jsonResponse({ error: 'Table not found' }, { status: 404 })
     return jsonResponse({ table })
   }
 
-  const user = await requireDataManager(req, db)
+  // PATCH/DELETE = schema mutation. Step-up gated — renaming or deleting a
+  // table changes / breaks every public URL under its route base.
+  const user = await requireDataTablesManager(req, db)
   if (user instanceof Response) return user
+  const stepUp = await requireStepUp(req, db)
+  if (stepUp instanceof Response) return stepUp
 
   if (req.method === 'PATCH') {
     const body = await readValidatedBody(req, TablePatchBodySchema)

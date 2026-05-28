@@ -19,7 +19,7 @@ import type { SerializedRequest, SerializedResponse, SerializedUser } from '../p
 import type { LoadPluginResult } from '../protocol/messages'
 import { hostPlugins } from './registry'
 import { requestFromWorker, workers } from './workerPool'
-import type { CoreCapability } from '../../auth/capabilities'
+import type { HostRouteAccess } from './types'
 
 export function normalizeRoutePath(path: string): string {
   const trimmed = path.trim()
@@ -282,22 +282,24 @@ function getRegisteredRoute(
   pluginId: string,
   method: string,
   path: string,
-): { capability: CoreCapability | null } | null {
+): { access: HostRouteAccess } | null {
   const entry = hostPlugins.get(pluginId)
   const route = entry?.routes.get(`${method.toUpperCase()}:${normalizeRoutePath(path)}`)
-  return route ? { capability: route.capability } : null
+  return route ? { access: route.access } : null
 }
 
 /**
- * Lookup helper used by the existing plugin-runtime route table — given a
- * plugin id and request method/path, return whether that plugin has a
- * registered route, and which capability gates it.
+ * Lookup helper used by the plugin-runtime forwarder — given a plugin id
+ * and request method/path, return the route's access policy (capability /
+ * authenticated / public). Replaces the previous
+ * `findPluginRouteCapability` which returned `{ capability: string | null }`
+ * and was ambiguous about whether `null` meant authenticated or public.
  */
-export function findPluginRouteCapability(
+export function findPluginRouteAccess(
   pluginId: string,
   method: string,
   path: string,
-): { capability: CoreCapability | null } | null {
+): { access: HostRouteAccess } | null {
   return getRegisteredRoute(pluginId, method, path)
 }
 

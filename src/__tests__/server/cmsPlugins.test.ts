@@ -49,7 +49,7 @@ function makeFakeDb() {
           role_name: 'Owner',
           role_description: '',
           role_is_system: true,
-          role_capabilities_json: ['plugins.manage'],
+          role_capabilities_json: ['plugins.read', 'plugins.configure', 'plugins.install', 'plugins.lifecycle'],
         } as Row] : [],
         rowCount: admin ? 1 : 0,
       }
@@ -496,7 +496,7 @@ describe('CMS plugin handlers', () => {
       const formData = new FormData()
       formData.set('file', pluginZip({
         'plugin.json': JSON.stringify(manifest),
-        'server/index.js': 'export function activate(api) { api.cms.routes.get("/ping", "plugins.manage", () => ({ ok: true })) }',
+        'server/index.js': 'export function activate(api) { api.cms.routes.get("/ping", "plugins.read", () => ({ ok: true })) }',
         'admin/dashboard.js': 'export function render({ root }) { root.textContent = "Workflow" }',
       }))
       formData.set('grantedPermissions', JSON.stringify(manifest.permissions))
@@ -599,7 +599,7 @@ describe('CMS plugin handlers', () => {
       }
       export async function activate(api) {
         await mark(api, 'activate')
-        api.cms.routes.get('/ping', 'plugins.manage', () => ({ ok: true, plugin: api.plugin.id }))
+        api.cms.routes.get('/ping', 'plugins.read', () => ({ ok: true, plugin: api.plugin.id }))
       }
       export async function deactivate(api) { await mark(api, 'deactivate') }
       export async function uninstall(api) { await mark(api, 'uninstall') }
@@ -1183,7 +1183,7 @@ describe('CMS plugin handlers', () => {
         'plugin.json': JSON.stringify(manifestFor('acme.good')),
         'server/index.js': `
           export function activate(api) {
-            api.cms.routes.get('/ping', 'plugins.manage', () => ({ ok: true, who: 'good' }))
+            api.cms.routes.get('/ping', 'plugins.read', () => ({ ok: true, who: 'good' }))
           }
         `,
       }))
@@ -1206,7 +1206,7 @@ describe('CMS plugin handlers', () => {
         'plugin.json': JSON.stringify(manifestFor('acme.bad')),
         'server/index.js': `
           export function activate(api) {
-            api.cms.routes.get('/boom', 'plugins.manage', () => {
+            api.cms.routes.get('/boom', 'plugins.read', () => {
               throw new Error('plugin boom')
             })
           }

@@ -39,7 +39,7 @@ async function handleModels(
   if (req.method !== 'GET') {
     return jsonResponse({ error: 'Method not allowed' }, { status: 405 })
   }
-  const userOrResponse = await requireCapability(req, db, 'ai.use')
+  const userOrResponse = await requireCapability(req, db, 'ai.chat')
   if (userOrResponse instanceof Response) return userOrResponse
 
   if (!VALID_PROVIDERS.includes(providerParam as AiProviderId)) {

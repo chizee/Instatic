@@ -6,7 +6,7 @@
  *   1. The MediaSidebar declares a `'storage'` panel id and renders the
  *      MediaStoragePanel for it. Drift between the union and the render
  *      branch would surface as a runtime "undefined panel" failure.
- *   2. The rail button for the storage panel is gated by `runtime.manage`
+ *   2. The rail button for the storage panel is gated by `storage.elect`
  *      — the same capability the API endpoints
  *      (`server/handlers/cms/mediaStorageAdmin.ts`) require. Mismatch
  *      would either let a user open a panel that 403s on first action,
@@ -52,16 +52,16 @@ describe('media storage settings panel', () => {
     expect(source).toMatch(/<MediaStoragePanel\s*\/>/)
   })
 
-  it('storage rail button is gated by runtime.manage', async () => {
+  it('storage rail button is gated by storage.elect', async () => {
     const source = await read('src/admin/pages/media/components/MediaSidebar/MediaSidebar.tsx')
-    expect(source).toMatch(/hasCapability\(\s*currentUser\s*,\s*'runtime\.manage'\s*\)/)
+    expect(source).toMatch(/hasCapability\(\s*currentUser\s*,\s*'storage\.elect'\s*\)/)
   })
 
-  it('panel and server endpoint share the runtime.manage gate', async () => {
+  it('panel and server endpoint share the storage.elect gate', async () => {
     const sidebar = await read('src/admin/pages/media/components/MediaSidebar/MediaSidebar.tsx')
     const handler = await read('server/handlers/cms/mediaStorageAdmin.ts')
-    expect(sidebar).toContain("'runtime.manage'")
-    expect(handler).toContain("'runtime.manage'")
+    expect(sidebar).toContain("'storage.elect'")
+    expect(handler).toContain("'storage.elect'")
   })
 
   it('no standalone mediaStorage workspace or page exists', async () => {

@@ -27,6 +27,21 @@ const USERS_ACCESS_CAPABILITIES = [
   'audit.read',
 ] as const
 
+/** Mirrors `canAccessDataWorkspace` in access.ts (any `data.*` read or `content.*`). */
+const DATA_WORKSPACE_CAPABILITIES = [
+  'data.tables.read',
+  'data.tables.manage',
+  ...CONTENT_ACCESS_CAPABILITIES,
+] as const
+
+/** Mirrors `canAccessPluginsWorkspace` in access.ts. */
+const PLUGINS_ACCESS_CAPABILITIES = [
+  'plugins.read',
+  'plugins.configure',
+  'plugins.install',
+  'plugins.lifecycle',
+] as const
+
 export function getNavigationCommands(): Command[] {
   return [
     {
@@ -65,7 +80,7 @@ export function getNavigationCommands(): Command[] {
       iconName: 'database-solid',
       keywords: ['data', 'tables', 'fields', 'database', 'structured'],
       workspaces: ['any'],
-      capability: CONTENT_ACCESS_CAPABILITIES,
+      capability: DATA_WORKSPACE_CAPABILITIES,
       run: (ctx) => {
         ctx.navigate('/admin/data')
         ctx.closeSpotlight()
@@ -79,7 +94,7 @@ export function getNavigationCommands(): Command[] {
       iconName: 'image-solid',
       keywords: ['media', 'files', 'images', 'uploads', 'assets'],
       workspaces: ['any'],
-      capability: 'media.manage',
+      capability: 'media.read',
       run: (ctx) => {
         ctx.navigate('/admin/media')
         ctx.closeSpotlight()
@@ -93,7 +108,7 @@ export function getNavigationCommands(): Command[] {
       iconName: 'package-solid',
       keywords: ['plugins', 'extensions', 'addons', 'install'],
       workspaces: ['any'],
-      capability: 'plugins.manage',
+      capability: PLUGINS_ACCESS_CAPABILITIES,
       run: (ctx) => {
         ctx.navigate('/admin/plugins')
         ctx.closeSpotlight()

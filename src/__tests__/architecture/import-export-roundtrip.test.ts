@@ -291,6 +291,11 @@ async function seedRoundtripAuth(db: DbClient, email: string): Promise<string> {
     expiresAt: sessionExpiry(),
     ipAddress: null,
     userAgent: null,
+    // Pre-open a step-up window — the `replace` import strategy
+    // (capabilities review G6 fix) now requires step-up since wipe-and-
+    // reload is the highest blast radius op. Tests skip the step-up
+    // dance by seeding the row directly.
+    stepUpExpiresAt: new Date(Date.now() + 60 * 60 * 1000),
   })
   return `${SESSION_COOKIE_NAME}=${token}`
 }

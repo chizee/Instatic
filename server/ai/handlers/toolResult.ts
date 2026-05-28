@@ -5,6 +5,12 @@
  * editor store, the browser sends `{ bridgeId, requestId, result }`. The
  * server matches the bridgeId+requestId to a pending driver waiter via
  * `resolveBridgeToolResult` and resolves it so the driver loop continues.
+ *
+ * Capability: `ai.tools.write` — this endpoint exists *only* to carry
+ * the result of a write tool that mutated the editor store. A user with
+ * `ai.chat` but no `ai.tools.write` never gets a write tool registered
+ * by `selectToolsForScope`, so the bridge is never invoked. Gating here
+ * is defense-in-depth.
  */
 
 import { Type, safeParseValue, formatValueErrors } from '@core/utils/typeboxHelpers'
@@ -40,7 +46,7 @@ async function handleAiToolResult(req: Request, db: DbClient): Promise<Response>
   if (isStateChangingMethod(req.method) && !originAllowed(req)) {
     return jsonResponse({ error: 'Forbidden: invalid origin' }, { status: 403 })
   }
-  const userOrResponse = await requireCapability(req, db, 'ai.use')
+  const userOrResponse = await requireCapability(req, db, 'ai.tools.write')
   if (userOrResponse instanceof Response) return userOrResponse
 
   let rawBody: unknown

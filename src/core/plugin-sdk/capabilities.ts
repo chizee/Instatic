@@ -29,8 +29,15 @@ export const PLUGIN_CAPABILITIES: PluginCapability[] = [
   {
     permission: 'cms.routes',
     label: 'Register backend CMS routes',
-    description: 'Allows the plugin server entrypoint to register authenticated backend routes.',
+    description: 'Allows the plugin server entrypoint to register authenticated backend routes. Routes are gated by either a core capability or a "any authenticated user" check; in both cases the host enforces the session cookie. For anonymous-callable endpoints (webhooks), the plugin must ALSO request `cms.routes.public`.',
     risk: 'high',
+    surfaces: ['server', 'cms'],
+  },
+  {
+    permission: 'cms.routes.public',
+    label: 'Register anonymously-callable routes',
+    description: 'Allows the plugin to register backend routes that bypass authentication entirely (webhook receivers, public read endpoints). Required on TOP of `cms.routes`. Split out as its own permission so the install dialog surfaces "this plugin will expose public endpoints" before the operator approves the install.',
+    risk: 'dangerous',
     surfaces: ['server', 'cms'],
   },
   {

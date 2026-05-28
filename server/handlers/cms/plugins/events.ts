@@ -10,8 +10,8 @@
  *   - bump a red badge on the nav link when any plugin is in error state.
  *
  * Behaviour:
- *   - The auth gate (`plugins.manage`) is applied by the dispatcher before
- *     we reach this handler.
+ *   - The auth gate (`plugins.read`) is applied by the dispatcher's
+ *     `resolvePluginRoutePolicy` before we reach this handler.
  *   - Initial `event: ping` keeps proxies (vite, nginx) from idle-closing
  *     the long-lived connection. Followed by a periodic heartbeat every
  *     30s for the same reason.

@@ -72,7 +72,7 @@ async function dispatchCollection(req: Request, db: DbClient, url: URL): Promise
 }
 
 async function handleList(req: Request, db: DbClient, url: URL): Promise<Response> {
-  const userOrResponse = await requireCapability(req, db, 'ai.use')
+  const userOrResponse = await requireCapability(req, db, 'ai.chat')
   if (userOrResponse instanceof Response) return userOrResponse
 
   const scopeParam = url.searchParams.get('scope')
@@ -94,7 +94,7 @@ async function handleCreate(req: Request, db: DbClient): Promise<Response> {
   if (isStateChangingMethod(req.method) && !originAllowed(req)) {
     return jsonResponse({ error: 'Forbidden: invalid origin' }, { status: 403 })
   }
-  const userOrResponse = await requireCapability(req, db, 'ai.use')
+  const userOrResponse = await requireCapability(req, db, 'ai.chat')
   if (userOrResponse instanceof Response) return userOrResponse
 
   let rawBody: unknown
@@ -131,7 +131,7 @@ async function dispatchItem(req: Request, db: DbClient, id: string): Promise<Res
 }
 
 async function handleRead(req: Request, db: DbClient, id: string): Promise<Response> {
-  const userOrResponse = await requireCapability(req, db, 'ai.use')
+  const userOrResponse = await requireCapability(req, db, 'ai.chat')
   if (userOrResponse instanceof Response) return userOrResponse
 
   const conv = await readConversationForUser(db, userOrResponse.id, id)
@@ -145,7 +145,7 @@ async function handleUpdate(req: Request, db: DbClient, id: string): Promise<Res
   if (isStateChangingMethod(req.method) && !originAllowed(req)) {
     return jsonResponse({ error: 'Forbidden: invalid origin' }, { status: 403 })
   }
-  const userOrResponse = await requireCapability(req, db, 'ai.use')
+  const userOrResponse = await requireCapability(req, db, 'ai.chat')
   if (userOrResponse instanceof Response) return userOrResponse
 
   let rawBody: unknown
@@ -173,7 +173,7 @@ async function handleDelete(req: Request, db: DbClient, id: string): Promise<Res
   if (isStateChangingMethod(req.method) && !originAllowed(req)) {
     return jsonResponse({ error: 'Forbidden: invalid origin' }, { status: 403 })
   }
-  const userOrResponse = await requireCapability(req, db, 'ai.use')
+  const userOrResponse = await requireCapability(req, db, 'ai.chat')
   if (userOrResponse instanceof Response) return userOrResponse
 
   const ok = await softDeleteConversationForUser(db, userOrResponse.id, id)

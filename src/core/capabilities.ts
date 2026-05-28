@@ -10,6 +10,8 @@
  *                          framework tokens.
  *
  * Mirrored from `server/auth/capabilities.ts` — keep both lists in sync.
+ * The `capability-picker-coverage.test.ts` architecture gate enforces full
+ * coverage between this list, the picker UI, and the server schema.
  */
 export const CORE_CAPABILITIES = [
   'dashboard.read',
@@ -25,16 +27,33 @@ export const CORE_CAPABILITIES = [
   'content.publish.own',
   'content.publish.any',
   'content.manage',
-  'media.manage',
-  'runtime.manage',
-  'plugins.manage',
+  // Media — granular split (read/write/replace/delete).
+  'media.read',
+  'media.write',
+  'media.replace',
+  'media.delete',
+  // Runtime + storage — split out of the old `runtime.manage`.
+  'runtime.dependencies',
+  'storage.elect',
+  'storage.migrate',
+  // Plugins — granular split (read/configure/install/lifecycle).
+  'plugins.read',
+  'plugins.configure',
+  'plugins.install',
+  'plugins.lifecycle',
   'users.manage',
   'roles.manage',
   'audit.read',
-  // AI runtime — mirror of the server-side list in
-  // `server/auth/capabilities.ts`. See
-  // `docs/plans/2026-05-26-ai-runtime-rewrite.md` for the semantics.
-  'ai.use',
+  // Data workspace — split from `content.manage`.
+  'data.tables.read',
+  'data.tables.manage',
+  'data.rows.move',
+  'data.export',
+  'data.import',
+  // AI runtime — `ai.chat` for conversations + read tools; `ai.tools.write`
+  // for canvas write tools. See `docs/plans/2026-05-26-ai-runtime-rewrite.md`.
+  'ai.chat',
+  'ai.tools.write',
   'ai.providers.manage',
   'ai.audit.read',
 ] as const

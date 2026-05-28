@@ -53,6 +53,7 @@ import {
   requireDataAuthorManager,
   requireDataEditor,
   requireDataPublisher,
+  requireDataRowMover,
 } from './access'
 import { handleRowPreview } from './preview'
 
@@ -319,7 +320,12 @@ async function handleRowTable(
   db: DbClient,
   rowId: string,
 ): Promise<Response> {
-  const user = await requireDataEditor(req, db)
+  // Cross-collection move = structurally distinct from cell-level editing.
+  // A junior editor with `content.edit.any` should not be able to take a
+  // post out of Posts and into Drafts (breaks the URL — different route
+  // base). Split out as `data.rows.move` so the operator can grant it
+  // separately. See G2 / B8 in the capabilities review.
+  const user = await requireDataRowMover(req, db)
   if (user instanceof Response) return user
   if (req.method !== 'PATCH') return methodNotAllowed()
 

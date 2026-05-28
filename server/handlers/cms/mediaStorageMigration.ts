@@ -143,7 +143,11 @@ export async function handleMediaStorageMigrate(
   uploadsDir: string | undefined,
 ): Promise<Response> {
   if (req.method !== 'POST') return methodNotAllowed()
-  const user = await requireCapability(req, db, 'runtime.manage')
+  // `storage.migrate` is its own capability (split out of the old
+  // `runtime.manage`) — the migration SSE moves real bytes between
+  // adapters and is a separately-grantable operation from electing an
+  // adapter in the first place.
+  const user = await requireCapability(req, db, 'storage.migrate')
   if (user instanceof Response) return user
   if (!uploadsDir) {
     return jsonResponse({ error: 'Uploads directory is not configured' }, { status: 500 })

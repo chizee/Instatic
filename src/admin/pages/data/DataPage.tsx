@@ -15,7 +15,7 @@ import { useConfirmDelete } from '@admin/shared/dialogs/ConfirmDeleteDialog'
 import {
   canCreateContent,
   canEditAnyContent,
-  canManageContentCollections,
+  canManageDataTables,
 } from '@admin/access'
 import type { DataRow, DataRowCells, DataRowStatus } from '@core/data/schemas'
 import { useDataWorkspace } from './hooks/useDataWorkspace'
@@ -57,7 +57,7 @@ export function DataPage() {
 
   const canEdit = canEditAnyContent(permissionUser)
   const canCreate = canCreateContent(permissionUser)
-  const canManage = canManageContentCollections(permissionUser)
+  const canManage = canManageDataTables(permissionUser)
   const canDelete = canManage
 
   const workspace = useDataWorkspace()

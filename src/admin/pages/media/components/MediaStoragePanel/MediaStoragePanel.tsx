@@ -13,7 +13,7 @@
  *
  * Reads + writes go through `@core/persistence/cmsMediaStorage`, which
  * talks to `server/handlers/cms/mediaStorageAdmin.ts`. The endpoints
- * are gated by `runtime.manage`; the sidebar's rail button is hidden
+ * are gated by `storage.elect`; the sidebar's rail button is hidden
  * for users without that capability.
  *
  * Sits inside the `Panel` shell with `body="padded"` so it inherits

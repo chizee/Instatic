@@ -4,7 +4,7 @@
  * Plugin server modules run in a Bun Worker (the host never imports them
  * directly), so these tests build real `.zip` packages and install them
  * via the cms handler, then verify behavior end-to-end:
- *  - public GET routes (`getPublic`) don't require auth
+ *  - public GET routes (`api.cms.routes.public.get`) don't require auth
  *  - missing capability grants block registration at the API boundary
  *  - plugin metadata (`api.plugin.id/version/permissions`) reaches the
  *    plugin's hooks
@@ -58,7 +58,7 @@ function makeFakeDb() {
           role_name: 'Owner',
           role_description: '',
           role_is_system: true,
-          role_capabilities_json: ['plugins.manage'],
+          role_capabilities_json: ['plugins.read', 'plugins.configure', 'plugins.install', 'plugins.lifecycle'],
         } as Row],
         rowCount: 1,
       }
@@ -283,17 +283,19 @@ describe('server plugin runtime SDK', () => {
         manifest: baseManifest,
         serverEntrypoint: `
           export function activate(api) {
-            api.cms.routes.getPublic('/status', () => ({ ok: true, plugin: api.plugin.id }))
+            api.cms.routes.public.get('/status', () => ({ ok: true, plugin: api.plugin.id }))
           }
         `,
-        grantedPermissions: ['cms.routes'],
+        // Public-access routes require BOTH cms.routes (to register
+        // anything) AND cms.routes.public (to allow the anonymous form).
+        grantedPermissions: ['cms.routes', 'cms.routes.public'],
         uploadsDir,
         db,
         cookie,
       })
       expect(install.status).toBe(201)
 
-      // Hit the runtime route WITHOUT a session cookie — getPublic skips auth.
+      // Hit the runtime route WITHOUT a session cookie — public routes skip auth.
       const res = await handleCmsRequest(
         cmsRequest('http://localhost/admin/api/cms/plugins/acme.workflow/runtime/status'),
         db,
@@ -318,7 +320,7 @@ describe('server plugin runtime SDK', () => {
         manifest: { ...baseManifest, permissions: ['cms.storage'] },
         serverEntrypoint: `
           export function activate(api) {
-            api.cms.routes.get('/should-fail', 'plugins.manage', () => ({ ok: true }))
+            api.cms.routes.get('/should-fail', 'plugins.read', () => ({ ok: true }))
           }
         `,
         grantedPermissions: ['cms.storage'],

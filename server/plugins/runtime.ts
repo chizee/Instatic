@@ -43,11 +43,11 @@ import {
 } from '@core/plugins/modulePackLoader'
 import { jsonResponse } from '../http'
 import { hookBus } from '@core/plugins/hookBus'
-import { requireCapability } from '../auth/authz'
+import { requireAuthenticatedUser, requireCapability } from '../auth/authz'
 import { clearPluginCrashCounter, setCrashRecoveryHandler } from './host/crashRecovery'
 import { setPluginWorkerDbClient } from './host/registry'
 import {
-  findPluginRouteCapability,
+  findPluginRouteAccess,
   loadPluginInWorker,
   runLifecycleInWorker,
   runMigrateInWorker,
@@ -228,14 +228,31 @@ export async function handleServerPluginRuntimeRequest(
   const pluginId = decodeURIComponent(match[1])
   const routePath = decodeURIComponent(match[2] ?? '/')
 
-  const route = findPluginRouteCapability(pluginId, req.method, routePath)
+  const route = findPluginRouteAccess(pluginId, req.method, routePath)
   if (!route) return jsonResponse({ error: 'Plugin route not found' }, { status: 404 })
 
-  // Capability check stays host-side. The plugin route handler in the
-  // worker still receives the validated user object so it can do
-  // additional fine-grained checks if needed.
-  const user = route.capability ? await requireCapability(req, db, route.capability) : null
-  if (user instanceof Response) return user
+  // Access gate stays host-side. The plugin route handler in the worker
+  // still receives the validated user object (or null for public routes)
+  // so it can do additional fine-grained checks if needed.
+  //
+  //   capability    Caller needs the named core capability.
+  //   authenticated Caller needs a valid session — any logged-in user.
+  //   public        Anonymous-callable; no auth check. Plugin must hold
+  //                 the `cms.routes.public` permission to register one.
+  let user: Awaited<ReturnType<typeof requireCapability>> | Response | null
+  switch (route.access.kind) {
+    case 'capability':
+      user = await requireCapability(req, db, route.access.capability)
+      if (user instanceof Response) return user
+      break
+    case 'authenticated':
+      user = await requireAuthenticatedUser(req, db)
+      if (user instanceof Response) return user
+      break
+    case 'public':
+      user = null
+      break
+  }
 
   return await runRouteInWorker({
     pluginId,

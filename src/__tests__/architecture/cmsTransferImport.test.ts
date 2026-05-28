@@ -85,6 +85,10 @@ async function seedAuth(db: DbClient): Promise<string> {
     expiresAt: sessionExpiry(),
     ipAddress: null,
     userAgent: null,
+    // Pre-open a step-up window — the `replace` strategy now requires
+    // step-up (see G6 in the capabilities review). Tests skip the
+    // dance by seeding the row directly.
+    stepUpExpiresAt: new Date(Date.now() + 60 * 60 * 1000),
   })
   return `${SESSION_COOKIE_NAME}=${token}`
 }

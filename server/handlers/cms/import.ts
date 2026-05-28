@@ -16,12 +16,21 @@
  * the transaction (filesystem); individual media failures log and continue
  * without aborting the import.
  *
- * Requires `site.structure.edit` capability (all strategies are structural).
+ * Capability matrix (G6 fix — was a single `site.structure.edit` for
+ * everything, which let a Designer with structure-edit but no
+ * content rights wipe every row via the import endpoint):
+ *
+ *   ALL strategies require:        `data.import`
+ *   `replace` strategy ALSO needs: `content.manage` AND step-up
+ *                                  (wipe-and-reload is the highest blast
+ *                                  radius operation in the CMS)
+ *   bundles carrying a `site`:     ALSO `site.structure.edit` (the site
+ *                                  shell replace is a structural edit)
  */
 import { mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { DbClient } from '../../db/client'
-import { requireCapability } from '../../auth/authz'
+import { requireCapability, requireStepUp } from '../../auth/authz'
 import { saveDraftSite } from '../../repositories/site'
 import {
   listDataTables,
@@ -59,7 +68,8 @@ export async function handleImportRoute(
   if (url.pathname !== `${CMS_API_PREFIX}/import`) return null
   if (req.method !== 'POST') return jsonResponse({ error: 'Method not allowed' }, { status: 405 })
 
-  const user = await requireCapability(req, db, 'site.structure.edit')
+  // Base gate — any import requires `data.import`.
+  const user = await requireCapability(req, db, 'data.import')
   if (user instanceof Response) return user
 
   // Parse strategy from query string (default: replace)
@@ -74,6 +84,17 @@ export async function handleImportRoute(
     )
   }
 
+  // `replace` strategy = wipe every data row and reinsert. Highest-blast
+  // radius operation in the CMS. Require `content.manage` (so a caller
+  // with `data.import` but no content rights can still merge-add but not
+  // wipe) AND step-up (mirrors users.ts delete / publish.ts publish).
+  if (strategy === 'replace') {
+    const manage = await requireCapability(req, db, 'content.manage')
+    if (manage instanceof Response) return manage
+    const stepUp = await requireStepUp(req, db)
+    if (stepUp instanceof Response) return stepUp
+  }
+
   // Parse and validate the bundle body
   const raw = await readJsonObject(req)
   let bundle
@@ -81,6 +102,14 @@ export async function handleImportRoute(
     bundle = parseValue(SiteBundleSchema, raw)
   } catch {
     return jsonResponse({ error: 'Invalid bundle: body does not conform to SiteBundleSchema' }, { status: 400 })
+  }
+
+  // Bundles that carry a site shell additionally require
+  // `site.structure.edit` — replacing the shell is a structural site edit
+  // even when the import strategy is merge-overwrite.
+  if (bundle.site) {
+    const siteEdit = await requireCapability(req, db, 'site.structure.edit')
+    if (siteEdit instanceof Response) return siteEdit
   }
 
   // ---------------------------------------------------------------------------

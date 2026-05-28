@@ -112,9 +112,10 @@ function tryServeHealth(_req: Request, _runtime: ServerRuntime, _url: URL, pathn
  *
  * Endpoints live under `/admin/api/` so the admin session cookie — scoped
  * to `Path=/admin` to keep it off the public site — is carried to them.
- * Without that, the `requireCapability('ai.use' / 'ai.providers.manage')`
- * gate would 401 every request. Matched before the broader `/admin/api/cms/`
- * route so the AI paths don't get swallowed by the CMS dispatcher.
+ * Without that, the `requireCapability('ai.chat' / 'ai.tools.write' /
+ * 'ai.providers.manage')` gate would 401 every request. Matched before
+ * the broader `/admin/api/cms/` route so the AI paths don't get swallowed
+ * by the CMS dispatcher.
  */
 function tryServeAi(req: Request, runtime: ServerRuntime, url: URL, _pathname: string): Promise<Response> | null {
   return tryHandleAi(req, runtime.db, url)

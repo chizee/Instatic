@@ -42,7 +42,7 @@ function makeFakeDb() {
           role_name: 'Owner',
           role_description: '',
           role_is_system: true,
-          role_capabilities_json: ['plugins.manage'],
+          role_capabilities_json: ['plugins.read', 'plugins.configure', 'plugins.install', 'plugins.lifecycle'],
         } as Row] : [],
         rowCount: admin ? 1 : 0,
       }

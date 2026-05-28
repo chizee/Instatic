@@ -7,11 +7,24 @@
 import type { CoreCapability } from '../../auth/capabilities'
 import type { PluginManifest } from '@core/plugin-sdk'
 
+/**
+ * Access policy for a plugin-registered route. See
+ * `server/plugins/protocol/schemas/routes.ts` for the underlying TypeBox
+ * schema and the design notes on why this is a tagged union rather than
+ * `capability: CoreCapability | null` (the old shape was ambiguous —
+ * `null` could mean "any logged-in user" OR "fully public" depending on
+ * the reader; nothing forced plugin authors to be explicit).
+ */
+export type HostRouteAccess =
+  | { kind: 'capability'; capability: CoreCapability }
+  | { kind: 'authenticated' }
+  | { kind: 'public' }
+
 export interface HostRouteEntry {
   pluginId: string
   method: string
   path: string
-  capability: CoreCapability | null
+  access: HostRouteAccess
   routeKey: string
 }
 

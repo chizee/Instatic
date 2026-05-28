@@ -17,8 +17,9 @@
  *   POST   /admin/api/cms/plugins/:id/schedules/:scheduleId/resume
  *          → flip `enabled = true`, reset `consecutive_failures = 0`.
  *
- * All four routes require `plugins.manage`. Mutating routes
- * (run-now / pause / resume) additionally require step-up.
+ * The list route requires `plugins.read`; the mutating routes
+ * (run-now / pause / resume) require `plugins.lifecycle` AND step-up.
+ * Gates are applied by the dispatcher's `resolvePluginRoutePolicy`.
  */
 import type { DbClient } from '../../../db/client'
 import { jsonResponse, methodNotAllowed } from '../../../http'

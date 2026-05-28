@@ -29,7 +29,8 @@ import { readdir, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { DbClient } from '../../db/client'
 import { isSqliteUrl, parseSqlitePath } from '../../db'
-import { requireAuthenticatedUser } from '../../auth/authz'
+import { requireAuthenticatedUser, requireCapability } from '../../auth/authz'
+import type { CoreCapability } from '../../auth/capabilities'
 import { jsonResponse, methodNotAllowed } from '../../http'
 import type { AuditAction } from '../../repositories/audit'
 import { computeGravatarHash } from '../../repositories/users'
@@ -1146,24 +1147,50 @@ async function readMediaStats(db: DbClient): Promise<MediaStats> {
 
 type DashboardReader = (db: DbClient, options: CmsHandlerOptions) => Promise<unknown>
 
-// `/dashboard/<segment>` → reader. The segment is the public slug, the
-// reader returns the JSON-serialisable response body. Keeps the route
-// dispatch a single Map lookup and the per-endpoint differences are
-// only the URL slug + the reader function.
+interface DashboardEndpoint {
+  reader: DashboardReader
+  /**
+   * Required capability for this widget. `null` = any authenticated user
+   * can read (the underlying counts are non-sensitive — pure totals, no
+   * row content, no actor identity).
+   *
+   * Widget UIs in the admin treat a 403 as "hide this widget", so a
+   * Client whose role lacks a specific capability simply doesn't see
+   * those tiles on their dashboard.
+   */
+  capability: CoreCapability | null
+}
+
+// `/dashboard/<segment>` → endpoint. The segment is the public slug,
+// each entry carries a reader function plus the capability gate. Adding
+// a new widget is "new handler function + one row here". The capability
+// rules:
 //
-// Readers receive the full `CmsHandlerOptions` even when they don't
-// need it — the storage reader is the only one that consumes
-// `uploadsDir` / `databaseUrl` today, but keeping the signature uniform
-// means future readers can pull what they need without re-plumbing the
-// dispatch.
-const DASHBOARD_READERS: Record<string, DashboardReader> = {
-  'pages': readPagesStats,
-  'posts': readPostsStats,
-  'media': readMediaStats,
-  'plugins': readPluginsStats,
-  'storage': readStorageStats,
-  'publish-lineup': readPublishLineup,
-  'activity': readRecentActivity,
+//   pages / posts / publish-lineup / storage
+//                       Non-sensitive totals or paths the visitor could
+//                       hit on the public site anyway. Any authenticated
+//                       user can read.
+//
+//   media               Library thumbnails are part of the asset surface;
+//                       gate matches `/media` list (`media.read`).
+//
+//   plugins             Plugin names, versions, and lifecycle states are
+//                       installation telemetry — `plugins.read` mirrors
+//                       the gate the admin endpoint uses.
+//
+//   activity            **Audit-class data** — actor display name + email
+//                       gravatar + action + target. Same gate as the
+//                       dedicated audit endpoint (`audit.read`). Previous
+//                       behaviour leaked this to every authenticated user
+//                       via the dashboard — A2 fix.
+const DASHBOARD_READERS: Record<string, DashboardEndpoint> = {
+  'pages':          { reader: readPagesStats,    capability: null },
+  'posts':          { reader: readPostsStats,    capability: null },
+  'media':          { reader: readMediaStats,    capability: 'media.read' },
+  'plugins':        { reader: readPluginsStats,  capability: 'plugins.read' },
+  'storage':        { reader: readStorageStats,  capability: null },
+  'publish-lineup': { reader: readPublishLineup, capability: null },
+  'activity':       { reader: readRecentActivity, capability: 'audit.read' },
 }
 
 export async function handleDashboardRoutes(
@@ -1175,17 +1202,18 @@ export async function handleDashboardRoutes(
   const prefix = `${CMS_API_PREFIX}/dashboard/`
   if (!url.pathname.startsWith(prefix)) return null
   const segment = url.pathname.slice(prefix.length)
-  const reader = DASHBOARD_READERS[segment]
-  if (!reader) return null
+  const endpoint = DASHBOARD_READERS[segment]
+  if (!endpoint) return null
   if (req.method !== 'GET') return methodNotAllowed()
 
-  // Any authenticated admin user can read dashboard stats. The
-  // dashboard widgets are visible to anyone with admin-app access; we
-  // don't gate behind a specific capability (the underlying counts are
-  // already non-sensitive — total counts, no row content).
-  const user = await requireAuthenticatedUser(req, db)
+  // Per-endpoint capability gate. `null` capability falls back to the
+  // authenticated-user floor; everything else uses requireCapability so
+  // the widget hides when the caller's role lacks the cap.
+  const user = endpoint.capability === null
+    ? await requireAuthenticatedUser(req, db)
+    : await requireCapability(req, db, endpoint.capability)
   if (user instanceof Response) return user
 
-  const body = await reader(db, options)
+  const body = await endpoint.reader(db, options)
   return jsonResponse(body)
 }

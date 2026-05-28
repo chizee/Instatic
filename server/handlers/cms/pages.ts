@@ -11,7 +11,17 @@
  *                              server validates them, converts to cells via
  *                              pageToCells, and reconciles create/update/delete
  *                              against the current rows in one transaction.
- *                              Gated by any of the three site-write capabilities.
+ *
+ *                              **Gated by `site.structure.edit`** — the reconcile
+ *                              soft-deletes any row not in the incoming set,
+ *                              so this endpoint can wipe pages wholesale. The
+ *                              previous `SITE_WRITE_CAPABILITIES` gate let a
+ *                              Client with `site.content.edit` only also send
+ *                              `{ pages: [] }` and erase every page. (A1
+ *                              fix — see capabilities review.)
+ *
+ *                              Per-node content edits stay on the site-shell
+ *                              save path, which IS diff-validated.
  *
  * The GET response intentionally returns raw DataRow objects (not Page objects)
  * so the client adapter can reconstruct Pages via pageFromRow without a
@@ -19,8 +29,7 @@
  * validates pages via validatePages immediately after conversion.
  */
 import type { DbClient } from '../../db/client'
-import { requireAnyCapability, requireCapability } from '../../auth/authz'
-import { SITE_WRITE_CAPABILITIES } from '../../auth/capabilities'
+import { requireCapability } from '../../auth/authz'
 import { loadDraftSite } from '../../repositories/site'
 import {
   listDataRows,
@@ -48,7 +57,11 @@ export async function handlePagesRoutes(req: Request, db: DbClient): Promise<Res
   }
 
   if (req.method === 'PUT') {
-    const user = await requireAnyCapability(req, db, SITE_WRITE_CAPABILITIES)
+    // Structural gate. The reconcile soft-deletes any row missing from
+    // the incoming set — a Client with `site.content.edit` only must
+    // not be able to trigger that. Per-node content edits flow through
+    // the site-shell save endpoint, which has its own diff validator.
+    const user = await requireCapability(req, db, 'site.structure.edit')
     if (user instanceof Response) return user
 
     const body = await readJsonObject(req)

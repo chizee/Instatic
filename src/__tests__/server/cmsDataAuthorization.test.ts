@@ -114,7 +114,10 @@ const ANY_EDIT_CAPS = [
   'content.edit.any',
   'content.publish.any',
   'content.manage',
-  'media.manage',
+  'media.read',
+  'media.write',
+  'media.replace',
+  'media.delete',
 ]
 
 async function createRow(

@@ -47,7 +47,7 @@ interface RailItem {
 /**
  * Every available rail item. The actual rendered set is filtered by
  * `useRailItems` below so panels gated on a capability (e.g. storage =
- * runtime.manage) are hidden for users who can't use them anyway —
+ * `storage.elect`) are hidden for users who can't use them anyway —
  * rather than showing a button that produces a 403 on first click.
  */
 const ALL_RAIL_ITEMS: RailItem[] = [
@@ -70,13 +70,13 @@ export function MediaSidebar({ workspace, activePanel, onActivePanelChange }: Me
     '--left-sidebar-panel-width': `${panelWidth}px`,
   } as CSSProperties
 
-  // Storage settings change runtime topology (which adapter handles which
-  // role) — same capability gate as plugin install/uninstall. Hide the
-  // rail button entirely for users who can't use it; the API endpoints
-  // also enforce this gate server-side as defense-in-depth.
+  // Storage election changes which adapter handles each asset role.
+  // Gated by `storage.elect` (split from the old `runtime.manage`). Hide
+  // the rail button entirely for users who can't use it; the API
+  // endpoints also enforce this gate server-side as defense-in-depth.
   const railItems = useMemo<RailItem[]>(() => {
     return ALL_RAIL_ITEMS.filter((item) => {
-      if (item.id === 'storage') return hasCapability(currentUser, 'runtime.manage')
+      if (item.id === 'storage') return hasCapability(currentUser, 'storage.elect')
       return true
     })
   }, [currentUser])

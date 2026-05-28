@@ -3,13 +3,14 @@
  *
  *   POST /admin/api/cms/runtime/dependencies/resolve — resolve a
  *        `package.json`-shaped payload into a `dependencyLock` object
- *        (gated by `runtime.manage`). Used when the editor wants to
+ *        (gated by `runtime.dependencies`). Used when the editor wants to
  *        re-pin a site's npm dependencies.
  *
  *   POST /admin/api/cms/runtime/preview — build a single-page preview
  *        document (HTML + assets + diagnostics) for a given draft site
- *        (gated by `pages.edit`). Used by the visual builder's preview
- *        iframe.
+ *        (gated by `site.read`). Used by the visual builder's preview
+ *        iframe. Read-floor capability is correct here: anyone who can
+ *        open the site editor can preview the draft they posted.
  *
  * Both endpoints accept the draft site in the request body rather than
  * loading the persisted draft — preview must reflect unsaved edits.
@@ -84,7 +85,7 @@ export async function handleRuntimeRoutes(req: Request, db: DbClient): Promise<R
   const url = new URL(req.url)
 
   if (url.pathname === '/admin/api/cms/runtime/dependencies/resolve') {
-    const user = await requireCapability(req, db, 'runtime.manage')
+    const user = await requireCapability(req, db, 'runtime.dependencies')
     if (user instanceof Response) return user
     if (req.method !== 'POST') return methodNotAllowed()
 
@@ -128,7 +129,12 @@ export async function handleRuntimeRoutes(req: Request, db: DbClient): Promise<R
   }
 
   if (url.pathname === '/admin/api/cms/runtime/preview') {
-    const user = await requireCapability(req, db, 'pages.edit')
+    // Preview is a render — the right gate is the read floor for the site
+    // editor, not page-metadata edit. A Designer holding `site.style.edit`
+    // (and therefore `site.read`) needs to use the preview iframe even
+    // though they don't have `pages.edit`. See A4 in the capabilities
+    // review.
+    const user = await requireCapability(req, db, 'site.read')
     if (user instanceof Response) return user
     if (req.method !== 'POST') return methodNotAllowed()
 

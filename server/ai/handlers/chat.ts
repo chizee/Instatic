@@ -10,10 +10,11 @@
  *
  * The conversation row already carries `(credentialId, modelId)` from when
  * it was created. The handler:
- *   1. Verifies `ai.use` + ownership of the conversation.
+ *   1. Verifies `ai.chat` + ownership of the conversation.
  *   2. Loads + decrypts the credential (rejects if rotated).
  *   3. Resolves the driver for the credential's provider.
  *   4. Builds an `AiStreamRequest` (system prompt + tools + history).
+ *      Write tools are filtered out unless the caller has `ai.tools.write`.
  *   5. Persists the user message, then runs `runChat({ ... })`.
  *   6. Streams NDJSON events back as the driver produces them.
  */
@@ -96,7 +97,12 @@ async function handleAiChat(
     return jsonResponse({ error: 'Forbidden: invalid origin' }, { status: 403 })
   }
 
-  const userOrResponse = await requireCapability(req, db, 'ai.use')
+  // `ai.chat` is the read floor for the conversation endpoint — required
+  // for every caller. Write tools are filtered separately below based on
+  // the caller's `ai.tools.write` capability so a Client granted chat
+  // can use the agent for ideas without it being able to mutate the
+  // editor store.
+  const userOrResponse = await requireCapability(req, db, 'ai.chat')
   if (userOrResponse instanceof Response) return userOrResponse
   const user = userOrResponse
 
@@ -152,7 +158,10 @@ async function handleAiChat(
   }
 
   const driver = resolveDriver(credential.providerId)
-  const tools = selectToolsForScope(scope)
+  // Capability-filtered toolset. Callers without `ai.tools.write` only see
+  // read tools registered with the driver — the model has no way to
+  // emit a write call. See B6 in the capabilities review.
+  const tools = selectToolsForScope(scope, user.capabilities)
 
   // Append the user's message BEFORE streaming so it's persisted even if
   // the stream aborts mid-response.
@@ -330,7 +339,7 @@ function emptySiteSnapshot(): SiteSnapshot {
 function emptyContentSnapshot(): ContentSnapshot {
   return {
     collections: [],
-    activeCollectionId: null,
+    activeTableId: null,
     activeDocument: null,
     currentUser: { id: '', displayName: 'Anonymous', email: '' },
   }

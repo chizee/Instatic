@@ -41,7 +41,7 @@ async function handleList(req: Request, db: DbClient): Promise<Response> {
   if (req.method !== 'GET') {
     return jsonResponse({ error: 'Method not allowed' }, { status: 405 })
   }
-  const userOrResponse = await requireCapability(req, db, 'ai.use')
+  const userOrResponse = await requireCapability(req, db, 'ai.chat')
   if (userOrResponse instanceof Response) return userOrResponse
 
   const records = await listDefaults(db)

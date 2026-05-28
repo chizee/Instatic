@@ -91,6 +91,19 @@ export interface AiTool {
   readonly execution: ToolExecution
   readonly inputSchema: TSchema
   /**
+   * Does this tool mutate state? Read tools (snapshot, search, list) are
+   * pure reads against the db / store; write tools (setNodeProps,
+   * insertNode, deleteNode, …) cause user-visible state change.
+   *
+   * The chat handler uses this to filter the registered toolset: a caller
+   * with `ai.chat` but no `ai.tools.write` only sees `mutates !== true`
+   * tools registered with the driver, so the model has no way to issue
+   * a write call. Default is `false` (read-only) to keep existing tool
+   * definitions valid without per-tool edits — `selectToolsForScope`
+   * stamps `mutates: true` onto the write subset at assembly time.
+   */
+  readonly mutates?: boolean
+  /**
    * Server-side handler. Required when `execution === 'server'`; ignored when
    * `execution === 'browser'` (the browser bridge runs the tool instead).
    */
