@@ -4,6 +4,7 @@ This folder defines the agent-run browser testing workflow for Page Builder CMS.
 
 - `protocol.md` explains how an agent should run user-facing E2E audits.
 - `feature-matrix.md` lists scenario rows by product area.
+- `capabilities.md` expands the capability/access-control E2E rows.
 - `run-log-template.md` is copied into `runs/` for each audit.
 - `runs/` stores completed run logs.
 
@@ -14,6 +15,7 @@ Use these prompts with Codex:
 - "Run the Core Owner Lifecycle E2E protocol."
 - "Run rows MEDIA-001 through MEDIA-003."
 - "Run a friction audit of the visual builder."
+- "Run the capability E2E scenarios."
 - "Retest E2E-20260514-01 from the last run."
 - "Promote PUB-001 into automated smoke coverage."
 

@@ -33,6 +33,18 @@ Use this matrix to choose agent-browser audit scope. Rows are user goals. Keep s
 | ADMIN-003 | P2 | Security | Start and cancel MFA setup | Logged in | Account security | Flow is understandable and cancelable | scary copy, stuck modal |
 | ADMIN-004 | P2 | Users | Create a non-owner user | Owner logged in | Users page | New user appears with intended role | role confusion, unsafe defaults |
 
+## Capabilities And Access Control
+
+Full scenario descriptions and per-persona checks live in `docs/e2e/capabilities.md`.
+
+| ID | Priority | Area | User Goal | Setup | Path | Expected Outcome | Watch For |
+|---|---:|---|---|---|---|---|---|
+| CAP-001 | P0 | Workspaces | Verify a limited user only reaches granted workspaces | Custom limited role | Login and direct URLs | Allowed workspaces render; disallowed workspaces do not expose data | route flashes, stale nav, unclear denial |
+| CAP-002 | P0 | Site Editor | Verify content/style/structure editor personas cannot cross edit modes | Three custom roles | Editor actions and save/reload | Each persona can only complete its edit class | enabled-but-failing controls, accidental structure/style writes |
+| CAP-003 | P0 | Step-Up | Verify sensitive actions require fresh password entry | Sensitive-action roles | Publish, install, delete, replace import | Cancel/wrong password do not mutate; correct password proceeds | side effects before step-up, generic auth errors |
+| CAP-004 | P1 | Data/Media | Verify data and media operation splits | Seeded table and asset | Browse/mutate affordances per persona | Read/write/replace/delete/import/export remain separate | destructive actions exposed too broadly |
+| CAP-005 | P1 | Plugins/AI | Verify plugin and AI capability splits | Test plugin and AI personas | Plugins and AI workspaces | Read/config/lifecycle/install and chat/provider/audit stay separate | settings leaks, AI write tools for chat-only users |
+
 ## Page And Site Management
 
 | ID | Priority | Area | User Goal | Setup | Path | Expected Outcome | Watch For |
