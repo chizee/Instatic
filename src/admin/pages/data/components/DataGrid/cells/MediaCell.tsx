@@ -1,5 +1,6 @@
 import { useState, type ReactElement } from 'react'
 import { Button } from '@ui/components/Button'
+import { Image } from '@ui/components/Image'
 import { CloseIcon } from 'pixel-art-icons/icons/close'
 import { ImageSolidIcon } from 'pixel-art-icons/icons/image-solid'
 import { VideoSolidIcon } from 'pixel-art-icons/icons/video-solid'
@@ -58,10 +59,12 @@ function MediaThumb({ id: _id, asset }: MediaThumbProps): ReactElement {
   if (isImage) {
     return (
       <span className={styles.mediaThumb} aria-hidden="true" data-state="image">
-        <img
-          src={asset.publicPath}
+        {/* 28×28 thumb — `sizes="28px"` keeps the browser on the
+            smallest variant from the asset's srcset ladder. */}
+        <Image
+          asset={asset}
           alt={asset.altText || asset.filename}
-          loading="lazy"
+          sizes="28px"
           className={styles.mediaThumbImg}
         />
       </span>
@@ -71,10 +74,12 @@ function MediaThumb({ id: _id, asset }: MediaThumbProps): ReactElement {
     if (asset.posterPath) {
       return (
         <span className={styles.mediaThumb} aria-hidden="true" data-state="video">
-          <img
+          {/* Video poster ships only as `posterPath` — no variant
+              ladder — so degrade to a plain <Image src=…>. */}
+          <Image
             src={asset.posterPath}
             alt={asset.filename}
-            loading="lazy"
+            sizes="28px"
             className={styles.mediaThumbImg}
           />
         </span>

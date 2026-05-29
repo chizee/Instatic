@@ -28,6 +28,7 @@ import type {
   DataTable,
 } from '@core/data/schemas'
 import { useMediaAssetMap } from '@admin/pages/data/hooks/useMediaAssetMap'
+import { Image } from '@ui/components/Image'
 import { ImageSolidIcon } from 'pixel-art-icons/icons/image-solid'
 import { ImageXSolidIcon } from 'pixel-art-icons/icons/image-x-solid'
 import { VideoSolidIcon } from 'pixel-art-icons/icons/video-solid'
@@ -251,10 +252,12 @@ function MediaDisplay({
   } else if (asset.mimeType.startsWith('image/')) {
     thumb = (
       <span className={styles.mediaDisplayThumb} data-state="image" aria-hidden="true">
-        <img
-          src={asset.publicPath}
+        {/* 22×22 thumb — `sizes="22px"` keeps the browser on the
+            smallest variant from the asset's srcset ladder. */}
+        <Image
+          asset={asset}
           alt={asset.altText || asset.filename}
-          loading="lazy"
+          sizes="22px"
           className={styles.mediaDisplayThumbImg}
         />
       </span>
@@ -263,10 +266,12 @@ function MediaDisplay({
     if (asset.posterPath) {
       thumb = (
         <span className={styles.mediaDisplayThumb} data-state="video" aria-hidden="true">
-          <img
+          {/* Video poster ships only as `posterPath` — no variant
+              ladder — so degrade to a plain <Image src=…>. */}
+          <Image
             src={asset.posterPath}
             alt={asset.filename}
-            loading="lazy"
+            sizes="22px"
             className={styles.mediaDisplayThumbImg}
           />
         </span>
