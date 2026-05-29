@@ -166,6 +166,19 @@ export interface UiSlice {
    */
   dataSidebarCollapsed: boolean
   setDataSidebarCollapsed: (collapsed: boolean) => void
+
+  // ─── Import HTML modal ───────────────────────────────────────────────────────
+  /** Whether the Import HTML modal is currently open. */
+  importHtmlModalOpen: boolean
+  /** Node id of the parent to insert under, or null to use the page root. */
+  importHtmlModalParentId: string | null
+  /** HTML pre-filled into the textarea when the modal opens. */
+  importHtmlModalPrefill: string
+  /** Open the Import HTML modal, optionally targeting a specific parent node
+   *  and pre-filling the textarea from the clipboard or a snippet. */
+  openImportHtmlModal: (opts?: { parentId?: string; prefillHtml?: string }) => void
+  /** Close the Import HTML modal and clear its transient state. */
+  closeImportHtmlModal: () => void
 }
 
 const PANEL_FOCUS_ORDER: FocusedPanel[] = ['canvas', 'domTree', 'properties']
@@ -235,6 +248,9 @@ export const createUiSlice: EditorStoreSliceCreator<UiSlice> = (set, get) => ({
   activeDocument: null,
   selectedSelectorClassId: null,
   dataSidebarCollapsed: false,
+  importHtmlModalOpen: false,
+  importHtmlModalParentId: null,
+  importHtmlModalPrefill: '',
 
   setDomTreePanel: (partial) => {
     // Guard: skip the set() call entirely when every supplied field already
@@ -435,6 +451,16 @@ export const createUiSlice: EditorStoreSliceCreator<UiSlice> = (set, get) => ({
   },
 
   setDataSidebarCollapsed: (collapsed) => set({ dataSidebarCollapsed: collapsed }),
+
+  openImportHtmlModal: (opts) =>
+    set({
+      importHtmlModalOpen: true,
+      importHtmlModalParentId: opts?.parentId ?? null,
+      importHtmlModalPrefill: opts?.prefillHtml ?? '',
+    }),
+
+  closeImportHtmlModal: () =>
+    set({ importHtmlModalOpen: false, importHtmlModalParentId: null, importHtmlModalPrefill: '' }),
 
   openPageInCanvas: (pageId) =>
     // Atomic: clear VC mode + switch to the target page in one store write.

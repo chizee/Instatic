@@ -18,6 +18,7 @@ interface CanvasLayerContextMenuActions {
   copyNode: (nodeId: string) => void
   cutNode: (nodeId: string) => void
   pasteNode: (nodeId: string) => void
+  pasteHtml?: (nodeId: string) => void
 }
 
 interface CanvasLayerContextMenuProps {
@@ -67,6 +68,7 @@ export function CanvasLayerContextMenu({
         actions.pasteNode(position.nodeId)
         onClose()
       }}
+      onPasteHtml={actions.pasteHtml}
     />,
     document.body,
   )

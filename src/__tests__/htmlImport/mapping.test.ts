@@ -1,0 +1,976 @@
+/**
+ * mapping.test.ts — Unit tests for src/core/htmlImport/
+ *
+ * Tests every rule + behavior described in the 'Test bar' of the spec
+ * (docs/plans/2026-05-29-html-pipeline.md).
+ *
+ * Structure:
+ *   - Base module registration side-effect (import '@modules/base')
+ *   - Per-rule describe blocks, each with ~5-10 hand-written snippets
+ *   - Strip-safety describe block (script/style/inline-handler/inline-style)
+ *   - Class preservation describe block
+ *   - Nesting / parent-child structure describe block
+ *   - Catch-all guarantee describe block
+ *
+ * No round-trip pipeline, no fixtures — pure per-rule unit assertions.
+ */
+
+import { describe, it, expect } from 'bun:test'
+// Self-registers all base modules with the global registry singleton.
+// walkAndMap calls registry.getOrThrow(moduleId) — without this import it throws.
+import '@modules/base'
+import type { PageNode } from '@core/page-tree'
+import { importHtml, walkAndMap, parseHtml, stripUnsafe } from '@core/htmlImport'
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/** Return the single root node from an importHtml result. Throws if not exactly one root. */
+function single(html: string): PageNode {
+  const result = importHtml(html)
+  expect(result.rootIds).toHaveLength(1)
+  const id = result.rootIds[0]!
+  return result.nodes[id]!
+}
+
+/** Return the props of the single root node. */
+function singleProps(html: string): Record<string, unknown> {
+  return single(html).props
+}
+
+/** Convenience: importHtml + return the full result object. */
+function imported(html: string) {
+  return importHtml(html)
+}
+
+// ---------------------------------------------------------------------------
+// 1. Heading / paragraph / inline phrasing → base.text
+// ---------------------------------------------------------------------------
+
+describe('base.text — headings h1-h6', () => {
+  it('h1 → moduleId base.text, tag "h1", text matches textContent', () => {
+    const node = single('<h1>Hello World</h1>')
+    expect(node.moduleId).toBe('base.text')
+    expect(node.props.tag).toBe('h1')
+    expect(node.props.text).toBe('Hello World')
+  })
+
+  it('h2 → tag "h2"', () => {
+    const node = single('<h2>Section</h2>')
+    expect(node.moduleId).toBe('base.text')
+    expect(node.props.tag).toBe('h2')
+  })
+
+  it('h3 → tag "h3"', () => {
+    const props = singleProps('<h3>Sub-section</h3>')
+    expect(props.tag).toBe('h3')
+  })
+
+  it('h4 → tag "h4"', () => {
+    expect(singleProps('<h4>Minor heading</h4>').tag).toBe('h4')
+  })
+
+  it('h5 → tag "h5"', () => {
+    expect(singleProps('<h5>Small heading</h5>').tag).toBe('h5')
+  })
+
+  it('h6 → tag "h6"', () => {
+    expect(singleProps('<h6>Tiny heading</h6>').tag).toBe('h6')
+  })
+
+  it('heading with nested markup — textContent is flattened', () => {
+    const node = single('<h2>Bold <strong>word</strong> here</h2>')
+    expect(node.moduleId).toBe('base.text')
+    expect(node.props.tag).toBe('h2')
+    // textContent includes all descendant text
+    expect(String(node.props.text)).toContain('Bold')
+    expect(String(node.props.text)).toContain('word')
+  })
+})
+
+describe('base.text — paragraph and inline phrasing', () => {
+  it('p → moduleId base.text, tag "p", text matches textContent', () => {
+    const node = single('<p>Hello paragraph</p>')
+    expect(node.moduleId).toBe('base.text')
+    expect(node.props.tag).toBe('p')
+    expect(node.props.text).toBe('Hello paragraph')
+  })
+
+  it('span → tag "span"', () => {
+    const node = single('<span>Inline text</span>')
+    expect(node.moduleId).toBe('base.text')
+    expect(node.props.tag).toBe('span')
+    expect(node.props.text).toBe('Inline text')
+  })
+
+  it('small → tag "small"', () => {
+    const node = single('<small>Fine print</small>')
+    expect(node.moduleId).toBe('base.text')
+    expect(node.props.tag).toBe('small')
+  })
+
+  it('strong → tag "strong"', () => {
+    const node = single('<strong>Bold content</strong>')
+    expect(node.moduleId).toBe('base.text')
+    expect(node.props.tag).toBe('strong')
+    expect(node.props.text).toBe('Bold content')
+  })
+
+  it('em → tag "em"', () => {
+    const node = single('<em>Italic content</em>')
+    expect(node.moduleId).toBe('base.text')
+    expect(node.props.tag).toBe('em')
+    expect(node.props.text).toBe('Italic content')
+  })
+
+  it('empty p → text is empty string', () => {
+    const node = single('<p></p>')
+    expect(node.moduleId).toBe('base.text')
+    expect(node.props.text).toBe('')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// 2. Anchors: plain <a> → base.link (prop `text`); <a class="btn"> → base.button
+// ---------------------------------------------------------------------------
+
+describe('base.link — plain <a> elements', () => {
+  it('plain anchor → moduleId base.link', () => {
+    const node = single('<a href="https://example.com">Visit us</a>')
+    expect(node.moduleId).toBe('base.link')
+  })
+
+  it('plain anchor has `text` prop (NOT `label`)', () => {
+    const node = single('<a href="https://example.com">Visit us</a>')
+    expect(node.props.text).toBe('Visit us')
+    expect('label' in node.props).toBe(false)
+  })
+
+  it('plain anchor captures href', () => {
+    const node = single('<a href="https://example.com/page">Link</a>')
+    expect(node.props.href).toBe('https://example.com/page')
+  })
+
+  it('plain anchor captures target="_blank"', () => {
+    const node = single('<a href="/" target="_blank">Open</a>')
+    expect(node.props.target).toBe('_blank')
+  })
+
+  it('plain anchor with no target → defaults to "_self"', () => {
+    const node = single('<a href="/about">About</a>')
+    expect(node.props.target).toBe('_self')
+  })
+
+  it('plain anchor with empty href → href is empty string', () => {
+    const node = single('<a href="">Empty</a>')
+    expect(node.props.href).toBe('')
+  })
+
+  it('<a> without any class (other than btn) → base.link, not base.button', () => {
+    const node = single('<a class="nav-link" href="/home">Home</a>')
+    expect(node.moduleId).toBe('base.link')
+    expect(node.props.text).toBe('Home')
+  })
+})
+
+describe('base.button — <a class="btn"> elements', () => {
+  it('<a class="btn"> → moduleId base.button (NOT base.link)', () => {
+    const node = single('<a class="btn" href="/signup">Sign Up</a>')
+    expect(node.moduleId).toBe('base.button')
+  })
+
+  it('<a class="btn"> has `label` prop (NOT `text`)', () => {
+    const node = single('<a class="btn" href="/signup">Sign Up</a>')
+    expect(node.props.label).toBe('Sign Up')
+    expect('text' in node.props).toBe(false)
+  })
+
+  it('<a class="btn"> captures href', () => {
+    const node = single('<a class="btn" href="/buy">Buy Now</a>')
+    expect(node.props.href).toBe('/buy')
+  })
+
+  it('<a class="btn"> captures target', () => {
+    const node = single('<a class="btn" href="/docs" target="_blank">Docs</a>')
+    expect(node.props.target).toBe('_blank')
+  })
+
+  it('<a class="btn"> with no target → defaults to "_self"', () => {
+    const node = single('<a class="btn" href="/try">Try it</a>')
+    expect(node.props.target).toBe('_self')
+  })
+
+  it('<a class="btn primary"> — btn is present among other classes → still base.button', () => {
+    const node = single('<a class="btn primary large" href="/x">CTA</a>')
+    expect(node.moduleId).toBe('base.button')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// 3. <img> → base.image (src only, NO alt prop)
+// ---------------------------------------------------------------------------
+
+describe('base.image — <img> elements', () => {
+  it('<img src> → moduleId base.image', () => {
+    const node = single('<img src="/photo.jpg">')
+    expect(node.moduleId).toBe('base.image')
+  })
+
+  it('<img src> captures src attribute', () => {
+    const node = single('<img src="/photo.jpg">')
+    expect(node.props.src).toBe('/photo.jpg')
+  })
+
+  it('<img src alt> — alt is NOT stored as a prop (alt comes from the media library)', () => {
+    const node = single('<img src="/photo.jpg" alt="A beautiful photo">')
+    expect(node.moduleId).toBe('base.image')
+    expect(node.props.src).toBe('/photo.jpg')
+    // alt must NOT be on the node — it comes from the media library asset only
+    expect('alt' in node.props).toBe(false)
+  })
+
+  it('<img> with empty src → src is empty string', () => {
+    const node = single('<img src="">')
+    expect(node.props.src).toBe('')
+  })
+
+  it('<img> with no src → src is empty string', () => {
+    const node = single('<img>')
+    expect(node.props.src).toBe('')
+  })
+
+  it('<img> has no children (is a leaf)', () => {
+    const node = single('<img src="/a.png">')
+    expect(node.children).toHaveLength(0)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// 4. <button> → base.button (label + disabled)
+// ---------------------------------------------------------------------------
+
+describe('base.button — <button> elements', () => {
+  it('<button> → moduleId base.button', () => {
+    const node = single('<button>Click Me</button>')
+    expect(node.moduleId).toBe('base.button')
+  })
+
+  it('<button> captures label from textContent', () => {
+    const node = single('<button>Submit</button>')
+    expect(node.props.label).toBe('Submit')
+  })
+
+  it('<button disabled> → disabled: true', () => {
+    const node = single('<button disabled>Save</button>')
+    expect(node.props.disabled).toBe(true)
+  })
+
+  it('<button> without disabled → disabled: false', () => {
+    const node = single('<button>Save</button>')
+    expect(node.props.disabled).toBe(false)
+  })
+
+  it('<button disabled=""> (empty string attribute) → disabled: true', () => {
+    const node = single('<button disabled="">Go</button>')
+    expect(node.props.disabled).toBe(true)
+  })
+
+  it('<button> is a leaf (no children)', () => {
+    const node = single('<button>Action</button>')
+    expect(node.children).toHaveLength(0)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// 5. <ul> / <ol> → base.container (builtin tag) + recurse into <li> children
+// ---------------------------------------------------------------------------
+
+describe('base.container — <ul> and <ol> (builtin tags)', () => {
+  it('<ul> → moduleId base.container with tag "ul"', () => {
+    const node = single('<ul></ul>')
+    expect(node.moduleId).toBe('base.container')
+    expect(node.props.tag).toBe('ul')
+  })
+
+  it('<ol> → moduleId base.container with tag "ol"', () => {
+    const node = single('<ol></ol>')
+    expect(node.moduleId).toBe('base.container')
+    expect(node.props.tag).toBe('ol')
+  })
+
+  it('<ul> with <li> children → children are recursed and present in nodes map', () => {
+    const result = imported('<ul><li>Item 1</li><li>Item 2</li></ul>')
+
+    // One root node (the ul)
+    expect(result.rootIds).toHaveLength(1)
+    const ulId = result.rootIds[0]!
+    const ulNode = result.nodes[ulId]!
+    expect(ulNode.moduleId).toBe('base.container')
+    expect(ulNode.props.tag).toBe('ul')
+
+    // Two child nodes
+    expect(ulNode.children).toHaveLength(2)
+
+    // Each child is in the flat nodes map
+    for (const childId of ulNode.children) {
+      const childNode = result.nodes[childId]
+      expect(childNode).toBeDefined()
+    }
+  })
+
+  it('<li> children become base.container with tag:"custom", customTag:"li"', () => {
+    const result = imported('<ul><li>First</li></ul>')
+    const ulId = result.rootIds[0]!
+    const ulNode = result.nodes[ulId]!
+    const liId = ulNode.children[0]!
+    const liNode = result.nodes[liId]!
+
+    // <li> is not in BUILTIN_HTML_TAGS → catch-all: tag:'custom', customTag:'li'
+    expect(liNode.moduleId).toBe('base.container')
+    expect(liNode.props.tag).toBe('custom')
+    expect(liNode.props.customTag).toBe('li')
+  })
+
+  it('<ol> children are correct — li uses tag:"custom"', () => {
+    const result = imported('<ol><li>A</li><li>B</li><li>C</li></ol>')
+    const olId = result.rootIds[0]!
+    const olNode = result.nodes[olId]!
+    expect(olNode.children).toHaveLength(3)
+
+    for (const childId of olNode.children) {
+      const child = result.nodes[childId]!
+      expect(child.props.tag).toBe('custom')
+      expect(child.props.customTag).toBe('li')
+    }
+  })
+})
+
+// ---------------------------------------------------------------------------
+// 6. Semantic containers → base.container with builtin tag + recurse
+// ---------------------------------------------------------------------------
+
+describe('base.container — semantic container tags (BUILTIN_HTML_TAGS)', () => {
+  const builtinTags = ['div', 'section', 'article', 'main', 'header', 'footer', 'nav', 'aside']
+
+  for (const tag of builtinTags) {
+    it(`<${tag}> → base.container with tag "${tag}"`, () => {
+      const node = single(`<${tag}></${tag}>`)
+      expect(node.moduleId).toBe('base.container')
+      expect(node.props.tag).toBe(tag)
+    })
+  }
+
+  it('nested div > h1 + p — parent tag is "div", children are recursed', () => {
+    const result = imported('<div><h1>Title</h1><p>Body</p></div>')
+    const divId = result.rootIds[0]!
+    const divNode = result.nodes[divId]!
+    expect(divNode.moduleId).toBe('base.container')
+    expect(divNode.props.tag).toBe('div')
+    expect(divNode.children).toHaveLength(2)
+
+    const h1Node = result.nodes[divNode.children[0]!]!
+    expect(h1Node.moduleId).toBe('base.text')
+    expect(h1Node.props.tag).toBe('h1')
+
+    const pNode = result.nodes[divNode.children[1]!]!
+    expect(pNode.moduleId).toBe('base.text')
+    expect(pNode.props.tag).toBe('p')
+  })
+
+  it('<section> with children produces children in nodes map', () => {
+    const result = imported('<section><h2>Section heading</h2></section>')
+    const sectionId = result.rootIds[0]!
+    const sectionNode = result.nodes[sectionId]!
+    expect(sectionNode.props.tag).toBe('section')
+    expect(sectionNode.children).toHaveLength(1)
+    const heading = result.nodes[sectionNode.children[0]!]!
+    expect(heading.props.tag).toBe('h2')
+  })
+
+  it('<article> → base.container with tag "article"', () => {
+    const node = single('<article></article>')
+    expect(node.props.tag).toBe('article')
+  })
+
+  it('<header> + <footer> at root level → both base.container nodes', () => {
+    const result = imported('<header>Top</header><footer>Bottom</footer>')
+    expect(result.rootIds).toHaveLength(2)
+    const [headerId, footerId] = result.rootIds
+    expect(result.nodes[headerId!]!.props.tag).toBe('header')
+    expect(result.nodes[footerId!]!.props.tag).toBe('footer')
+  })
+
+  it('<nav> → tag "nav"', () => {
+    expect(singleProps('<nav></nav>').tag).toBe('nav')
+  })
+
+  it('<aside> → tag "aside"', () => {
+    expect(singleProps('<aside></aside>').tag).toBe('aside')
+  })
+
+  it('<main> → tag "main"', () => {
+    expect(singleProps('<main></main>').tag).toBe('main')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// 7. <figure> / <blockquote> → base.container with tag:"custom" + customTag
+// ---------------------------------------------------------------------------
+
+describe('base.container — custom tag (NOT in BUILTIN_HTML_TAGS)', () => {
+  it('<figure> → base.container tag:"custom", customTag:"figure"', () => {
+    const node = single('<figure></figure>')
+    expect(node.moduleId).toBe('base.container')
+    expect(node.props.tag).toBe('custom')
+    expect(node.props.customTag).toBe('figure')
+  })
+
+  it('<blockquote> → base.container tag:"custom", customTag:"blockquote"', () => {
+    const node = single('<blockquote><p>Quote text</p></blockquote>')
+    expect(node.moduleId).toBe('base.container')
+    expect(node.props.tag).toBe('custom')
+    expect(node.props.customTag).toBe('blockquote')
+  })
+
+  it('<figure> recurses into children', () => {
+    const result = imported('<figure><img src="/a.png"><figcaption>Caption</figcaption></figure>')
+    const figId = result.rootIds[0]!
+    const figNode = result.nodes[figId]!
+    expect(figNode.children).toHaveLength(2)
+
+    const imgNode = result.nodes[figNode.children[0]!]!
+    expect(imgNode.moduleId).toBe('base.image')
+
+    const captionNode = result.nodes[figNode.children[1]!]!
+    expect(captionNode.moduleId).toBe('base.container')
+    expect(captionNode.props.tag).toBe('custom')
+    expect(captionNode.props.customTag).toBe('figcaption')
+  })
+
+  it('<li> → base.container tag:"custom", customTag:"li"', () => {
+    // li is not in BUILTIN_HTML_TAGS — only reachable via catch-all (or from ul/ol)
+    const node = single('<li>Item</li>')
+    expect(node.moduleId).toBe('base.container')
+    expect(node.props.tag).toBe('custom')
+    expect(node.props.customTag).toBe('li')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// 8. Void elements → base.container with tag:"custom", recurse:false
+// ---------------------------------------------------------------------------
+
+describe('void elements — childless base.container with customTag', () => {
+  // The void-element rule sits before the catch-all and maps the standard
+  // HTML void elements to base.container with tag:'custom' + the actual tag
+  // name as customTag. recurse is NOT set, so these nodes have no children.
+
+  it('<input> → base.container tag:"custom", customTag:"input", no children', () => {
+    const node = single('<input>')
+    expect(node.moduleId).toBe('base.container')
+    expect(node.props.tag).toBe('custom')
+    expect(node.props.customTag).toBe('input')
+    expect(node.children).toHaveLength(0)
+  })
+
+  it('<br> → base.container tag:"custom", customTag:"br", no children', () => {
+    const node = single('<br>')
+    expect(node.moduleId).toBe('base.container')
+    expect(node.props.tag).toBe('custom')
+    expect(node.props.customTag).toBe('br')
+    expect(node.children).toHaveLength(0)
+  })
+
+  it('<hr> → base.container tag:"custom", customTag:"hr", no children', () => {
+    const node = single('<hr>')
+    expect(node.moduleId).toBe('base.container')
+    expect(node.props.tag).toBe('custom')
+    expect(node.props.customTag).toBe('hr')
+    expect(node.children).toHaveLength(0)
+  })
+
+  it('<area> → base.container tag:"custom", customTag:"area", no children', () => {
+    const node = single('<area>')
+    expect(node.moduleId).toBe('base.container')
+    expect(node.props.tag).toBe('custom')
+    expect(node.props.customTag).toBe('area')
+    expect(node.children).toHaveLength(0)
+  })
+
+  it('<source> → base.container tag:"custom", customTag:"source", no children', () => {
+    const node = single('<source>')
+    expect(node.moduleId).toBe('base.container')
+    expect(node.props.tag).toBe('custom')
+    expect(node.props.customTag).toBe('source')
+    expect(node.children).toHaveLength(0)
+  })
+
+  it('<wbr> → base.container tag:"custom", customTag:"wbr", no children', () => {
+    const node = single('<wbr>')
+    expect(node.moduleId).toBe('base.container')
+    expect(node.props.tag).toBe('custom')
+    expect(node.props.customTag).toBe('wbr')
+    expect(node.children).toHaveLength(0)
+  })
+
+  it('<track> → base.container tag:"custom", customTag:"track", no children', () => {
+    const node = single('<track>')
+    expect(node.moduleId).toBe('base.container')
+    expect(node.props.tag).toBe('custom')
+    expect(node.props.customTag).toBe('track')
+    expect(node.children).toHaveLength(0)
+  })
+
+  it('void elements mixed with normal elements produce one node each, all childless', () => {
+    const result = imported('<br><hr><input>')
+    expect(result.rootIds).toHaveLength(3)
+    for (const id of result.rootIds) {
+      const node = result.nodes[id]!
+      expect(node.moduleId).toBe('base.container')
+      expect(node.props.tag).toBe('custom')
+      expect(node.children).toHaveLength(0)
+    }
+  })
+
+  it('void element inside a container does not pull children out of the container', () => {
+    // <div> contains <input> and <p>. The input must be childless.
+    const result = imported('<div><input><p>After input</p></div>')
+    const divId = result.rootIds[0]!
+    const divNode = result.nodes[divId]!
+    expect(divNode.children).toHaveLength(2)
+
+    const inputNode = result.nodes[divNode.children[0]!]!
+    expect(inputNode.props.customTag).toBe('input')
+    expect(inputNode.children).toHaveLength(0)
+
+    const pNode = result.nodes[divNode.children[1]!]!
+    expect(pNode.moduleId).toBe('base.text')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// 9. Catch-all: exotic tags → base.container with tag:"custom"
+// ---------------------------------------------------------------------------
+
+describe('catch-all guarantee — exotic / unknown tags', () => {
+  it('<dialog> → base.container tag:"custom", customTag:"dialog"', () => {
+    const node = single('<dialog></dialog>')
+    expect(node.moduleId).toBe('base.container')
+    expect(node.props.tag).toBe('custom')
+    expect(node.props.customTag).toBe('dialog')
+  })
+
+  it('<table> → base.container tag:"custom", customTag:"table"', () => {
+    const node = single('<table></table>')
+    expect(node.moduleId).toBe('base.container')
+    expect(node.props.tag).toBe('custom')
+    expect(node.props.customTag).toBe('table')
+  })
+
+  it('<form> → base.container tag:"custom", customTag:"form"', () => {
+    const node = single('<form></form>')
+    expect(node.moduleId).toBe('base.container')
+    expect(node.props.tag).toBe('custom')
+    expect(node.props.customTag).toBe('form')
+  })
+
+  it('<details> → base.container tag:"custom", customTag:"details"', () => {
+    const node = single('<details></details>')
+    expect(node.moduleId).toBe('base.container')
+    expect(node.props.tag).toBe('custom')
+    expect(node.props.customTag).toBe('details')
+  })
+
+  it('<address> → base.container tag:"custom", customTag:"address"', () => {
+    const node = single('<address></address>')
+    expect(node.moduleId).toBe('base.container')
+    expect(node.props.tag).toBe('custom')
+    expect(node.props.customTag).toBe('address')
+  })
+
+  it('every element produces exactly one node (no falls-through)', () => {
+    // Three exotic tags → exactly three nodes
+    const result = imported('<dialog>D</dialog><table></table><form></form>')
+    expect(result.rootIds).toHaveLength(3)
+    for (const id of result.rootIds) {
+      const node = result.nodes[id]!
+      expect(node).toBeDefined()
+      expect(node.moduleId).toBe('base.container')
+      expect(node.props.tag).toBe('custom')
+    }
+  })
+
+  it('a deeply-exotic tag still yields one node per element', () => {
+    const result = imported('<wbr></wbr>')
+    expect(result.rootIds).toHaveLength(1)
+    const node = result.nodes[result.rootIds[0]!]!
+    expect(node.moduleId).toBe('base.container')
+    expect(node.props.tag).toBe('custom')
+    expect(node.props.customTag).toBe('wbr')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// 9. Strip safety — <script>, <style>, inline event handlers, inline style=""
+// ---------------------------------------------------------------------------
+
+describe('stripUnsafe — <script> elements', () => {
+  it('<script> is stripped: not present in nodes, stripped.scripts incremented', () => {
+    const result = imported('<script>alert("xss")</script><p>Safe</p>')
+    // The paragraph is the only root; no script node
+    expect(result.rootIds).toHaveLength(1)
+    const root = result.nodes[result.rootIds[0]!]!
+    expect(root.moduleId).toBe('base.text')
+    expect(result.stripped.scripts).toBe(1)
+  })
+
+  it('multiple <script> tags — all stripped and counted', () => {
+    const result = imported('<script>a()</script><script>b()</script><div></div>')
+    expect(result.stripped.scripts).toBe(2)
+    expect(result.rootIds).toHaveLength(1) // only the div
+  })
+})
+
+describe('stripUnsafe — <style> elements', () => {
+  it('<style> is stripped and stripped.styles incremented', () => {
+    const result = imported('<style>body { color: red; }</style><p>Text</p>')
+    expect(result.stripped.styles).toBe(1)
+    expect(result.rootIds).toHaveLength(1)
+    expect(result.nodes[result.rootIds[0]!]!.moduleId).toBe('base.text')
+  })
+
+  it('multiple <style> tags are all stripped and counted', () => {
+    const result = imported('<style>.a{}</style><style>.b{}</style><h1>Title</h1>')
+    expect(result.stripped.styles).toBe(2)
+    expect(result.rootIds).toHaveLength(1)
+  })
+})
+
+describe('stripUnsafe — inline event handlers (on*)', () => {
+  it('onclick="" on a root element → stripped.inlineHandlers incremented', () => {
+    // We use a div (recurse=true container) so the inline handler can exist on
+    // an element that survives. The node must still be created.
+    const result = imported('<div onclick="doSomething()"></div>')
+    expect(result.stripped.inlineHandlers).toBe(1)
+    // The div node must still be present
+    expect(result.rootIds).toHaveLength(1)
+    const node = result.nodes[result.rootIds[0]!]!
+    expect(node.moduleId).toBe('base.container')
+  })
+
+  it('multiple on* attributes count individually', () => {
+    const result = imported('<div onmouseover="a()" onkeydown="b()" onfocus="c()"></div>')
+    expect(result.stripped.inlineHandlers).toBe(3)
+  })
+
+  it('on* attributes on nested elements are counted', () => {
+    const result = imported('<div><p onclick="x()">Text</p></div>')
+    expect(result.stripped.inlineHandlers).toBe(1)
+  })
+})
+
+describe('stripUnsafe — inline style="" attributes', () => {
+  it('style="" on an element → stripped.inlineStyles incremented', () => {
+    const result = imported('<div style="color:red;font-size:12px"></div>')
+    expect(result.stripped.inlineStyles).toBe(1)
+    // The div node still exists
+    expect(result.rootIds).toHaveLength(1)
+  })
+
+  it('style on a leaf element (p) is stripped', () => {
+    const result = imported('<p style="margin:0">Content</p>')
+    expect(result.stripped.inlineStyles).toBe(1)
+    // The p still produces a base.text node
+    expect(result.nodes[result.rootIds[0]!]!.moduleId).toBe('base.text')
+  })
+
+  it('style on multiple elements are all counted', () => {
+    const result = imported('<p style="a:b">One</p><p style="c:d">Two</p>')
+    expect(result.stripped.inlineStyles).toBe(2)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// 10. Class preservation: el.classList → node.classIds verbatim
+// ---------------------------------------------------------------------------
+
+describe('class preservation — node.classIds from el.classList', () => {
+  it('single class → classIds is ["that-class"]', () => {
+    const node = single('<p class="intro">Text</p>')
+    expect(node.classIds).toEqual(['intro'])
+  })
+
+  it('multiple classes → classIds preserves order verbatim', () => {
+    const node = single('<div class="foo bar"></div>')
+    expect(node.classIds).toEqual(['foo', 'bar'])
+  })
+
+  it('three classes in order', () => {
+    const node = single('<section class="hero fullwidth padded"></section>')
+    expect(node.classIds).toEqual(['hero', 'fullwidth', 'padded'])
+  })
+
+  it('element without class → classIds is empty array', () => {
+    const node = single('<p>No classes</p>')
+    expect(node.classIds).toEqual([])
+  })
+
+  it('container node preserves its classes', () => {
+    const node = single('<div class="card shadow-lg rounded"></div>')
+    expect(node.classIds).toEqual(['card', 'shadow-lg', 'rounded'])
+  })
+
+  it('button node preserves its classes', () => {
+    const node = single('<button class="btn-primary large">Go</button>')
+    expect(node.classIds).toEqual(['btn-primary', 'large'])
+  })
+})
+
+// ---------------------------------------------------------------------------
+// 11. Nested snippets — parent / child structure
+// ---------------------------------------------------------------------------
+
+describe('nested structure — parent/child IDs in document order', () => {
+  it('section > h1 + p + a.btn → correct rootIds count, child count, child moduleIds', () => {
+    const result = imported(`
+      <section>
+        <h1>Hero Title</h1>
+        <p>Hero subtitle text here.</p>
+        <a class="btn" href="/start">Get Started</a>
+      </section>
+    `)
+
+    // One root: the section
+    expect(result.rootIds).toHaveLength(1)
+    const sectionId = result.rootIds[0]!
+    const sectionNode = result.nodes[sectionId]!
+
+    expect(sectionNode.moduleId).toBe('base.container')
+    expect(sectionNode.props.tag).toBe('section')
+    expect(sectionNode.children).toHaveLength(3)
+
+    // Children in document order: h1, p, a.btn
+    const [h1Id, pId, btnId] = sectionNode.children
+    expect(result.nodes[h1Id!]!.moduleId).toBe('base.text')
+    expect(result.nodes[h1Id!]!.props.tag).toBe('h1')
+
+    expect(result.nodes[pId!]!.moduleId).toBe('base.text')
+    expect(result.nodes[pId!]!.props.tag).toBe('p')
+
+    expect(result.nodes[btnId!]!.moduleId).toBe('base.button')
+    expect(result.nodes[btnId!]!.props.label).toBe('Get Started')
+  })
+
+  it('ul > 3 li items → ul has exactly 3 children, all li', () => {
+    const result = imported('<ul><li>A</li><li>B</li><li>C</li></ul>')
+    const ulId = result.rootIds[0]!
+    const ulNode = result.nodes[ulId]!
+    expect(ulNode.children).toHaveLength(3)
+
+    for (const childId of ulNode.children) {
+      const liNode = result.nodes[childId]!
+      expect(liNode.moduleId).toBe('base.container')
+      expect(liNode.props.tag).toBe('custom')
+      expect(liNode.props.customTag).toBe('li')
+    }
+  })
+
+  it('all nodes across a nested tree are present in the flat nodes map', () => {
+    const result = imported('<nav><ul><li><a href="/">Home</a></li></ul></nav>')
+
+    // nav (root) → ul → li → a
+    expect(result.rootIds).toHaveLength(1)
+    const navId = result.rootIds[0]!
+    const navNode = result.nodes[navId]!
+    expect(navNode.props.tag).toBe('nav')
+
+    const ulId = navNode.children[0]!
+    const ulNode = result.nodes[ulId]!
+    expect(ulNode.props.tag).toBe('ul')
+
+    const liId = ulNode.children[0]!
+    const liNode = result.nodes[liId]!
+    expect(liNode.props.tag).toBe('custom')
+    expect(liNode.props.customTag).toBe('li')
+
+    const aId = liNode.children[0]!
+    const aNode = result.nodes[aId]!
+    expect(aNode.moduleId).toBe('base.link')
+    expect(aNode.props.href).toBe('/')
+  })
+
+  it('two sibling top-level blocks → rootIds has length 2, in document order', () => {
+    const result = imported('<h1>Title</h1><p>Body</p>')
+    expect(result.rootIds).toHaveLength(2)
+
+    const first = result.nodes[result.rootIds[0]!]!
+    const second = result.nodes[result.rootIds[1]!]!
+
+    expect(first.props.tag).toBe('h1')
+    expect(first.props.text).toBe('Title')
+
+    expect(second.props.tag).toBe('p')
+    expect(second.props.text).toBe('Body')
+  })
+
+  it('every node ID in children arrays exists in the flat nodes map', () => {
+    const result = imported(`
+      <div>
+        <section>
+          <h2>Sub</h2>
+          <p>Para</p>
+        </section>
+        <footer><span>Footer text</span></footer>
+      </div>
+    `)
+
+    // Walk every node and verify all children exist
+    for (const node of Object.values(result.nodes)) {
+      for (const childId of node.children) {
+        expect(result.nodes[childId]).toBeDefined()
+      }
+    }
+  })
+})
+
+// ---------------------------------------------------------------------------
+// 11b. Direct text inside recursing containers → synthesized base.text child
+//
+// Regression guard: containers used to walk only ELEMENT children, so direct
+// text (e.g. `<div class="num">98%</div>`) was dropped and the container
+// imported empty. The walker now preserves significant text as a base.text
+// child in document order.
+// ---------------------------------------------------------------------------
+
+describe('direct text in containers → synthesized base.text', () => {
+  it('text-only div → container with one base.text(span) child carrying the text', () => {
+    const result = imported('<div class="metricNum">98%</div>')
+    const divNode = result.nodes[result.rootIds[0]!]!
+    expect(divNode.moduleId).toBe('base.container')
+    expect(divNode.children).toHaveLength(1)
+
+    const textNode = result.nodes[divNode.children[0]!]!
+    expect(textNode.moduleId).toBe('base.text')
+    expect(textNode.props.tag).toBe('span')
+    expect(textNode.props.text).toBe('98%')
+  })
+
+  it('text-only <li> → container with a base.text child (no longer empty)', () => {
+    const result = imported('<ul><li>Buy milk</li></ul>')
+    const ulNode = result.nodes[result.rootIds[0]!]!
+    const liNode = result.nodes[ulNode.children[0]!]!
+    expect(liNode.props.customTag).toBe('li')
+    expect(liNode.children).toHaveLength(1)
+    expect(result.nodes[liNode.children[0]!]!.props.text).toBe('Buy milk')
+  })
+
+  it('mixed content → text and element children interleaved in document order', () => {
+    const result = imported('<div>Intro <a href="/x">link</a> outro</div>')
+    const divNode = result.nodes[result.rootIds[0]!]!
+    expect(divNode.children).toHaveLength(3)
+
+    const [first, second, third] = divNode.children.map((id) => result.nodes[id]!)
+    expect(first.moduleId).toBe('base.text')
+    expect(first.props.text).toBe('Intro')
+    expect(second.moduleId).toBe('base.link')
+    expect(second.props.href).toBe('/x')
+    expect(third.moduleId).toBe('base.text')
+    expect(third.props.text).toBe('outro')
+  })
+
+  it('whitespace-only text between elements is ignored (no spurious text nodes)', () => {
+    const result = imported(`
+      <div>
+        <span>A</span>
+        <span>B</span>
+      </div>
+    `)
+    const divNode = result.nodes[result.rootIds[0]!]!
+    // Only the two <span> elements — the indentation whitespace is dropped.
+    expect(divNode.children).toHaveLength(2)
+    for (const id of divNode.children) {
+      expect(result.nodes[id]!.moduleId).toBe('base.text')
+    }
+  })
+
+  it('internal whitespace runs collapse to single spaces', () => {
+    const result = imported('<div>hello\n\n   world</div>')
+    const textNode = result.nodes[result.nodes[result.rootIds[0]!]!.children[0]!]!
+    expect(textNode.props.text).toBe('hello world')
+  })
+
+  it('top-level bare text becomes a root base.text node', () => {
+    const result = imported('Just some text')
+    expect(result.rootIds).toHaveLength(1)
+    const node = result.nodes[result.rootIds[0]!]!
+    expect(node.moduleId).toBe('base.text')
+    expect(node.props.text).toBe('Just some text')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// 12. walkAndMap / parseHtml used independently
+// ---------------------------------------------------------------------------
+
+describe('walkAndMap + parseHtml as independent pipeline steps', () => {
+  it('walkAndMap(parseHtml(source)) produces same fragment structure as importHtml', () => {
+    const src = '<p>Hello</p>'
+    const fromWalk = walkAndMap(parseHtml(src))
+    const fromImport = importHtml(src)
+
+    // Same count of root nodes
+    expect(fromWalk.rootIds).toHaveLength(fromImport.rootIds.length)
+
+    // Same number of nodes in the map
+    expect(Object.keys(fromWalk.nodes)).toHaveLength(Object.keys(fromImport.nodes).length)
+
+    // Root node has the same moduleId
+    const walkRoot = fromWalk.nodes[fromWalk.rootIds[0]!]!
+    const importRoot = fromImport.nodes[fromImport.rootIds[0]!]!
+    expect(walkRoot.moduleId).toBe(importRoot.moduleId)
+    expect(walkRoot.props.tag).toBe(importRoot.props.tag)
+  })
+
+  it('stripUnsafe mutates the document in place and does not affect walkAndMap separately', () => {
+    const doc = parseHtml('<div onclick="bad()"><script>evil()</script><p>OK</p></div>')
+    const report = stripUnsafe(doc)
+    expect(report.scripts).toBe(1)
+    expect(report.inlineHandlers).toBe(1)
+
+    const fragment = walkAndMap(doc)
+    // After stripping, the div + the p child remain (script was removed)
+    expect(fragment.rootIds).toHaveLength(1)
+    const divNode = fragment.nodes[fragment.rootIds[0]!]!
+    expect(divNode.moduleId).toBe('base.container')
+    // The div has the p as its only child (script is gone)
+    expect(divNode.children).toHaveLength(1)
+    const pNode = fragment.nodes[divNode.children[0]!]!
+    expect(pNode.moduleId).toBe('base.text')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// 13. Empty input and edge cases
+// ---------------------------------------------------------------------------
+
+describe('edge cases', () => {
+  it('empty string source → rootIds is empty, nodes is empty', () => {
+    const result = importHtml('')
+    expect(result.rootIds).toHaveLength(0)
+    expect(Object.keys(result.nodes)).toHaveLength(0)
+  })
+
+  it('whitespace-only source → rootIds is empty', () => {
+    const result = importHtml('   \n   ')
+    expect(result.rootIds).toHaveLength(0)
+  })
+
+  it('stripped.scripts + stripped.styles start at 0 when none are present', () => {
+    const result = importHtml('<p>Clean</p>')
+    expect(result.stripped.scripts).toBe(0)
+    expect(result.stripped.styles).toBe(0)
+    expect(result.stripped.inlineHandlers).toBe(0)
+    expect(result.stripped.inlineStyles).toBe(0)
+  })
+})

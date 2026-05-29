@@ -401,6 +401,7 @@ Modules that need broader context can opt in to `ctx: RenderContext`. Most modul
 - [docs/features/visual-components.md](visual-components.md) — `base.visual-component-ref`, `base.slot-outlet`, `base.slot-instance`
 - [docs/features/loops.md](loops.md) — `base.loop`
 - [docs/features/plugin-system.md](plugin-system.md) — plugin modules + module packs
+- [docs/features/html-import.md](html-import.md) — HTML string → `PageNode` importer; uses `base.text`, `base.button`, `base.image`, `base.container`
 - [docs/reference/module-engine.md](../reference/module-engine.md) — focused cookbook for adding a module
 - [docs/reference/page-tree.md](../reference/page-tree.md) — nodes reference modules by `moduleId`
 - Source-of-truth files:

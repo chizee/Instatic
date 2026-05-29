@@ -181,6 +181,22 @@ export function CanvasRoot({ editable = true }: CanvasRootProps) {
   const renameDialog = useCanvasRenameDialog(renameNode)
   const contextMenu = useCanvasLayerContextMenu()
 
+  // "Paste HTML here…" — read the clipboard, then open the import modal
+  // with the clicked node as the insertion parent.
+  const openImportHtmlModal = useEditorStore((s) => s.openImportHtmlModal)
+  const handlePasteHtml = useCallback(
+    async (nodeId: string) => {
+      let prefillHtml = ''
+      try {
+        prefillHtml = await navigator.clipboard.readText()
+      } catch (_err) {
+        // Clipboard permission denied or API unavailable — open with empty textarea.
+      }
+      openImportHtmlModal({ parentId: nodeId, prefillHtml })
+    },
+    [openImportHtmlModal],
+  )
+
   // ─── Selection context value ───────────────────────────────────────────────
 
   const onNodeClick = useCallback(
@@ -416,6 +432,7 @@ export function CanvasRoot({ editable = true }: CanvasRootProps) {
                 copyNode,
                 cutNode,
                 pasteNode,
+                pasteHtml: handlePasteHtml,
               }}
             />
           )}

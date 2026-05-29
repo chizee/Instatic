@@ -42,6 +42,7 @@ import {
 } from '@ui/components/ContextMenu'
 import { useEditorStore, selectActiveCanvasPage } from '@site/store/store'
 import { useShallow } from 'zustand/react/shallow'
+import { registry } from '@core/module-engine/registry'
 import { useInsertModule } from '@site/hooks/useInsertModule'
 import { resolveInsertLocation } from '@site/store/insertLocation'
 import { ModulePicker } from '@site/module-picker'
@@ -57,6 +58,7 @@ import { ContainerSolidIcon } from 'pixel-art-icons/icons/container-solid'
 import { TrashSolidIcon } from 'pixel-art-icons/icons/trash-solid'
 import { AppGridPlusGlyphIcon } from 'pixel-art-icons/icons/app-grid-plus-glyph'
 import { BoxStackSolidIcon } from 'pixel-art-icons/icons/box-stack-solid'
+import { CodeIcon } from 'pixel-art-icons/icons/code'
 import styles from './LayerNodeContextMenu.module.css'
 
 interface LayerNodeContextMenuProps {
@@ -77,6 +79,12 @@ interface LayerNodeContextMenuProps {
   onCopy: () => void
   onCut: () => void
   onPaste: () => void
+  /**
+   * Called when the user clicks "Paste HTML here…" on a container node.
+   * Only rendered for single-selection container nodes (root or canHaveChildren).
+   * The callback receives the nodeId to use as the insertion parent.
+   */
+  onPasteHtml?: (nodeId: string) => void
   /** The node that was right-clicked. When omitted, falls back to selectedNodeId. */
   nodeId?: string
 }
@@ -92,6 +100,7 @@ export function LayerNodeContextMenu({
   onCopy,
   onCut,
   onPaste,
+  onPasteHtml,
   nodeId: nodeIdProp,
 }: LayerNodeContextMenuProps) {
   const firstItemRef = useRef<HTMLButtonElement>(null)
@@ -154,6 +163,25 @@ export function LayerNodeContextMenu({
           n.children.includes(nodeId),
         )
         return parent?.moduleId === 'base.visual-component-ref'
+      },
+      [nodeId, isMulti],
+    ),
+  )
+
+  // Whether the right-clicked node accepts children (root or canHaveChildren).
+  // Used to gate the "Paste HTML here…" item — only offered when the target
+  // is a genuine container so the import lands where the user expects it.
+  const isContainer = useEditorStore(
+    useCallback(
+      (s) => {
+        if (isMulti || !nodeId) return false
+        const tree = selectActiveCanvasPage(s)
+        if (!tree) return false
+        const isRoot = tree.rootNodeId === nodeId
+        const node = tree.nodes[nodeId]
+        if (!node) return false
+        const def = registry.get(node.moduleId)
+        return isRoot || def?.canHaveChildren === true
       },
       [nodeId, isMulti],
     ),
@@ -313,6 +341,13 @@ export function LayerNodeContextMenu({
             <ContextMenuItem onClick={onPaste}>
               <span aria-hidden="true"><FilesStack2SolidIcon size={13} /></span>
               Paste
+            </ContextMenuItem>
+          )}
+
+          {!isMulti && isContainer && onPasteHtml && nodeId && (
+            <ContextMenuItem onClick={() => { onPasteHtml(nodeId); onClose() }}>
+              <span aria-hidden="true"><CodeIcon size={13} /></span>
+              Paste HTML here…
             </ContextMenuItem>
           )}
 

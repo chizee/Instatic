@@ -100,6 +100,7 @@ export const TreeNode = memo(function TreeNode({ nodeId, depth, editable = true 
   const copyNode = useEditorStore((s) => s.copyNode)
   const cutNode = useEditorStore((s) => s.cutNode)
   const pasteNode = useEditorStore((s) => s.pasteNode)
+  const openImportHtmlModal = useEditorStore((s) => s.openImportHtmlModal)
 
   const { isExpanded, toggleExpanded } = useDomTree()
 
@@ -429,6 +430,16 @@ export const TreeNode = memo(function TreeNode({ nodeId, depth, editable = true 
           onCopy={() => { copyNode(nodeId); setContextMenu(null) }}
           onCut={() => { cutNode(nodeId); setContextMenu(null) }}
           onPaste={() => { pasteNode(nodeId); setContextMenu(null) }}
+          onPasteHtml={async (targetNodeId) => {
+            setContextMenu(null)
+            let prefillHtml = ''
+            try {
+              prefillHtml = await navigator.clipboard.readText()
+            } catch (_err) {
+              // Clipboard permission denied or API unavailable — open with empty textarea.
+            }
+            openImportHtmlModal({ parentId: targetNodeId, prefillHtml })
+          }}
         />,
         document.body,
       )}

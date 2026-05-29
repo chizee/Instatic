@@ -28,6 +28,7 @@ import type {
   FrameworkTypographyClassGenerator,
   FrameworkTypographyGroup,
 } from '@core/page-tree'
+import type { ImportFragment } from '@core/htmlImport'
 import type { FrameworkChangeImpact } from '@core/framework/changeImpact'
 import type { EditorStore } from '@site/store/types'
 
@@ -108,6 +109,14 @@ export interface SiteSlice {
 
   // Node mutations (operate on the active page)
   insertNode: (moduleId: string, defaults: Record<string, unknown>, parentId: string, index?: number) => string
+
+  /**
+   * Insert a fragment of imported HTML nodes into the active tree under `parentId`.
+   * Merges all `fragment.nodes` into the tree and wires `fragment.rootIds` as children
+   * of `parentId` at `index` (appended when omitted). One undo step.
+   * Returns the inserted root IDs, or an empty array when the parent does not accept children.
+   */
+  insertImportedNodes: (parentId: string, fragment: ImportFragment, index?: number) => string[]
 
   /**
    * Insert a `base.visual-component-ref` node into the active document.

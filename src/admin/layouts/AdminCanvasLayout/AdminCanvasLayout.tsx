@@ -82,6 +82,8 @@ import {
 import { EditorPermissionsProvider } from '@site/EditorPermissionsProvider'
 import type { EditorPermissions } from '@site/editorPermissionsContext'
 
+import { ImportHtmlModal } from '@admin/modals/ImportHtml'
+
 // SettingsModal is heavy (~37 KB raw) and closed 99% of the time. lazy()
 // pushes it into its own chunk and the conditional render below avoids
 // kicking off the dynamic import until the user actually opens settings.
@@ -162,6 +164,7 @@ export function AdminCanvasLayout({
   // editor's `settingsSlice.openSettings` mirrors into it, and the admin
   // shell reads from it too.
   const settingsOpen = useAdminUi((s) => s.settingsOpen)
+  const importHtmlModalOpen = useEditorStore((s) => s.importHtmlModalOpen)
   const publishSiteSummary = useAdminUi((s) => s.setSiteSummary)
   const publishActiveLivePath = useAdminUi((s) => s.setActiveLivePath)
   // Public path of the page currently open in the Site-editor canvas —
@@ -450,6 +453,11 @@ export function AdminCanvasLayout({
           <SettingsModal />
         </Suspense>
       )}
+
+      {/* Import HTML modal — opens from Spotlight or right-click "Paste HTML here…".
+          Dialog handles its own portal + Escape; always rendered so it can
+          react to `importHtmlModalOpen` without a lazy-load delay. */}
+      {importHtmlModalOpen && <ImportHtmlModal />}
     </div>
     </EditorPermissionsProvider>
   )

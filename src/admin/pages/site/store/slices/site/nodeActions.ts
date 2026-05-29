@@ -12,6 +12,7 @@
 
 import { nanoid } from 'nanoid'
 import { registry } from '@core/module-engine/registry'
+
 import { wouldCreateCycle } from '@core/visualComponents/recursionGuard'
 import {
   cloneScopedClassesForNodeMap,
@@ -30,7 +31,7 @@ import {
   wrapNode,
   wrapNodes,
 } from '@core/page-tree'
-import type { NodeTree, PageNode, SiteDocument } from '@core/page-tree'
+import type { CSSClass, NodeTree, PageNode, SiteDocument } from '@core/page-tree'
 import { syncSlotInstances, applySlotSyncResult } from '@core/visualComponents/slotSync'
 import { depthInTree } from './helpers'
 import type { SiteSlice, SiteSliceHelpers } from './types'
@@ -39,6 +40,7 @@ export type NodeActions = Pick<
   SiteSlice,
   | 'insertNode'
   | 'insertComponentRef'
+  | 'insertImportedNodes'
   | 'deleteNode'
   | 'deleteNodes'
   | 'updateNodeProps'
@@ -109,6 +111,60 @@ function recordPatchChanges(
   return Object.entries(patch).some(([key, value]) => !Object.is(current[key], value))
 }
 
+/**
+ * Index existing classes by name → id. The registry is keyed by id, but HTML
+ * carries class *names*; importing must reconcile the two. First id wins when
+ * two classes share a name (createClass enforces name uniqueness, so this is
+ * only a defensive tiebreak).
+ */
+function indexClassesByName(classes: Record<string, CSSClass>): Map<string, string> {
+  const byName = new Map<string, string>()
+  for (const cls of Object.values(classes)) {
+    if (!byName.has(cls.name)) byName.set(cls.name, cls.id)
+  }
+  return byName
+}
+
+/**
+ * Convert the class *names* an HTML importer stamped onto a fragment node
+ * (`walkAndMap` copies `el.classList` verbatim) into real registry class
+ * *ids*. A name that already names a class links to that class; an unknown
+ * name auto-creates a bare (style-less) class so the token still renders and
+ * is editable in the class panel.
+ *
+ * Mutates `classes` (adds new entries) and `byName` (caches them) so repeated
+ * names across sibling nodes resolve to one shared class. Must run inside the
+ * Immer producer that owns the `site` draft.
+ */
+function linkImportedClassNames(
+  classNames: readonly string[] | undefined,
+  classes: Record<string, CSSClass>,
+  byName: Map<string, string>,
+): string[] {
+  if (!classNames?.length) return []
+  const ids: string[] = []
+  for (const name of classNames) {
+    if (name.length === 0) continue
+    let id = byName.get(name)
+    if (!id) {
+      const now = Date.now()
+      const cls: CSSClass = {
+        id: nanoid(),
+        name,
+        styles: {},
+        breakpointStyles: {},
+        createdAt: now,
+        updatedAt: now,
+      }
+      classes[cls.id] = cls
+      byName.set(name, cls.id)
+      id = cls.id
+    }
+    if (!ids.includes(id)) ids.push(id)
+  }
+  return ids
+}
+
 export function createNodeActions(helpers: SiteSliceHelpers): NodeActions {
   const { get, set, mutatePage, mutateActiveTree, mutateActiveTreeAndSite } = helpers
 
@@ -122,6 +178,43 @@ export function createNodeActions(helpers: SiteSliceHelpers): NodeActions {
         return true
       })
       return newNode.id
+    },
+
+    insertImportedNodes: (parentId, fragment, index) => {
+      if (fragment.rootIds.length === 0) return []
+      const insertedRootIds: string[] = []
+      mutateActiveTreeAndSite((tree, site) => {
+        const parent = tree.nodes[parentId]
+        if (!parent) return false
+        const isRoot = tree.rootNodeId === parentId
+        const definition = registry.get(parent.moduleId)
+        const acceptsChildren = isRoot || definition?.canHaveChildren === true
+        if (!acceptsChildren) return false
+
+        // The HTML importer stamps class *names* onto each fragment node's
+        // classIds (`walkAndMap` copies el.classList verbatim). The engine
+        // keys classes by id and resolves styles by id, so link every imported
+        // name to a real registry class — reusing an existing same-named class
+        // or auto-creating a bare one — as the nodes enter the live tree.
+        // Without this step the names never resolve and styles never apply.
+        //
+        // Nodes already carry fresh nanoid IDs from createNode — no collision
+        // risk on the node map.
+        const classesByName = indexClassesByName(site.classes)
+        for (const [id, node] of Object.entries(fragment.nodes)) {
+          tree.nodes[id] = {
+            ...node,
+            classIds: linkImportedClassNames(node.classIds, site.classes, classesByName),
+          }
+        }
+
+        // Wire the imported root nodes as children of the target parent.
+        const insertAt = index ?? parent.children.length
+        parent.children.splice(insertAt, 0, ...fragment.rootIds)
+        insertedRootIds.push(...fragment.rootIds)
+        return true
+      })
+      return insertedRootIds
     },
 
     insertComponentRef: (parentId, componentId, index) => {
