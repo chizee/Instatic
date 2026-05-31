@@ -6,7 +6,7 @@ Catalog of every test in `src/__tests__/architecture/`. These are structural gat
 
 ## TL;DR
 
-- 91 tests across structural domains: SQL, JSON columns, migrations, CSS, icons, primitives, page tree, sandbox, agent, router, content storage, boundary validation, etc.
+- 92 tests across structural domains: SQL, JSON columns, migrations, CSS, icons, primitives, page tree, sandbox, agent, router, content storage, boundary validation, module size, etc.
 - Naming convention: `<topic>.test.ts` (kebab-case) or `<group>-<topic>.test.ts`. A few legacy `task<N>-*` / `phase<N>-*` / `guideline<N>-*` ids exist — when the codebase has stabilized, those should be renamed by topic.
 - Run them all: `bun test src/__tests__/architecture/`.
 - Most are **import / source scans** — they parse the files in scope and assert / reject patterns. Some are unit-style (a small in-test database, a synthesized page tree).
@@ -185,6 +185,7 @@ See [docs/features/site-transfer.md](../features/site-transfer.md).
 | Test                                          | What it enforces                                                                 |
 |-----------------------------------------------|----------------------------------------------------------------------------------|
 | `bundle-size-budgets.test.ts`                 | Per-chunk size budgets after `bun run build`. Fails CI if a chunk grows past its budget. |
+| `module-size-budgets.test.ts`                 | Per-module line-count cap. No new source module over 700 lines; a grandfathered ledger of existing god-files is frozen and ratchets down only. Source-side sibling of `bundle-size-budgets`. |
 | `codemirror-lazy-only.test.ts`                | CodeMirror is loaded only via `lazy()` — it's heavy and shouldn't be in the entry bundle. |
 | `singleInstallManagedHosting.test.ts`         | Single-install assumptions hold across the codebase (no multi-tenant leakage).   |
 
