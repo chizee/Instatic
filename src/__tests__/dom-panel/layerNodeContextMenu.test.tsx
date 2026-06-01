@@ -13,8 +13,9 @@
 
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import React from 'react'
-import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { LayerNodeContextMenu } from '@site/panels/DomPanel/LayerNodeContextMenu'
+import { PropertiesPanel } from '@site/panels/PropertiesPanel/PropertiesPanel'
 import { useEditorStore } from '@site/store/store'
 import { makeNode, makePage, makeSite } from '../fixtures'
 import type { VisualComponent } from '@core/visualComponents'
@@ -195,6 +196,46 @@ describe('LayerNodeContextMenu — Insert module here', () => {
     // selectedNodeId in resetStore is 'container-node' — VC ref should land there.
     const container = page?.nodes['container-node']
     expect(container?.children.length).toBe(1)
+  })
+})
+
+describe('LayerNodeContextMenu — Componentize', () => {
+  it('opens the Properties panel and focuses the component name input', async () => {
+    resetStore()
+    useEditorStore.setState({
+      selectedNodeId: null,
+      selectedNodeIds: [],
+      selectedSelectorClassIds: ['stale-selector-selection'],
+      propertiesPanel: { collapsed: true, x: 0, y: 0, width: 360 },
+    } as Parameters<typeof useEditorStore.setState>[0])
+
+    render(
+      <>
+        <LayerNodeContextMenu
+          x={100}
+          y={200}
+          nodeId="container-node"
+          onClose={noop}
+          onDelete={noop}
+          onDuplicate={noop}
+          onRename={noop}
+          onWrapInContainer={noop}
+          onCopy={noop}
+          onCut={noop}
+          onPaste={noop}
+        />
+        <PropertiesPanel variant="docked" />
+      </>,
+    )
+
+    fireEvent.click(screen.getByRole('menuitem', { name: /componentize/i }))
+
+    expect(useEditorStore.getState().propertiesPanel.collapsed).toBe(false)
+    expect(useEditorStore.getState().selectedSelectorClassIds).toEqual([])
+    const input = await screen.findByRole('textbox', { name: /component name/i })
+    await waitFor(() => {
+      expect(document.activeElement).toBe(input)
+    })
   })
 })
 

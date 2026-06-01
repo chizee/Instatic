@@ -30,6 +30,7 @@ import { ConvertToComponentButton } from './ConvertToComponentButton'
 import { MultiSelectionInspector } from './MultiSelectionInspector'
 import { MultiSelectorInspector } from './MultiSelectorInspector'
 import { SelectorInspector } from './SelectorInspector'
+import { canComponentizeNode } from '@site/componentization'
 import styles from './PropertiesPanel.module.css'
 
 interface PropertiesPanelBodyProps {
@@ -127,26 +128,27 @@ export function PropertiesPanelBody(props: PropertiesPanelBodyProps): React.Reac
   // ConvertToComponentButton is structural (it adds a new VC to the registry
   // and replaces the selected subtree with a ref) — gate on structure.
   const showConvertToComponent =
-    permissions.canEditStructure &&
-    activeDocument?.kind !== 'visualComponent' &&
-    selectedNode.moduleId !== 'base.body' &&
-    selectedNode.moduleId !== 'base.visual-component-ref'
+    permissions.canEditStructure && canComponentizeNode(activeDocument, selectedNode)
 
   return (
     <div className={styles.nodeArea}>
       {/* ClassPicker — always visible to style-edit-capable callers. Hidden
           for content-only Clients. */}
-      {permissions.canEditStyle && (
+      {(permissions.canEditStyle || showConvertToComponent) && (
         <div className={styles.headerClassPicker}>
-          <ClassPicker
-            ref={classPickerRef}
-            nodeId={selectedNodeId!}
-            trailingAction={
-              showConvertToComponent
-                ? <ConvertToComponentButton nodeId={selectedNodeId!} />
-                : undefined
-            }
-          />
+          {permissions.canEditStyle ? (
+            <ClassPicker
+              ref={classPickerRef}
+              nodeId={selectedNodeId!}
+              trailingAction={
+                showConvertToComponent
+                  ? <ConvertToComponentButton nodeId={selectedNodeId!} />
+                  : undefined
+              }
+            />
+          ) : (
+            <ConvertToComponentButton nodeId={selectedNodeId!} />
+          )}
         </div>
       )}
 

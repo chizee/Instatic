@@ -12,7 +12,7 @@
  * Constraint #269: may import from core/
  */
 
-import { useState, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useEditorStore } from '@site/store/store'
 import { VisualComponentNameError } from '@site/store/slices/visualComponentsSlice'
 import { Button } from '@ui/components/Button'
@@ -32,16 +32,31 @@ interface ConvertToComponentButtonProps {
 // ---------------------------------------------------------------------------
 
 export function ConvertToComponentButton({ nodeId }: ConvertToComponentButtonProps) {
-  const [editing, setEditing] = useState(false)
+  const [manualEditing, setManualEditing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const convertNodeToComponent = useEditorStore((s) => s.convertNodeToComponent)
+  const componentizeEditorRequest = useEditorStore((s) => s.componentizeEditorRequest)
+  const clearComponentizeEditorRequest = useEditorStore((s) => s.clearComponentizeEditorRequest)
+  const requestForThisNode =
+    componentizeEditorRequest?.nodeId === nodeId ? componentizeEditorRequest : null
+  const editing = manualEditing || requestForThisNode !== null
+
+  useEffect(() => {
+    if (!requestForThisNode) return
+    requestAnimationFrame(() => {
+      inputRef.current?.focus()
+    })
+  }, [requestForThisNode])
 
   function handleSubmit() {
     const name = inputRef.current?.value.trim() ?? ''
     if (!name) return
     try {
       convertNodeToComponent(nodeId, name)
+      if (requestForThisNode) {
+        clearComponentizeEditorRequest(requestForThisNode.requestId)
+      }
       // On success: activeDocument switches to the new VC, panel rerenders,
       // this component unmounts — no further local state update needed.
     } catch (err) {
@@ -58,7 +73,13 @@ export function ConvertToComponentButton({ nodeId }: ConvertToComponentButtonPro
       <Button
         variant="secondary"
         size="sm"
-        onClick={() => setEditing(true)}
+        onClick={() => {
+          setManualEditing(true)
+          setError(null)
+          requestAnimationFrame(() => {
+            inputRef.current?.focus()
+          })
+        }}
       >
         Componentize
       </Button>
@@ -88,8 +109,11 @@ export function ConvertToComponentButton({ nodeId }: ConvertToComponentButtonPro
             }
             if (e.key === 'Escape') {
               e.preventDefault()
-              setEditing(false)
+              setManualEditing(false)
               setError(null)
+              if (requestForThisNode) {
+                clearComponentizeEditorRequest(requestForThisNode.requestId)
+              }
             }
           }}
         />
@@ -104,8 +128,11 @@ export function ConvertToComponentButton({ nodeId }: ConvertToComponentButtonPro
           variant="ghost"
           size="sm"
           onClick={() => {
-            setEditing(false)
+            setManualEditing(false)
             setError(null)
+            if (requestForThisNode) {
+              clearComponentizeEditorRequest(requestForThisNode.requestId)
+            }
           }}
         >
           Cancel

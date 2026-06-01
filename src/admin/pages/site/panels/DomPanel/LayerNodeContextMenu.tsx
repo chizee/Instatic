@@ -47,6 +47,7 @@ import { useInsertModule } from '@site/hooks/useInsertModule'
 import { useInsertFormPreset } from '@site/hooks/useInsertFormPreset'
 import { resolveInsertLocation } from '@site/store/insertLocation'
 import { ModulePicker } from '@site/module-picker'
+import { canComponentizeNode } from '@site/componentization'
 import type { FormPreset } from '@site/module-picker'
 import { useConfirmDelete } from '@admin/shared/dialogs/ConfirmDeleteDialog'
 import type { AnyModuleDefinition } from '@core/module-engine'
@@ -61,6 +62,7 @@ import { TrashSolidIcon } from 'pixel-art-icons/icons/trash-solid'
 import { AppGridPlusGlyphIcon } from 'pixel-art-icons/icons/app-grid-plus-glyph'
 import { BoxStackSolidIcon } from 'pixel-art-icons/icons/box-stack-solid'
 import { CodeIcon } from 'pixel-art-icons/icons/code'
+import { BoxSolidIcon } from 'pixel-art-icons/icons/box-solid'
 import styles from './LayerNodeContextMenu.module.css'
 
 interface LayerNodeContextMenuProps {
@@ -115,6 +117,7 @@ export function LayerNodeContextMenu({
   // whole set. `useShallow` keeps subscriptions stable for content equality.
   const selectedNodeIds = useEditorStore(useShallow((s) => s.selectedNodeIds))
   const insertComponentRef = useEditorStore((s) => s.insertComponentRef)
+  const openComponentizeEditor = useEditorStore((s) => s.openComponentizeEditor)
   const insertModule = useInsertModule()
   const wrapNodesAction = useEditorStore((s) => s.wrapNodes)
   const duplicateNodesAction = useEditorStore((s) => s.duplicateNodes)
@@ -171,6 +174,13 @@ export function LayerNodeContextMenu({
     if (!node) return false
     const def = registry.get(node.moduleId)
     return isRoot || def?.canHaveChildren === true
+  })
+
+  const canComponentize = useEditorStore((s) => {
+    if (isMulti || !nodeId) return false
+    const tree = selectActiveCanvasPage(s)
+    const node = tree?.nodes[nodeId]
+    return canComponentizeNode(s.activeDocument, node)
   })
 
   // "Insert module here" is hidden ONLY for multi-select (the new node has no
@@ -261,6 +271,12 @@ export function LayerNodeContextMenu({
     }
   }
 
+  const dispatchComponentize = () => {
+    if (!nodeId) return
+    openComponentizeEditor(nodeId)
+    onClose()
+  }
+
   const dispatchWrapInLoop = () => {
     if (isMulti) {
       wrapNodesAction(targetIds, 'base.loop')
@@ -311,6 +327,13 @@ export function LayerNodeContextMenu({
             <span aria-hidden="true"><CopyPlusSolidIcon size={13} /></span>
             Duplicate
           </ContextMenuItem>
+
+          {canComponentize && (
+            <ContextMenuItem onClick={dispatchComponentize}>
+              <span aria-hidden="true"><BoxSolidIcon size={13} /></span>
+              Componentize
+            </ContextMenuItem>
+          )}
 
           <ContextMenuSeparator />
 

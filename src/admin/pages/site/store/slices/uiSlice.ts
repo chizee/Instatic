@@ -52,6 +52,11 @@ export interface PropCodeBuffer {
   language: 'html' | 'css' | 'json' | 'ts' | 'tsx' | 'markdown' | 'text'
 }
 
+export interface ComponentizeEditorRequest {
+  nodeId: string
+  requestId: number
+}
+
 
 export interface UiSlice {
   // Panel visibility / layout
@@ -78,6 +83,9 @@ export interface UiSlice {
   // Module insert picker
   insertPickerOpen: boolean
   insertPickerParentId: string | null
+
+  // Inline Visual Component extraction editor in the Properties panel.
+  componentizeEditorRequest: ComponentizeEditorRequest | null
 
   // Site explorer — user-facing site concepts, not generated source files
   siteExplorerPanelOpen: boolean
@@ -127,6 +135,8 @@ export interface UiSlice {
 
   openInsertPicker: (parentId: string) => void
   closeInsertPicker: () => void
+  openComponentizeEditor: (nodeId: string) => void
+  clearComponentizeEditorRequest: (requestId: number) => void
 
   setSiteExplorerPanelOpen: (open: boolean) => void
   setSelectorsPanelOpen: (open: boolean) => void
@@ -294,6 +304,7 @@ export const createUiSlice: EditorStoreSliceCreator<UiSlice> = (set, get) => ({
   hasUnsavedChanges: false,
   insertPickerOpen: false,
   insertPickerParentId: null,
+  componentizeEditorRequest: null,
   siteExplorerPanelOpen: false,
   selectorsPanelOpen: false,
   colorsPanelOpen: false,
@@ -398,6 +409,28 @@ export const createUiSlice: EditorStoreSliceCreator<UiSlice> = (set, get) => ({
 
   closeInsertPicker: () =>
     set({ insertPickerOpen: false, insertPickerParentId: null }),
+
+  openComponentizeEditor: (nodeId) => {
+    const current = get()
+    if (current.selectedNodeId !== nodeId || current.selectedNodeIds.length !== 1) {
+      current.selectNode(nodeId)
+    }
+    set((state) => ({
+      selectedSelectorClassId: null,
+      selectedSelectorClassIds: [],
+      propertiesPanel: { ...state.propertiesPanel, collapsed: false },
+      focusedPanel: 'properties',
+      componentizeEditorRequest: {
+        nodeId,
+        requestId: (state.componentizeEditorRequest?.requestId ?? 0) + 1,
+      },
+    }))
+  },
+
+  clearComponentizeEditorRequest: (requestId) => {
+    if (get().componentizeEditorRequest?.requestId !== requestId) return
+    set({ componentizeEditorRequest: null })
+  },
 
   setSiteExplorerPanelOpen: (open) => set({ siteExplorerPanelOpen: open }),
 

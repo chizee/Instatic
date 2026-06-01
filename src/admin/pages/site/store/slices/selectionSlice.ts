@@ -167,6 +167,7 @@ export const createSelectionSlice: EditorStoreSliceCreator<SelectionSlice> = (se
     hoveredBreakpointId: null,
     activeClassId: null,
     inlineStyleEditing: false,
+    componentizeEditorRequest: null,
   }),
 })
 
@@ -249,6 +250,10 @@ function applySelection(
     propertiesPanel: panelChanged
       ? { ...state.propertiesPanel, collapsed: shouldCollapseProperties }
       : state.propertiesPanel,
+    componentizeEditorRequest:
+      current.componentizeEditorRequest?.nodeId === nextAnchor
+        ? state.componentizeEditorRequest
+        : null,
   }))
 }
 
