@@ -156,7 +156,6 @@ export function ContextMenu({
   ref,
   ...domProps
 }: ContextMenuProps) {
-
   const menuRef = useRef<HTMLDivElement | null>(null)
   const setMenuRef = (node: HTMLDivElement | null) => {
     menuRef.current = node
@@ -369,8 +368,9 @@ export function ContextMenu({
       data-side={resolvedSide}
       data-scrollable={maxHeight != null ? '' : undefined}
       style={style}
-      onKeyDown={handleKeyDown}
       {...domProps}
+      onKeyDown={handleKeyDown}
+      onClick={(event) => { event.stopPropagation(); domProps.onClick?.(event) }}
     >
       {children}
     </div>
