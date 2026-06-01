@@ -1,4 +1,7 @@
 import { describe, expect, it } from 'bun:test'
+import { mkdir, writeFile } from 'node:fs/promises'
+import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import {
   FORM_RUNTIME_JS,
   FORM_RUNTIME_PATH,
@@ -97,7 +100,7 @@ describe('published form runtime', () => {
     }
 
     try {
-      new Function(FORM_RUNTIME_JS)()
+      await importRuntimeScript(FORM_RUNTIME_JS)
       await flushRuntime()
 
       expect(calls.map((call) => call.path)).toEqual(['/_pb/form/challenge'])
@@ -121,6 +124,17 @@ describe('published form runtime', () => {
 async function flushRuntime(): Promise<void> {
   await Promise.resolve()
   await Promise.resolve()
+}
+
+let runtimeImportCounter = 0
+
+async function importRuntimeScript(source: string): Promise<void> {
+  runtimeImportCounter += 1
+  const dir = join(process.cwd(), '.tmp', 'form-runtime-tests')
+  await mkdir(dir, { recursive: true })
+  const path = join(dir, `runtime-${runtimeImportCounter}.mjs`)
+  await writeFile(path, source, 'utf8')
+  await import(`${pathToFileURL(path).href}?v=${runtimeImportCounter}`)
 }
 
 async function waitForCalls(calls: unknown[], count: number): Promise<void> {

@@ -112,10 +112,12 @@ const BUDGETS: ChunkBudget[] = [
   // Media use AdminWorkspaceCanvasLayout instead and must not pull this chunk.
   {
     prefix: 'SitePage-',
-    maxBytes: 770_000,
+    maxBytes: 850_000,
     rationale:
       'site editor (canvas + panels + modules + publisher). Current ' +
-      '~718 KB raw / gzipped ~231 KB. Includes React Compiler overhead ' +
+      '~768 KB raw / gzipped ~251 KB after CMS-native forms added ' +
+      'editor setup panels, form presets, primitive modules, and canvas ' +
+      'form-control suppression. Includes React Compiler overhead ' +
       '(`useMemoCache` calls per component, ~30% bundle growth) and the ' +
       'module-engine default-props layer added to all base modules.',
   },

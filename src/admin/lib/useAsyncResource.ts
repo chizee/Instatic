@@ -110,14 +110,19 @@ export function useAsyncResource<T>(
     setError(null)
     try {
       const result = await loader(signal)
-      if (!isCancelled()) setData(result)
+      if (isCancelled()) return
+      setData(result)
+      setLoading(false)
     } catch (err) {
-      if (isCancelled() || isAbortError(err)) return
+      if (isCancelled()) return
+      if (isAbortError(err)) {
+        setLoading(false)
+        return
+      }
       if (!swallowErrors) {
         setError(err instanceof Error ? err.message : fallbackError)
       }
-    } finally {
-      if (!isCancelled()) setLoading(false)
+      setLoading(false)
     }
   })
 

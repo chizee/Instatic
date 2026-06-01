@@ -5,7 +5,7 @@ CMS-native forms let the visual editor build semantic HTML forms from primitive 
 ## TL;DR
 
 - Form modules live in `src/modules/base/forms/` and register from `src/modules/base/index.ts`.
-- Every form part is a node: `base.form`, `base.label`, `base.input`, `base.textarea`, `base.select`, `base.option`, `base.checkbox`, `base.radio`, `base.submit`, and `base.form-message`.
+- Every form part is a node: `base.form`, `base.label`, `base.input`, `base.textarea`, `base.select`, `base.option`, `base.option-group`, `base.checkbox`, `base.radio`, `base.submit`, and `base.form-message`.
 - Presets in `src/admin/pages/site/module-picker/formPresets.ts` insert ordinary primitive nodes; nothing is hidden inside the preset.
 - Paste HTML, agent HTML insert/replace, and Super Import all use `@core/htmlImport`, so semantic HTML form tags import as these same primitive modules.
 - CMS form snapshots are derived at publish/request time by `src/core/forms/snapshot.ts`.

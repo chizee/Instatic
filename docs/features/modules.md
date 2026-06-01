@@ -66,36 +66,49 @@ interface ModuleDefinition<TProps extends Record<string, unknown>> {
   /** One-line description (shown in the picker). */
   description?: string
 
-  /** Category — for grouping in the picker ('Layout', 'Typography', 'Media', ...). */
-  category?: string
+  /** Category for grouping in the picker ('Layout', 'Typography', 'Forms', ...). */
+  category: string
 
-  /** Default HTML tag the module renders to. Used by the canvas for selection geometry. */
-  htmlTag?: string
+  /** Icon component from pixel-art-icons (deep-imported, tree-shakeable). */
+  icon: IconComponent
 
-  /** True if the module accepts children. */
-  canHaveChildren?: boolean
+  /** Semver version string, e.g. "1.0.0". */
+  version: string
 
-  /** Default props applied when a fresh instance is inserted. */
-  defaults: Partial<TProps>
+  /** true = trusted first-party module; false = community module in iframe sandbox. */
+  trusted: boolean
+
+  /** Whether this module accepts children. */
+  canHaveChildren: boolean
+
+  /** Default prop values — derive from propsSchema via Value.Create(propsSchema). */
+  defaults: TProps
 
   /** Property schema — drives the right-panel Properties UI. */
   schema: PropertySchema
 
-  /** Pure render function — called by the publisher and the canvas. */
-  render: (input: {
-    props:     TProps                  // already escaped + dynamic-prop-resolved
-    children:  string                  // joined rendered child HTML
-    html:      (strings: TemplateStringsArray, ...values: unknown[]) => string
-  }) => RenderOutput   // { html: string; css?: string }
+  /**
+   * Optional TypeBox schema for props. When present the publisher coerces and
+   * default-fills props. The schema is the source of truth; derive `defaults`
+   * from it via Value.Create(propsSchema).
+   */
+  propsSchema?: TSchema
 
-  /** Optional: React component for the editor canvas (when the iframe-rendered HTML isn't enough). */
-  component?: React.ComponentType<ModuleComponentProps<TProps>>
+  /**
+   * Pure render function — called by the publisher and the canvas.
+   * props: already HTML-escaped + dynamic-prop-resolved.
+   * renderedChildren: already-rendered child HTML strings (join them: renderedChildren.join('')).
+   */
+  render: (props: TProps, renderedChildren: string[]) => RenderOutput
+
+  /** React component for the editor canvas live preview. */
+  component: React.ComponentType<ModuleComponentProps<TProps>>
 
   /** Optional: external npm dependencies this module needs (e.g. 'three'). */
   dependencies?: ModuleDependencies
 
-  /** Optional: marker classes the editor recognizes for selection / drop-target geometry. */
-  selectorClasses?: string[]
+  /** Display-only HTML tag hint for the DOM panel badge. Not consumed by the publisher. */
+  htmlTag?: string | ((props: TProps) => string | null)
 }
 ```
 
@@ -109,8 +122,8 @@ The schema drives the right-panel Properties UI. Each prop key maps to a `Proper
 
 ```ts
 schema: PropertySchema = {
-  text:  { type: 'text',     label: 'Text' },
-  color: { type: 'color',    label: 'Color', defaultValue: '#000' },
+  text:  { type: 'text',  label: 'Text' },
+  color: { type: 'color', label: 'Color' },
   size:  { type: 'select',   label: 'Size', options: [
             { value: 'sm', label: 'Small' },
             { value: 'md', label: 'Medium' },
@@ -124,22 +137,21 @@ schema: PropertySchema = {
 
 ### Control types
 
-| `type`        | Renders as                                                | Cell value                                       |
-|---------------|-----------------------------------------------------------|--------------------------------------------------|
-| `text`        | `<Input>`                                                 | `string`                                         |
-| `textarea`    | `<Textarea>`                                              | `string`                                         |
-| `richText`    | `<RichTextEditor>` (DOMPurify-sanitized output)           | HTML string                                      |
-| `number`      | `<Input type="number">`                                   | `number`                                         |
-| `boolean`     | `<Switch>`                                                | `boolean`                                        |
-| `select`      | `<Select>` (short list) or `<ContextMenu>` (long)         | option value (string)                            |
-| `multiSelect` | Multi-select pills                                        | `string[]`                                       |
-| `color`       | `<ColorInput>`                                            | `string` (hex / token name)                      |
-| `link`        | URL + target + rel composite                              | `LinkValue` object                               |
-| `dataTable`   | Data table picker                                         | table id string                                  |
-| `image`       | Media picker                                              | media id or URL                                  |
-| `media`       | Media picker (any media type)                             | media id                                         |
-| `spacing`     | 4-axis spacing control (margin / padding box)             | `SpacingValue` object                            |
-| `variable`    | Variable token autocomplete                               | `string`                                         |
+| `type`      | Renders as                                                | Cell value                      |
+|-------------|-----------------------------------------------------------|---------------------------------|
+| `text`      | `<Input>`                                                 | `string`                        |
+| `textarea`  | `<Textarea>`                                              | `string`                        |
+| `richtext`  | `<RichTextEditor>` (DOMPurify-sanitized output)           | HTML string                     |
+| `number`    | `<Input type="number">`                                   | `number`                        |
+| `toggle`    | `<Switch>`                                                | `boolean`                       |
+| `select`    | `<Select>` (short list) or `<ContextMenu>` (long)         | option value string             |
+| `color`     | `<ColorInput>`                                            | `string` (hex / token name)     |
+| `url`       | URL text input (validated)                                | `string`                        |
+| `dataTable` | Data table picker                                         | table id string                 |
+| `image`     | Media picker                                              | media id or URL                 |
+| `media`     | Media picker (any media type)                             | media id                        |
+| `svg`       | Inline SVG editor                                         | SVG markup string               |
+| `group`     | Collapsible section header (visual grouping only)         | — (no data shape change)        |
 
 `PropertyControl` is a discriminated union — `propertySchema.ts` has the full schema.
 
@@ -149,12 +161,12 @@ A control can declare `condition` to hide itself unless another prop has a speci
 
 ```ts
 schema: {
-  hasIcon: { type: 'boolean', label: 'Show icon' },
+  hasIcon: { type: 'toggle', label: 'Show icon' },
   iconName: {
     type: 'select',
     label: 'Icon',
     options: [...],
-    condition: { prop: 'hasIcon', equals: true },
+    condition: { field: 'hasIcon', eq: true },
   },
 }
 ```
@@ -213,36 +225,20 @@ The publisher's per-node flow (see [docs/features/publisher.md](publisher.md)):
 
 ```text
 For each node, bottom-up:
-  1. children = node.children.map(renderNode)
+  1. renderedChildren = node.children.map(renderNode)
   2. resolvedProps  = resolveProps(node, breakpoint)
   3. dynamicProps   = resolveDynamicProps(...)
   4. safeProps      = escapeProps(dynamicProps, schema)   ← string props HTML-escaped
-  5. { html, css } = def.render({ props: safeProps, children, html })
+  5. { html, css } = def.render(safeProps, renderedChildren)
   6. cssCollector.add(moduleId, css)                       ← dedup by moduleId
   7. html = injectNodeClassIds(html, node, site)           ← splice classIds into root tag
 ```
 
 A module's CSS is **collected and deduped by `moduleId`** — emitting the same CSS for every instance is fine; it appears once in the published page bundle.
 
-### The `html` template helper
+`renderedChildren` is a `string[]` of already-rendered child HTML. Leaf modules (text, input, image) receive an empty array. Container-like modules join it: `renderedChildren.join('')`.
 
-`html` (passed in to `render`) is a tagged template that auto-escapes interpolated values:
-
-```ts
-render({ props, children, html }) {
-  return {
-    html: html`<div class="card">
-      <h3>${props.title}</h3>
-      ${children}
-    </div>`,
-    css: `.card { padding: 16px; border-radius: 12px; }`,
-  }
-}
-```
-
-`${props.title}` is auto-escaped (HTML-safe). `${children}` is **trusted** because it's already rendered HTML from the walker.
-
-If you need to emit a raw HTML attribute fragment (e.g. `aria-label="..."`), pre-escape with `escapeHtml(value)` and interpolate as a string.
+String props arrive HTML-escaped by step 4. If you need to emit a raw unescaped attribute value (e.g. a pre-validated URL), use `escapeHtml(value)` from `@modules/base/utils/escape` before interpolating it into the HTML string.
 
 ---
 
@@ -292,22 +288,38 @@ When a page uses such a module, the publisher emits a `<script type="importmap">
 
 ```ts
 // src/modules/base/heading/index.ts
-import { defineModule } from '@core/module-engine'
+import type { ModuleDefinition } from '@core/module-engine'
+import { registry } from '@core/module-engine'
+import { Type, Value, type Static } from '@core/utils/typeboxHelpers'
+import { HeadingIcon } from 'pixel-art-icons/icons/heading'  // example icon
+import { HeadingEditor } from './HeadingEditor'
 
-export const HeadingModule = defineModule({
+const HeadingPropsSchema = Type.Object({
+  level: Type.Number({ default: 2 }),
+  text:  Type.String({ default: 'Heading' }),
+  align: Type.Union([Type.Literal('left'), Type.Literal('center'), Type.Literal('right')], { default: 'left' }),
+})
+
+type HeadingProps = Static<typeof HeadingPropsSchema>
+
+export const HeadingModule: ModuleDefinition<HeadingProps> = {
   id: 'base.heading',
   name: 'Heading',
   description: 'A heading element (h1–h6).',
   category: 'Typography',
-  htmlTag: 'h2',
-  defaults: { level: 2, text: 'Heading', align: 'left' },
+  version: '1.0.0',
+  icon: HeadingIcon,
+  trusted: true,
+  canHaveChildren: false,
+  propsSchema: HeadingPropsSchema,
+  defaults: Value.Create(HeadingPropsSchema),
   schema: {
     level: {
       type: 'select',
       label: 'Level',
       options: [1, 2, 3, 4, 5, 6].map((n) => ({ value: String(n), label: `h${n}` })),
     },
-    text: { type: 'text', label: 'Text' },
+    text:  { type: 'text', label: 'Text' },
     align: {
       type: 'select',
       label: 'Align',
@@ -319,21 +331,18 @@ export const HeadingModule = defineModule({
       ],
     },
   },
-  render: ({ props, html }) => {
+  component: HeadingEditor,
+  htmlTag: 'h2',
+  render: (props) => {
     const tag = `h${Math.max(1, Math.min(6, Number(props.level) || 2))}`
     return {
-      html: html`<${tag} class="heading" data-align="${props.align}">${props.text}</${tag}>`,
+      html: `<${tag} class="heading" data-align="${props.align}">${props.text}</${tag}>`,
       css: `.heading[data-align="center"] { text-align: center; } .heading[data-align="right"] { text-align: right; }`,
     }
   },
-})
-```
+}
 
-Register it in `src/modules/base/index.ts`:
-
-```ts
-import { HeadingModule } from './heading'
-registry.register(HeadingModule)
+registry.registerOrReplace(HeadingModule)
 ```
 
 That's it. The module shows up in the picker, in the Properties panel, in the publisher, in the canvas.
@@ -368,17 +377,6 @@ Modules don't need to know — they just receive resolved props.
 
 At render time, `resolveDynamicProps(...)` substitutes the bound value. Used inside loops (the entry stack supplies `currentEntry`) and inside entry templates (the published row supplies `currentEntry`).
 
-### Read site files / other context from a module
-
-```ts
-render({ props, children, html, ctx }) {  // ctx is available if requested
-  const stylesheet = ctx.siteFiles.find((f) => f.id === props.stylesheetId)
-  // ...
-}
-```
-
-Modules that need broader context can opt in to `ctx: RenderContext`. Most modules don't need it.
-
 ---
 
 ## Forbidden patterns
@@ -388,7 +386,7 @@ Modules that need broader context can opt in to `ctx: RenderContext`. Most modul
 | `render` calling `document.querySelector` / `window.foo`      | Render is pure — no DOM. Compute, don't read.                |
 | `await fetch(...)` inside `render`                            | Render is sync. Pre-fetch via loop prefetch / media prefetch.|
 | Mutating `props` inside `render`                              | Treat as immutable input.                                    |
-| Hand-escaping with `String.replace(/</g, '&lt;')`             | Use the `html` tagged template (auto-escapes interpolations).|
+| Hand-escaping with `String.replace(/</g, '&lt;')`             | Use `escapeHtml(value)` from `@modules/base/utils/escape` — string props are pre-escaped by the publisher, but explicit values (URLs, raw attributes) need manual escaping. |
 | Returning `{ html: '<script>...</script>' }`                  | Scripts in module HTML are stripped at publish-time sanitize. Use plugin frontend assets for runtime JS. |
 | Emitting unique CSS per instance (with hardcoded ids)         | Use stable selectors / `[data-*]` attrs — CSS is deduped per `moduleId`. |
 | Hardcoding hex colors in module CSS                           | Module CSS ships to published pages, where editor tokens aren't available. Use site `framework` tokens (`var(--site-primary)` style) if exposed, or accept the hex literal. (`src/modules/` is exempt from `css-token-policy.test.ts`.) |

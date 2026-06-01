@@ -28,6 +28,13 @@ import styles from './FormSettingsPanel.module.css'
 type FormPreviewState = 'default' | 'submitting' | 'success' | 'error'
 type FormTableOption = Pick<DataTable, 'id' | 'name'>
 
+const FORM_PREVIEW_STATES: ReadonlyArray<{ value: FormPreviewState; label: string }> = [
+  { value: 'default', label: 'Default' },
+  { value: 'submitting', label: 'Submitting' },
+  { value: 'success', label: 'Success' },
+  { value: 'error', label: 'Error' },
+]
+
 interface FormSettingsPanelProps {
   page: Page | null
   nodeId: string | null
@@ -65,7 +72,7 @@ export function FormSettingsPanel({
   })
   const setFormPreviewState = useEditorStore((s) => s.setFormPreviewState)
   const [actionError, setActionError] = useState('')
-  const [creatingTable, setCreatingTable] = useState(false)
+  const creatingTableRef = useRef(false)
   const tablesResource = useAsyncResource<DataTableListItem[]>(
     () => listCmsDataTables(),
     [],
@@ -85,20 +92,20 @@ export function FormSettingsPanel({
   async function handleCreateTable(tableName: string) {
     const draft = buildDataTableDraftFromForm(analysis, tableName)
     if (!draft) return
-    setCreatingTable(true)
+    creatingTableRef.current = true
     setActionError('')
     try {
       const created = await runStepUp(() => createCmsDataTable(draft))
       onPatchProps({ targetTableId: created.id })
       tablesResource.refresh()
       tableResource.refresh()
+      creatingTableRef.current = false
     } catch (err) {
+      creatingTableRef.current = false
       if (err instanceof Error && err.message === StepUpCancelledMessage) return
       const message = getErrorMessage(err, 'Failed to create target data table.')
       setActionError(message)
       throw new Error(message, { cause: err })
-    } finally {
-      setCreatingTable(false)
     }
   }
 
@@ -127,7 +134,7 @@ export function FormSettingsPanel({
       onPatchProps={onPatchProps}
       onTargetTableChange={(nextTableId) => onPatchProps({ targetTableId: nextTableId })}
       onCreateTable={(tableName) => {
-        if (creatingTable) return undefined
+        if (creatingTableRef.current) return undefined
         return handleCreateTable(tableName)
       }}
       onInsertMissingField={handleInsertMissingField}
@@ -178,9 +185,9 @@ export function FormSettingsPanelView({
       </div>
 
       {loading && (
-        <div className={styles.inlineStatus} role="status">
-          Loading target table...
-        </div>
+        <output className={styles.inlineStatus}>
+          Loading target table
+        </output>
       )}
 
       {tablesError && (
@@ -256,18 +263,12 @@ function PreviewStateRow({
   value: FormPreviewState
   onChange: (state: FormPreviewState) => void
 }) {
-  const states: ReadonlyArray<{ value: FormPreviewState; label: string }> = [
-    { value: 'default', label: 'Default' },
-    { value: 'submitting', label: 'Submitting' },
-    { value: 'success', label: 'Success' },
-    { value: 'error', label: 'Error' },
-  ]
   return (
     <div className={styles.section}>
       <span className={styles.sectionLabel}>Preview state</span>
       <SegmentedControl
         value={value}
-        options={states}
+        options={FORM_PREVIEW_STATES}
         onChange={onChange}
         size="xs"
         fullWidth

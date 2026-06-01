@@ -386,7 +386,7 @@ function LoopIterationsPreview({ node, baseTemplateContext }: LoopIterationsPrev
 
 const CANVAS_EDITOR_CONTROL_SELECTOR = '[data-canvas-interactive="true"]'
 const CANVAS_NODE_SELECTOR = '[data-node-id]'
-const AUTHORED_FORM_CONTROL_SELECTOR = 'input, textarea, select, button, option, optgroup'
+const CANVAS_FORM_CONTROL_SELECTOR = 'input, textarea, select, button, option, optgroup'
 const DEFAULT_FORM_SUCCESS_MESSAGE = 'Thanks. Your submission was received.'
 let latestSuppressedPointerTarget: EventTarget | null = null
 
@@ -457,7 +457,7 @@ function isAuthoredFormControlTarget(
   currentTarget: EventTarget | null,
 ): boolean {
   if (!isElementLike(target) || !isElementLike(currentTarget)) return false
-  const control = target.closest(AUTHORED_FORM_CONTROL_SELECTOR)
+  const control = target.closest(CANVAS_FORM_CONTROL_SELECTOR)
   return Boolean(control && currentTarget.contains(control))
 }
 

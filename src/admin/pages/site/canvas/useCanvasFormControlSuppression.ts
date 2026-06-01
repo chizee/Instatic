@@ -3,7 +3,7 @@ import { useEditorStore } from '@site/store/store'
 
 const CANVAS_NODE_SELECTOR = '[data-node-id]'
 const CANVAS_EDITOR_CONTROL_SELECTOR = '[data-canvas-interactive="true"]'
-const AUTHORED_FORM_CONTROL_SELECTOR = 'input, textarea, select, button'
+const CANVAS_FORM_CONTROL_SELECTOR = 'input, textarea, select, button'
 
 interface CanvasFormControlSuppressionOptions {
   breakpointId: string
@@ -76,7 +76,7 @@ function isElementLike(value: EventTarget | null): value is Element {
 
 function getAuthoredFormControlEventTarget(target: EventTarget | null): Element | null {
   if (!isElementLike(target)) return null
-  const control = target.closest(AUTHORED_FORM_CONTROL_SELECTOR)
+  const control = target.closest(CANVAS_FORM_CONTROL_SELECTOR)
   if (!control) return null
   if (target.closest(CANVAS_EDITOR_CONTROL_SELECTOR)) return null
   return target.closest(CANVAS_NODE_SELECTOR) ? control : null
