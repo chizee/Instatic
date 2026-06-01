@@ -100,7 +100,7 @@ Categories of things have an associated color drawn from the **rail tints**. Eac
 | `--rail-tint-violet` | `#f0a6ff` | Secondary violet identity tint                      |
 | `--rail-tint-coral` | `#ff9f9f` | Secondary red identity tint                          |
 
-Rail tints don't live in `src/styles/globals.css` to be decorative — they're part of the design system. Panel rails assign these tints automatically from the full panel identity and avoid repeats inside the visible rail group. Primitives like `Widget` can still accept an explicit tint when the category is product-defined. New rail tints are added by extending the token group, not by inlining a color.
+Rail tints don't live in `src/styles/globals.css` to be decorative — they're part of the design system. Panel rails assign these tints automatically using `assignRailAccents` (multi-item surfaces, avoids repeats inside the visible group) or `railAccent` (single item) from `src/ui/railAccent.ts`. Primitives like `Widget` can still accept an explicit tint when the category is product-defined. New rail tints are added by extending the token group, not by inlining a color.
 
 ### 7. The canvas owns its own palette
 
@@ -336,9 +336,9 @@ The border is the input's identity. Don't fill them. Don't square the corners.
 }
 ```
 
-Icons in the rail get a `drop-shadow` glow matching their tint. The active rail item has a 2px tinted indicator on its left edge. Canonical implementation: `src/admin/pages/site/sidebars/PanelRail/PanelRail.module.css`.
+Icons in the rail get a `drop-shadow` glow matching their tint. The active rail item has a 2px tinted indicator on its left edge. Canonical CSS implementation: `src/admin/pages/site/sidebars/PanelRail/PanelRail.module.css`. Accent assignment logic: `src/ui/railAccent.ts` (`assignRailAccents` for multi-item groups, `railAccent` for single items).
 
-This pattern (automatic per-item rail tint plus `data-accent` for inspection) is the recipe for any equivalent sidebar — media sidebar, data sidebar, etc.
+This pattern (automatic per-item rail tint plus `data-accent` for inspection) is the recipe for any equivalent sidebar — media sidebar, data sidebar, content sidebar, etc.
 
 ### 5. Scrollbar chrome
 
@@ -518,7 +518,7 @@ The HTML `title` attribute is banned for hover hints — gated by `no-native-tit
 | Card with a colored border                               | Borderless tile on a darker parent (1px gap pattern)     |
 | Hover that changes a card's border color                 | Hover that lifts the surface tone (`-surface-2` → `-3`)  |
 | Filling an input with a tinted background                | Transparent fill, white-alpha border                     |
-| Inventing a one-off color for a category                 | Use the rail accent helper, or add a new tint token in `globals.css`|
+| Inventing a one-off color for a category                 | Use `assignRailAccents` / `railAccent` from `@ui/railAccent`, or add a new tint token in `globals.css`|
 
 ---
 
@@ -543,7 +543,7 @@ The HTML `title` attribute is banned for hover hints — gated by `no-native-tit
 2. The tile body is `background: var(--editor-surface-2)`, `border: 0`, `border-radius: var(--card-radius)`.
 3. Hover lifts to `--editor-surface-3` — never recolor the border.
 4. Add a title row with a rail-tint dot (7px, `--editor-radius-sm` (3px), `background: var(--tint)`).
-5. Use the rail accent helper unless the surface has a product-defined category.
+5. Use `assignRailAccents` from `@ui/railAccent` for multi-item surfaces (avoids repeats in the visible group) or `railAccent` for a single item. Skip if the surface has a product-defined category.
 6. Reuse `Widget` from `src/ui/components/Widget/` unless the surface fundamentally differs.
 
 ---
@@ -558,9 +558,10 @@ The HTML `title` attribute is banned for hover hints — gated by `no-native-tit
   - `src/styles/globals.css` — all tokens
   - `src/ui/components/` — all primitives
   - `src/ui/cn.ts` — class composition helper
+  - `src/ui/railAccent.ts` — rail accent assignment helpers (`railAccent`, `assignRailAccents`, `railTintVar`, `RAIL_ACCENTS`, `RailAccent`)
   - `src/ui/components/Widget/Widget.module.css` — canonical tile-card implementation
   - `src/admin/pages/dashboard/components/DashboardGrid.module.css` — canonical 1px-gap grid
-  - `src/admin/pages/site/sidebars/PanelRail/PanelRail.module.css` — canonical tinted rail
+  - `src/admin/pages/site/sidebars/PanelRail/PanelRail.module.css` — canonical tinted rail CSS
   - `vendor/pixel-art-icons/` — vendored icon set
 - Gate tests:
   - `src/__tests__/architecture/css-token-policy.test.ts` — no hardcoded colors in admin / ui CSS modules

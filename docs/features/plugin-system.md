@@ -457,7 +457,7 @@ Risk levels:
 | `editor.store.read`         | Editor               | Medium    | Read editor store state                                                 |
 | `editor.store.write`        | Editor               | High      | Mutate editor store state through a host transaction                    |
 | `editor.canvas`             | Editor               | High      | Register canvas overlay React components                                |
-| `editor.panels`             | Editor               | Medium    | Register left-sidebar panels                                            |
+| `editor.panels`             | Editor               | Medium    | Register left-sidebar panels. Use `definePluginPanel({ id, label, iconName, accent? })` from the SDK — `accent` pins a specific rail tint; omit it to let the host derive one automatically from the panel identity. |
 | `modules.register`          | Editor / manifest    | High      | Ship new modules to the canvas module library                           |
 | `loops.register`            | Editor / server / manifest | Medium | Register custom `base.loop` sources                                  |
 | `visualComponents.register` | Admin / manifest     | Medium    | Ship VCs / page templates / class packs (via `pack/site.json`)          |
@@ -603,4 +603,3 @@ Manifest:
   - `src/__tests__/architecture/plugin-schedule-invariants.test.ts`
   - `src/__tests__/architecture/no-plugin-tab-shells.test.ts`
   - `src/__tests__/architecture/sandbox-crypto-bridge.test.ts`
-  - `src/__tests__/architecture/phase-g-bridge-security.test.ts`
