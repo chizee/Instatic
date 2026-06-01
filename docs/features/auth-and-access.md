@@ -8,7 +8,7 @@ Every state-changing CMS request goes through one auth funnel: parse the session
 
 ## TL;DR
 
-- **Sessions** are token-cookie based. Cookie name: `SESSION_COOKIE_NAME` (`pb_session`). Tokens are hashed before storage; the cookie carries the raw token.
+- **Sessions** are token-cookie based. Cookie name: `SESSION_COOKIE_NAME` (`instatic_admin_session`). Tokens are hashed before storage; the cookie carries the raw token.
 - **Capabilities** are the access model. 19 `CoreCapability` strings defined in `server/auth/capabilities.ts`. Roles are sets of capabilities. Handlers gate on capability, not role.
 - **`requireCapability(req, db, 'site.read')`** is the canonical handler entrypoint. Returns the `AuthUser` or a 401/403 `Response`.
 - **MFA (TOTP)** is per-user opt-in. Sessions for MFA-enrolled users are `pending_mfa` until verified, then become `active`. Failed MFA codes go through `mfaRateLimit`.
@@ -58,7 +58,7 @@ createSession(user, deviceLabel, ip)
     │            pending_mfa = userHasMfaEnabled, step_up_expires_at = null
     │
     ▼
-Set-Cookie: pb_session=<rawToken>; HttpOnly; Secure; SameSite=Lax; Path=/admin
+Set-Cookie: instatic_admin_session=<rawToken>; HttpOnly; Secure; SameSite=Lax; Path=/admin
     │
     ▼
 (user enters MFA code if enrolled)
@@ -79,7 +79,7 @@ session is now ACTIVE; subsequent /admin/api/cms/* requests succeed
 ### On every request
 
 ```text
-cookie pb_session=<token>
+cookie instatic_admin_session=<token>
     │
     ▼
 hashSessionToken(token)
@@ -96,7 +96,7 @@ Sessions rotate (the raw token changes, the row stays) on a cadence to limit bla
 
 ### Logout
 
-`POST /admin/api/cms/auth/logout` → `revokeSessionByHash(db, hash)` → `Set-Cookie: pb_session=; Max-Age=0`.
+`POST /admin/api/cms/auth/logout` -> `revokeSessionByHash(db, hash)` -> `Set-Cookie: instatic_admin_session=; Max-Age=0`.
 
 ### Multi-device
 
@@ -449,5 +449,7 @@ if (userHasAnyCapability(user, SITE_WRITE_CAPABILITIES)) { /* … */ }
   - `server/repositories/sessions.ts`, `server/repositories/users.ts`, `server/repositories/roles.ts`, `server/repositories/loginAttempts.ts`
   - `server/handlers/cms/auth.ts`, `me.ts`, `users.ts`, `roles.ts`
 - Gate tests:
-  - `src/__tests__/architecture/agent-endpoint-auth.test.ts`
+  - `src/__tests__/architecture/ai-handlers-capability-gated.test.ts`
+  - `src/__tests__/architecture/cms-handlers-capability-gated.test.ts`
+  - `src/__tests__/architecture/capability-picker-coverage.test.ts`
   - `src/__tests__/architecture/binding-compatibility-coverage.test.ts`

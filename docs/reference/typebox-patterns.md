@@ -310,7 +310,7 @@ Common boundaries already wrapped — extend the same pattern when you add a new
   - `src/core/persistence/validate.ts` — `validateSite`, `SiteValidationError`
   - `src/core/plugins/manifest.ts` — `parsePluginManifest`
   - `server/http.ts` — `readJsonObject`, `jsonResponse`, `badRequest`
-  - `server/handlers/agent/tools.ts` — the one legitimate `zod` exemption
+  - `server/ai/drivers/typeboxToZod.ts`, `server/ai/drivers/anthropic.ts` — the only legitimate `zod` exemption (Anthropic driver translates TypeBox schemas to Zod for the SDK)
 - Gate tests:
   - `src/__tests__/architecture/boundary-validation.test.ts` — enforces the four HTTP / JSON-parse boundary rules (no `res.json() as`, no `JSON.parse as`, no raw `fetch(` in admin, no raw `req.json(` in server handlers)
-  - `src/__tests__/architecture/no-anthropic-sdk.test.ts` — bans `@anthropic-ai/sdk` and `zod` outside the one exemption
+  - `src/__tests__/architecture/ai-driver-isolation.test.ts` — enforces provider SDK isolation; `@anthropic-ai/sdk` banned everywhere, `zod` restricted to `server/ai/drivers/`

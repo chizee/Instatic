@@ -6,8 +6,8 @@ Catalog of every test in `src/__tests__/architecture/`. These are structural gat
 
 ## TL;DR
 
-- 83 tests across structural domains: SQL, JSON columns, migrations, CSS, icons, primitives, page tree, sandbox, agent, router, content storage, boundary validation, module size, etc.
-- Naming convention: `<topic>.test.ts` (kebab-case) or `<group>-<topic>.test.ts`. A few legacy `task<N>-*` ids still exist when they guard live invariants; new gates should use topic names.
+- 84 gate files across structural domains: SQL, JSON columns, migrations, CSS, icons, primitives, page tree, sandbox, agent, router, content storage, boundary validation, module size, AI, auth, etc.
+- Naming convention: `<topic>.test.ts` (kebab-case) or `<group>-<topic>.test.ts`. A few legacy `task<N>-*` ids remain for live invariants; new gates should use topic names.
 - Run them all: `bun test src/__tests__/architecture/`.
 - Most are **import / source scans** — they parse the files in scope and assert / reject patterns. Some are unit-style (a small in-test database, a synthesized page tree).
 
@@ -60,11 +60,19 @@ See [docs/reference/page-tree.md](page-tree.md), [docs/features/visual-component
 | Test                                          | What it enforces                                                                 |
 |-----------------------------------------------|----------------------------------------------------------------------------------|
 | `boundary-validation.test.ts`                 | Four HTTP / JSON-parse boundary rules: (1) no `res.json() as` in persistence or admin — use `apiRequest` or `readEnvelope`; (2) no `JSON.parse(...) as` in `src/core/persistence/`; (3) no raw `fetch(` in `src/admin/` outside the allowlist (streaming NDJSON, SVG bytes, and FormData multipart uploads are listed with `§3.x` justifications); (4) no `req.json(` in server handlers outside `server/http.ts`. |
-| `no-anthropic-sdk.test.ts`                    | No imports of `@anthropic-ai/sdk`. Use `@anthropic-ai/claude-agent-sdk`. Also: no `zod` imports outside `server/handlers/agent/tools.ts`. |
 | `storage-list-envelope.test.ts`               | Storage list endpoints return the typed envelope shape.                         |
 | `binding-compatibility-coverage.test.ts`      | All endpoint bindings have client-side schemas defined.                          |
 
 See [docs/reference/typebox-patterns.md](typebox-patterns.md).
+
+### Auth / capabilities
+
+| Test                                          | What it enforces                                                                 |
+|-----------------------------------------------|----------------------------------------------------------------------------------|
+| `capability-picker-coverage.test.ts`          | Every `CORE_CAPABILITIES` entry appears in `CAPABILITY_META` and one `CAPABILITY_GROUPS` section. Also mirrors the server `CoreCapability` literal union against the client array — they must list the same strings. |
+| `cms-handlers-capability-gated.test.ts`       | Every file under `server/handlers/cms/` calls `requireCapability`, `requireAnyCapability`, `requireAuthenticatedUser`, or `requireStepUp` at least once. Files in the allowlist carry an explicit justification. |
+
+See [docs/features/auth-and-access.md](../features/auth-and-access.md), [docs/reference/capabilities.md](capabilities.md).
 
 ### CSS / design system
 
@@ -103,6 +111,7 @@ See [docs/reference/ui-primitives.md](ui-primitives.md).
 | `canvas-aware-selectors.test.ts`              | Canvas-related store selectors are subscribed correctly to canvas-state slices.  |
 | `admin-router-usage.test.ts`                  | Internal admin navigation uses `@admin/lib/routing`; raw `/admin` anchors and `react-router-dom` are banned. |
 | `framework-typography-spacing.test.ts`        | The site framework's typography / spacing tokens compile correctly.              |
+| `component-system-placement.test.ts`          | Every VC insertion flow (toolbar picker, site-explorer drag, context menu) routes through `insertComponentRef`; direct `insertNode`/`addNodeToVc` with `'base.visual-component-ref'` is forbidden in placement files. |
 | `task414-wrap-to-container.test.ts`           | Wrap-to-container action creates defaulted wrappers and preserves tree structure. |
 | `task427-preview-class-css.test.ts`           | Preview-class CSS injection matches publisher output.                            |
 | `error-boundary-coverage.test.ts`             | Every workspace page / major surface is wrapped in an `ErrorBoundary` with a unique `location` tag. |
@@ -124,7 +133,10 @@ See [docs/features/spotlight.md](../features/spotlight.md).
 |-----------------------------------------------|----------------------------------------------------------------------------------|
 | `plugin-sandbox-invariants.test.ts`           | No `node:`, `bun:`, `require(`, `process.binding` in plugin bundles. Sandbox-safe assertions.|
 | `plugin-boot-resilience.test.ts`              | One bad plugin doesn't bring the server down. Crashes are isolated.              |
-| `plugin-cms-pages-surface.test.ts`            | `cms.pages.{read,publish}` is wired across all 4 sync-points (permissions, capabilities, builders, docs). |
+| `plugin-cms-content-surface.test.ts`          | All five `cms.content.*` permissions are wired across all sync-points (permission values, capability matrix, permission alias builder, SDK type surface, host-side dispatch). |
+| `plugin-content-access-enforced.test.ts`      | Every plugin content handler calls `assertHostPluginPermission` (permission grant check) and, for per-table operations, `assertContentTableAccess` (manifest `contentAccess[]` allowlist). |
+| `plugin-content-tree-via-engine.test.ts`      | Plugin content handlers reach page-tree mutations through `applyTreeOperation` from `@core/page-tree`, not by deep-importing `mutations.ts` directly. |
+| `plugin-host-import-boundaries.test.ts`       | Worker transport (`server/plugins/host/`) does not import `apiDispatch` — prevents circular dependency between the pool and the dispatch layer. |
 | `plugin-host-ui-runtime-parity.test.ts`       | Plugin host UI surfaces match the SDK's declared shape.                          |
 | `plugin-schedule-invariants.test.ts`          | Scheduled job cadence + overlap policy validate at registration.                 |
 | `sandbox-crypto-bridge.test.ts`               | Plugin sandbox's crypto surface is bridged correctly (`subtle.digest`, etc.).    |
@@ -136,10 +148,18 @@ See [docs/features/plugin-system.md](../features/plugin-system.md).
 
 | Test                                          | What it enforces                                                                 |
 |-----------------------------------------------|----------------------------------------------------------------------------------|
-| `agent-endpoint-auth.test.ts`                 | `/admin/api/agent*` endpoints carry `DbClient` and run the auth checks inline.   |
-| `agent-sdk-integration.test.ts`               | The Claude Agent SDK is imported correctly; no leakage of internal types.        |
-| `task381-agent-panel-tab.test.ts`             | Agent Panel mounts at the right rail position with the right tint.               |
-| `task390-agent-config.test.ts`                | Agent config (model, system prompt) stays under user control.                    |
+| `agent-no-raw-html-in-reply-rule.test.ts`     | The agent system prompt contains the narrate-only rule (1–2 sentence replies, no raw HTML/CSS/JSON in the reply body). Prevents accidental removal during prompt refactors. |
+| `agent-system-prompt-no-module-enumeration.test.ts` | The system prompt does not enumerate module ids — they're discovered via `list_modules`/`inspect_node` at runtime. Also asserts the HTML-native style markers (`insertHtml`, "Structure as HTML, styling as classes"). |
+| `agent-tool-surface.test.ts`                  | Legacy node-construction tools (`insertNode`, `insertTree`) are absent from the site write-tool list; HTML-native replacements (`insertHtml`, `getNodeHtml`, `replaceNodeHtml`) are present. |
+
+### AI infrastructure
+
+| Test                                          | What it enforces                                                                 |
+|-----------------------------------------------|----------------------------------------------------------------------------------|
+| `ai-driver-isolation.test.ts`                 | Provider SDKs (`@anthropic-ai/claude-agent-sdk`, `@openai/agents`) and `zod` may only be imported inside `server/ai/drivers/`. All other server code talks to the `AiProvider` interface. The plain `@anthropic-ai/sdk` is banned everywhere. `src/` (browser bundle) is covered by the same scan so no AI SDK leaks client-side. |
+| `ai-handlers-capability-gated.test.ts`        | Every handler under `server/ai/handlers/` calls `requireCapability` or `requireAnyCapability` before doing work. Prevents unauthenticated access to AI endpoints. |
+| `ai-credentials-never-leak.test.ts`           | AI handler response bodies do not contain credential ciphertext or raw `apiKey` fields. Handlers must project through `toCredentialView()` before serialising a `CredentialRecord`. |
+| `ai-tools-typebox-only.test.ts`               | Every file under `server/ai/tools/` defines schemas with TypeBox, not Zod. Drivers translate TypeBox to SDK-native format; tool files are the single source of truth for tool input shapes. |
 
 See [docs/features/agent.md](../features/agent.md).
 
@@ -149,7 +169,7 @@ See [docs/features/agent.md](../features/agent.md).
 |-----------------------------------------------|----------------------------------------------------------------------------------|
 | `media-migration-invariants.test.ts`          | Migrating an asset between adapters preserves all variants and references.       |
 | `media-presentation-pipeline.test.ts`         | Publisher's `<picture>` / `srcset` materialization is correct.                   |
-| `media-signed-redirect-serving.test.ts`       | `/_pb/media/<adapterId>/<storagePath>` redirects with a fresh signed URL.        |
+| `media-signed-redirect-serving.test.ts`       | `/_instatic/media/<adapterId>/<storagePath>` redirects with a fresh signed URL.  |
 | `media-storage-no-bytes-in-sandbox.test.ts`   | Plugin sandboxes can't read raw media bytes; only host adapters can.             |
 | `media-storage-panel.test.ts`                 | Media storage panel UI matches the registered adapter set.                       |
 
@@ -163,9 +183,17 @@ See [docs/features/media.md](../features/media.md).
 | `publish-html-filter-context.test.ts`         | Plugin `publish.html` filters receive the right context shape.                   |
 | `static-artefact-served-before-render.test.ts`| `publicRouter.ts` calls `readArtefact` BEFORE `resolvePublicRoute` so the Layer A disk fast-path always wins for canonical URLs (no query string). |
 | `publish-bumps-cache-version.test.ts`         | Every publish / unpublish entry point (`publishDraftSite`, `publishDataRow`, `updateDataRowStatus`) calls `bumpPublishVersion()` from `renderCache.ts` so Layer B evicts on every state change visitors can see. |
-| `hole-runtime-asset-route.test.ts`            | The router registers `tryServeHoleRuntimeAsset` and `tryServeHole` BEFORE `tryServePublicRoute`. The `/_pb/hole/*` namespace can never fall through to slug resolution. |
+| `hole-runtime-asset-route.test.ts`            | The router registers `tryServeHoleRuntimeAsset` and `tryServeHole` BEFORE `tryServePublicRoute`. The `/_instatic/hole/*` namespace can never fall through to slug resolution. |
 
 See [docs/features/publisher.md](../features/publisher.md) and [docs/superpowers/plans/2026-05-25-publishing-architecture.md](../superpowers/plans/2026-05-25-publishing-architecture.md).
+
+### Site import
+
+| Test                                          | What it enforces                                                                 |
+|-----------------------------------------------|----------------------------------------------------------------------------------|
+| `siteImport-headless.test.ts`                 | `src/core/siteImport/` imports no `src/admin/`, `server/`, or `react`/`react-dom` modules and contains no `.tsx` files — keeps the Super Import pipeline framework-agnostic and runnable in headless environments. |
+
+See [docs/features/site-import.md](../features/site-import.md).
 
 ### Site transfer (export / import)
 

@@ -1,6 +1,6 @@
 # Server
 
-Deep dive on the server-side of Page Builder CMS — the Bun process, the router, the handlers, the auth model, the DB adapter, and how a request becomes a response.
+Deep dive on the server-side of Instatic — the Bun process, the router, the handlers, the auth model, the DB adapter, and how a request becomes a response.
 
 The server is a single `Bun.serve` process that boots the DB, runs migrations, activates installed plugins, then accepts HTTP requests and dispatches them through an ordered route table. There are no other processes, no message queues, no workers. The runtime entrypoint is `server/index.ts`.
 
@@ -65,11 +65,11 @@ const routes: readonly RouteHandler[] = [
   tryServeAgentToolResult,         // /admin/api/agent/tool-result
   tryServeCmsApi,                  // /admin/api/cms/*  → handlers/cms/index.ts
   tryServeLoopRuntimeAsset,        // loop runtime asset (CMS-owned)
-  tryServeLoop,                    // /_pb/loop/*       → handlers/cms/loop.ts
-  tryServeRuntimeAsset,            // /_pb/assets/*     → published runtime assets
-  tryServeRuntimePackageNamespace, // /_pb/runtime/cache/<hash>/<...> → bun install workspace
-  tryServeSiteCssNamespace,        // /_pb/css/* → hashed CSS bundles
-  tryServeMediaRedirect,           // /_pb/media/<adapterId>/<path> → 302 to signed read URL
+  tryServeLoop,                    // /_instatic/loop/*       → handlers/cms/loop.ts
+  tryServeRuntimeAsset,            // /_instatic/assets/*     → published runtime assets
+  tryServeRuntimePackageNamespace, // /_instatic/runtime/cache/<hash>/<...> → bun install workspace
+  tryServeSiteCssNamespace,        // /_instatic/css/* → hashed CSS bundles
+  tryServeMediaRedirect,           // /_instatic/media/<adapterId>/<path> → 302 to signed read URL
   tryServeStaticAsset,             // /assets/* → dist/ (admin app)
   tryServeUpload,                  // /uploads/* → uploadsDir (with nosniff hardening)
   tryServeAdminApp,                // /admin/* → dist/index.html (SPA fallback)
@@ -92,9 +92,9 @@ Adding a new endpoint is a one-line edit to `routes` plus a focused `tryServeX` 
 
 Several handlers own an entire prefix and 404 internally rather than falling through:
 
-- `/_pb/runtime/cache/*` — never falls through to the public-slug renderer
-- `/_pb/css/*` — never falls through
-- `/_pb/media/*` — never falls through
+- `/_instatic/runtime/cache/*` — never falls through to the public-slug renderer
+- `/_instatic/css/*` — never falls through
+- `/_instatic/media/*` — never falls through
 
 This prevents an unknown path under a known namespace from accidentally matching a later handler.
 
@@ -222,7 +222,7 @@ Conventions:
 ### The session flow
 
 ```text
-Cookie: pb_session=<token>
+Cookie: instatic_admin_session=<token>
     │
     ▼
 hashSessionToken(token)
@@ -353,9 +353,9 @@ See [docs/reference/database-dialects.md](reference/database-dialects.md) for th
 
 Three-layer model: **static-by-default, dynamic-by-auto-detection**.
 
-- **Layer A — static-to-disk.** **Every** page is baked at publish time. A fully-static page (no dynamic modules, no request-dependent bindings/loop sources, no VC refs to dynamic VCs) bakes a complete document; a page with dynamic nodes bakes its static **shell** with `<pb-hole>` placeholders (the dynamic nodes are Layer C holes). HTML is written to `uploads/published/current/<route>.html`, and the CSS bundles (`/_pb/css/…`) and runtime JS (`/_pb/assets/…`) are baked into the same slot. The visitor router reads all of these directly off disk (`readArtefact` / `readStaticAsset`) — **a published page never touches the DB for HTML, CSS, or JS.** TTFB ≤ 1.5 ms.
+- **Layer A — static-to-disk.** **Every** page is baked at publish time. A fully-static page (no dynamic modules, no request-dependent bindings/loop sources, no VC refs to dynamic VCs) bakes a complete document; a page with dynamic nodes bakes its static **shell** with `<instatic-hole>` placeholders (the dynamic nodes are Layer C holes). HTML is written to `uploads/published/current/<route>.html`, and the CSS bundles (`/_instatic/css/…`) and runtime JS (`/_instatic/assets/…`) are baked into the same slot. The visitor router reads all of these directly off disk (`readArtefact` / `readStaticAsset`) — **a published page never touches the DB for HTML, CSS, or JS.** TTFB ≤ 1.5 ms.
 - **Layer B — in-memory LRU.** Requests that vary by query string (loops with `?page=N`, request-dependent bindings) bypass the disk fast-path and render live, memoised by `(urlPath, queryString, publishVersion)`. Single-flight. Every publish bumps `publishVersion` so the entire cache evicts lazily.
-- **Layer C — server islands ("holes").** When `findDynamicNodeIds(...)` classifies a node as dynamic (module flagged `dynamic: true`, or its bindings/loop source declare `requestDependent: true`, or it's a VC ref to a dynamic VC), the publisher emits a `<pb-hole>` placeholder with an optional `staticPlaceholder(props)` skeleton. A ~668 B `IntersectionObserver` runtime fetches `/_pb/hole/<nodeId>?v=<publishVersion>` lazily as the placeholder enters the viewport. **The hole fragment is the only request that reads the DB for an otherwise-static page.** Hole responses are cached via Layer B's LRU.
+- **Layer C — server islands ("holes").** When `findDynamicNodeIds(...)` classifies a node as dynamic (module flagged `dynamic: true`, or its bindings/loop source declare `requestDependent: true`, or it's a VC ref to a dynamic VC), the publisher emits a `<instatic-hole>` placeholder with an optional `staticPlaceholder(props)` skeleton. A ~668 B `IntersectionObserver` runtime fetches `/_instatic/hole/<nodeId>?v=<publishVersion>` lazily as the placeholder enters the viewport. **The hole fragment is the only request that reads the DB for an otherwise-static page.** Hole responses are cached via Layer B's LRU.
 
 Authors don't toggle anything. `src/core/publisher/dynamicDetection.ts:findDynamicNodesWithReasons` is the single walker that powers Layer A's shell-vs-complete bake, Layer C's placeholder emission, and the diagnostic `staticReasons` helper. The rules live in exactly one file.
 
@@ -366,7 +366,7 @@ Authors don't toggle anything. `src/core/publisher/dynamicDetection.ts:findDynam
                                 │
               ├── write PublishedPageSnapshot → data_row_versions.snapshot_json
               ├── bake CSS bundles + runtime JS → writeStaticAsset(inactiveSlot)
-              ├── for each page (complete doc, or static shell with <pb-hole>):
+              ├── for each page (complete doc, or static shell with <instatic-hole>):
               │     publishPage + applyPublishedHtmlPipeline
               │     writeArtefact(inactiveSlot, urlPath, html)
               ├── swapSlot — atomic symlink rename of uploads/published/current
@@ -381,7 +381,7 @@ Authors don't toggle anything. `src/core/publisher/dynamicDetection.ts:findDynam
        ┌────────────────────────┼────────────────────────────┐
        ▼                        ▼                            ▼
   Layer A disk           resolvePublicRoute             (page contains holes)
-  readArtefact            page / row / redirect          /_pb/hole/<id>?v=<ver>
+  readArtefact            page / row / redirect          /_instatic/hole/<id>?v=<ver>
   (only if no ?           / not-found                    handled by
   query string)                  │                       server/handlers/cms/hole.ts
        │                  ┌──────┴───────┐                     │
@@ -407,11 +407,11 @@ Server-side publishing helpers live in `server/publish/`:
 | `frontendInjections.ts`           | Plugin-contributed frontend scripts injected into published HTML.   |
 | `mediaPresentation.ts`            | `<picture>` / `<img srcset>` materialization at publish time.       |
 | `mediaPrefetch.ts`, `loopPrefetch.ts` | Pre-warm caches needed by published pages.                      |
-| `runtime/packageServer.ts`        | Serve per-site `bun install` workspace under `/_pb/runtime/cache/`. |
+| `runtime/packageServer.ts`        | Serve per-site `bun install` workspace under `/_instatic/runtime/cache/`. |
 
-Plus the hole endpoint at `server/handlers/cms/hole.ts` — registered in the router BEFORE `tryServePublicRoute` so `/_pb/hole/*` requests never fall through to slug resolution.
+Plus the hole endpoint at `server/handlers/cms/hole.ts` — registered in the router BEFORE `tryServePublicRoute` so `/_instatic/hole/*` requests never fall through to slug resolution.
 
-Published pages are HTML + a single hashed CSS bundle per page. The ONLY first-party client script is the Layer C hole runtime, and it's injected ONLY on pages that contain at least one `<pb-hole>`. Fully-static pages ship zero JS from us. Plugins can inject frontend assets explicitly via `frontendInjections.ts`.
+Published pages are HTML + a single hashed CSS bundle per page. The ONLY first-party client script is the Layer C hole runtime, and it's injected ONLY on pages that contain at least one `<instatic-hole>`. Fully-static pages ship zero JS from us. Plugins can inject frontend assets explicitly via `frontendInjections.ts`.
 
 For the full design spec including invariants, atomic-publish protocol, and the auto-detection rules, see [docs/superpowers/plans/2026-05-25-publishing-architecture.md](superpowers/plans/2026-05-25-publishing-architecture.md).
 
@@ -458,7 +458,7 @@ Three static handlers, in order:
 
 1. **Pick the right layer.**
    - CMS resource (e.g. `/admin/api/cms/feature`) → new handler file in `server/handlers/cms/feature.ts`, register in `server/handlers/cms/index.ts`.
-   - Top-level (e.g. `/_pb/something`) → new `tryServeX` in `server/router.ts`, add to the `routes` array in the right order.
+   - Top-level (e.g. `/_instatic/something`) → new `tryServeX` in `server/router.ts`, add to the `routes` array in the right order.
 
 2. **Write the handler.** Match path → require capability → validate body → call repository → return `jsonResponse`.
 
@@ -512,6 +512,6 @@ See [docs/reference/typebox-patterns.md](reference/typebox-patterns.md) for boun
   - `src/__tests__/architecture/db-postgres-isms.test.ts`
   - `src/__tests__/architecture/db-json-column-naming.test.ts`
   - `src/__tests__/architecture/migration-parity.test.ts`
-  - `src/__tests__/architecture/agent-endpoint-auth.test.ts`
-  - `src/__tests__/architecture/no-anthropic-sdk.test.ts`
+  - `src/__tests__/architecture/ai-handlers-capability-gated.test.ts`
+  - `src/__tests__/architecture/ai-driver-isolation.test.ts`
   - `src/__tests__/architecture/plugin-sandbox-invariants.test.ts`

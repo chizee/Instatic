@@ -13,7 +13,7 @@ A plugin is a zip package containing a `plugin.json` manifest and one or more Ja
 - **SDK:** every API call goes through `api` — `api.plugin.*` for plugin metadata + logging, `api.cms.*` for routes, storage, hooks, loops, settings, schedule, pages.
 - **Lifecycle:** `install` → `activate` → (optionally `deactivate` / `migrate`) → `uninstall`. Each hook is async-capable and isolated; if one throws, the host rolls back and parks the plugin in `error`.
 - **Permissions:** declared in `plugin.json`, approved by the site owner at install time, enforced by the SDK at runtime. Outbound network also requires `networkAllowedHosts` allowlist.
-- **CLI:** `bun pb-plugin init|lint|build|dev` covers scaffolding, sandbox validation, bundle build, and hot-sync to a running CMS.
+- **CLI:** `bun instatic-plugin init|lint|build|dev` covers scaffolding, sandbox validation, bundle build, and hot-sync to a running CMS.
 - **Source of truth for permissions:** `src/core/plugin-sdk/capabilities.ts`. Source of truth for manifest shape: `src/core/plugins/manifest.ts`.
 
 ---
@@ -23,7 +23,7 @@ A plugin is a zip package containing a `plugin.json` manifest and one or more Ja
 | Concern                        | Lives in                                  |
 |--------------------------------|-------------------------------------------|
 | SDK (author-facing API surface)| `src/core/plugin-sdk/`                    |
-| `pb-plugin` CLI                | `src/core/plugin-sdk/cli/`                |
+| `instatic-plugin` CLI                | `src/core/plugin-sdk/cli/`                |
 | Manifest schema + parser       | `src/core/plugins/manifest.ts`            |
 | Host-side plugin runtime       | `src/core/plugins/`                       |
 | Sandbox host (server entrypoint)| `server/plugins/quickjsHost.ts`          |
@@ -54,7 +54,7 @@ pack/site.json           ← Visual Components / pages / classes pack (optional)
 assets/                  ← static assets shipped in the zip (optional)
 ```
 
-All `.js` entrypoints are pre-bundled IIFEs that assign to a host-recognized global (`__plugin_exports` for the server entrypoint, `__module_pack` for module packs). `bun pb-plugin build` produces them. The host scans the bundle for forbidden literals before activation.
+All `.js` entrypoints are pre-bundled IIFEs that assign to a host-recognized global (`__plugin_exports` for the server entrypoint, `__module_pack` for module packs). `bun instatic-plugin build` produces them. The host scans the bundle for forbidden literals before activation.
 
 ---
 
@@ -118,7 +118,7 @@ All `.js` entrypoints are pre-bundled IIFEs that assign to a host-recognized glo
 | `resources[].fields[].id`   | JSON key — any common identifier convention                | `email`, `subscribedAt`   |
 | Pack `classes[].id`         | Namespaced under the plugin ID                             | `acme.workflow/hero-root` |
 
-`parsePluginManifest` validates all of these and produces a clear error message. `bun pb-plugin lint` runs the same checks before upload.
+`parsePluginManifest` validates all of these and produces a clear error message. `bun instatic-plugin lint` runs the same checks before upload.
 
 ---
 
@@ -194,8 +194,8 @@ These produce a build-time error and a runtime error if attempted:
 
 ### Three layers of enforcement
 
-1. **`pb-plugin build`** emits IIFE bundles and scans for the forbidden literals above.
-2. **`pb-plugin lint`** runs the same scan plus manifest + permission/allowlist coherence checks. Run this before upload.
+1. **`instatic-plugin build`** emits IIFE bundles and scans for the forbidden literals above.
+2. **`instatic-plugin lint`** runs the same scan plus manifest + permission/allowlist coherence checks. Run this before upload.
 3. **Install handler** (`server/plugins/package.ts → assertSandboxSafe`) scans **again** when the zip is uploaded — defense in depth in case the dev skipped `lint`.
 
 Sandbox invariants are gated by `src/__tests__/architecture/plugin-sandbox-invariants.test.ts`.
@@ -267,7 +267,7 @@ api.cms.loops.registerSource({
   // Optional. Default false. Marks the source request-dependent: any
   // `base.loop` using it becomes a Layer C "hole" — the page bakes a
   // placeholder and a tiny client runtime fetches the rendered loop
-  // fragment lazily via /_pb/hole/<nodeId>. SHARED tier: the fragment is
+  // fragment lazily via /_instatic/hole/<nodeId>. SHARED tier: the fragment is
   // cached per (nodeId, page-query, publishVersion), so `fetch()` runs at
   // most once per publish per distinct query. Use for live external APIs.
   requestDependent: true,
@@ -298,7 +298,7 @@ At publish time (built-in, non-dynamic loops) `ctx.request` is `undefined` and t
 
 ### How a hole hydrates
 
-When a `base.loop` is bound to a `requestDependent` / `perVisitor` source, the publisher does NOT bake it. It emits a `<pb-hole>` placeholder (`display: contents`, so it adds no wrapper box) and injects a tiny runtime once per page (`/_pb/hole-runtime.js?v=<publishVersion>` — versioned so a CMS update busts the cache). The runtime fetches each fragment from `/_pb/hole/<nodeId>?v=<version>&u=<page-url>` — lazily via `IntersectionObserver` when the placeholder has visible skeleton content, eagerly on load otherwise — then swaps it in. It forwards the visitor's page path + query, and cookies ride along for `perVisitor` holes. Fully-static pages ship zero JS from the publisher.
+When a `base.loop` is bound to a `requestDependent` / `perVisitor` source, the publisher does NOT bake it. It emits a `<instatic-hole>` placeholder (`display: contents`, so it adds no wrapper box) and injects a tiny runtime once per page (`/_instatic/hole-runtime.js?v=<publishVersion>` — versioned so a CMS update busts the cache). The runtime fetches each fragment from `/_instatic/hole/<nodeId>?v=<version>&u=<page-url>` — lazily via `IntersectionObserver` when the placeholder has visible skeleton content, eagerly on load otherwise — then swaps it in. It forwards the visitor's page path + query, and cookies ride along for `perVisitor` holes. Fully-static pages ship zero JS from the publisher.
 
 See [docs/features/publisher.md](publisher.md) for the full three-layer pipeline.
 
@@ -471,28 +471,28 @@ Full descriptions and labels live in `src/core/plugin-sdk/capabilities.ts` — t
 
 ## CLI workflow
 
-`bun pb-plugin <command>` runs the SDK CLI at `src/core/plugin-sdk/cli/`.
+`bun instatic-plugin <command>` runs the SDK CLI at `src/core/plugin-sdk/cli/`.
 
 ```sh
-bun pb-plugin init my-plugin    # scaffold a new plugin
-bun pb-plugin lint              # validate manifest + sources + bundles (sandbox-safe)
-bun pb-plugin build             # produce dist/ + .plugin.zip
-bun pb-plugin dev               # watch + sync into a running CMS
+bun instatic-plugin init my-plugin    # scaffold a new plugin
+bun instatic-plugin lint              # validate manifest + sources + bundles (sandbox-safe)
+bun instatic-plugin build             # produce dist/ + .plugin.zip
+bun instatic-plugin dev               # watch + sync into a running CMS
 ```
 
 ### Local dev with hot sync
 
-`pb-plugin dev` writes built files **directly** into the host's `uploads/plugins/<id>/<version>/`. Subsequent rebuilds are picked up on the next activation cycle.
+`instatic-plugin dev` writes built files **directly** into the host's `uploads/plugins/<id>/<version>/`. Subsequent rebuilds are picked up on the next activation cycle.
 
-When running inside the page-builder monorepo, the CLI auto-detects the host's `uploads/` by walking up the tree. From a separate plugin repo:
+When running inside the instatic monorepo, the CLI auto-detects the host's `uploads/` by walking up the tree. From a separate plugin repo:
 
 ```sh
-PB_UPLOADS_DIR=../page-builder/uploads bun pb-plugin dev
+INSTATIC_UPLOADS_DIR=../instatic/uploads bun instatic-plugin dev
 # or
-bun pb-plugin dev --uploads ../page-builder/uploads
+bun instatic-plugin dev --uploads ../instatic/uploads
 ```
 
-First install still goes through the admin UI (`/admin/plugins` → Upload Plugin) so the owner approves permissions. Every `pb-plugin dev` rebuild after that flows in without another upload.
+First install still goes through the admin UI (`/admin/plugins` → Upload Plugin) so the owner approves permissions. Every `instatic-plugin dev` rebuild after that flows in without another upload.
 
 ---
 
@@ -500,7 +500,7 @@ First install still goes through the admin UI (`/admin/plugins` → Upload Plugi
 
 1. **Scaffold:**
    ```sh
-   bun pb-plugin init my-plugin
+   bun instatic-plugin init my-plugin
    cd my-plugin
    ```
 2. **Set the manifest.** Pick a namespaced ID (`vendor.product`), set `apiVersion: 1`, declare the permissions you'll actually use.
@@ -508,14 +508,14 @@ First install still goes through the admin UI (`/admin/plugins` → Upload Plugi
 4. **(Optional) Add editor / admin / modules entrypoints.** Declare them in `entrypoints` and import from the SDK.
 5. **Lint:**
    ```sh
-   bun pb-plugin lint
+   bun instatic-plugin lint
    ```
 6. **Build:**
    ```sh
-   bun pb-plugin build
+   bun instatic-plugin build
    ```
 7. **Install via admin UI** (`/admin/plugins` → Upload Plugin), approve permissions.
-8. **Iterate** with `bun pb-plugin dev`.
+8. **Iterate** with `bun instatic-plugin dev`.
 
 ### Cookbook: a server route + storage collection
 
@@ -572,7 +572,7 @@ Manifest:
 | `eval(...)` / `new Function(...)`                                        | Blocked — no replacement                                     |
 | Calling a host capability without the matching permission                | Declare it in `plugin.json`'s `permissions`                  |
 | Reaching the DB directly from a plugin                                   | Use `api.cms.storage.*`                                      |
-| Skipping `pb-plugin lint` before upload                                  | Always lint — the host scans anyway and refuses the upload   |
+| Skipping `instatic-plugin lint` before upload                                  | Always lint — the host scans anyway and refuses the upload   |
 | Calling host APIs from inside a constructor / module top-level           | Use lifecycle hooks (`activate(api)`) — host APIs are only bound there |
 
 ---
@@ -585,7 +585,7 @@ Manifest:
 - Source-of-truth files:
   - `src/core/plugin-sdk/` — SDK API surface
   - `src/core/plugin-sdk/capabilities.ts` — permission catalog
-  - `src/core/plugin-sdk/cli/` — `pb-plugin` CLI
+  - `src/core/plugin-sdk/cli/` — `instatic-plugin` CLI
   - `src/core/plugins/manifest.ts` — manifest parser + validator
   - `src/core/plugins/` — host-side runtime
   - `server/plugins/runtime.ts` — boot-time plugin activation
@@ -598,7 +598,10 @@ Manifest:
 - Gate tests:
   - `src/__tests__/architecture/plugin-sandbox-invariants.test.ts`
   - `src/__tests__/architecture/plugin-boot-resilience.test.ts`
-  - `src/__tests__/architecture/plugin-cms-pages-surface.test.ts`
+  - `src/__tests__/architecture/plugin-cms-content-surface.test.ts`
+  - `src/__tests__/architecture/plugin-content-access-enforced.test.ts`
+  - `src/__tests__/architecture/plugin-content-tree-via-engine.test.ts`
+  - `src/__tests__/architecture/plugin-host-import-boundaries.test.ts`
   - `src/__tests__/architecture/plugin-host-ui-runtime-parity.test.ts`
   - `src/__tests__/architecture/plugin-schedule-invariants.test.ts`
   - `src/__tests__/architecture/no-plugin-tab-shells.test.ts`

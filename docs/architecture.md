@@ -1,8 +1,8 @@
 # Architecture
 
-System-level overview of Page Builder CMS — what runs, what depends on what, and where to look first.
+System-level overview of Instatic — what runs, what depends on what, and where to look first.
 
-Page Builder is a self-hosted CMS with a built-in visual page builder. One Bun process serves the public website, the admin editor, the CMS API, published pages, and uploaded media, backed by either Postgres or SQLite. The visual editor's output is plain semantic HTML and hand-clean CSS — no framework runtime is injected into published pages.
+Instatic is a self-hosted CMS with a built-in visual page builder. One Bun process serves the public website, the admin editor, the CMS API, published pages, and uploaded media, backed by either Postgres or SQLite. The visual editor's output is plain semantic HTML and hand-clean CSS — no framework runtime is injected into published pages.
 
 ---
 
@@ -13,7 +13,7 @@ Page Builder is a self-hosted CMS with a built-in visual page builder. One Bun p
 - **One content model**: posts, pages, and visual components all live in `data_tables` + `data_rows`. No separate `pages` table. Page trees and VC trees both use the `NodeTree<TNode>` primitive.
 - **Two frontends, one bundle**: the admin app (`src/admin/`) shells the visual editor (`src/admin/pages/site/`). Both run in the same Vite-built SPA, mounted under `/admin/*`.
 - **Plugins run sandboxed**: server entrypoints and canvas module packs execute inside a QuickJS-WASM VM with no host access. They reach the CMS through the SDK at `src/core/plugin-sdk/`.
-- **One public-route surface, three publishing layers**: every visitor request for HTML — stand-alone pages and content rows alike — flows through `server/publish/publicRouter.ts:renderPublicResolution`. **Layer A** bakes fully-static pages to `uploads/published/current/<route>.html` at publish time via a two-slot symlink swap (atomic). **Layer B** is an in-memory LRU keyed by `(urlPath, queryString, publishVersion)` for dynamic routes; bumps wholesale-evict on every publish. **Layer C** auto-detects dynamic nodes (modules flagged `dynamic: true`, request-dependent bindings or loop sources, VC refs containing dynamic content) and emits `<pb-hole>` placeholders that lazy-fetch their content via `/_pb/hole/<nodeId>` using a ~668 B `IntersectionObserver` runtime. Authors don't toggle — `findDynamicNodeIds` in `src/core/publisher/dynamicDetection.ts` classifies automatically. The `PublishedPageSnapshot` (JSON) on `data_row_versions.snapshot_json` remains the canonical audit record. Output is plain semantic HTML + a single hashed CSS bundle per page, no framework runtime on the page.
+- **One public-route surface, three publishing layers**: every visitor request for HTML — stand-alone pages and content rows alike — flows through `server/publish/publicRouter.ts:renderPublicResolution`. **Layer A** bakes fully-static pages to `uploads/published/current/<route>.html` at publish time via a two-slot symlink swap (atomic). **Layer B** is an in-memory LRU keyed by `(urlPath, queryString, publishVersion)` for dynamic routes; bumps wholesale-evict on every publish. **Layer C** auto-detects dynamic nodes (modules flagged `dynamic: true`, request-dependent bindings or loop sources, VC refs containing dynamic content) and emits `<instatic-hole>` placeholders that lazy-fetch their content via `/_instatic/hole/<nodeId>` using a ~668 B `IntersectionObserver` runtime. Authors don't toggle — `findDynamicNodeIds` in `src/core/publisher/dynamicDetection.ts` classifies automatically. The `PublishedPageSnapshot` (JSON) on `data_row_versions.snapshot_json` remains the canonical audit record. Output is plain semantic HTML + a single hashed CSS bundle per page, no framework runtime on the page.
 - **Multi-instance HA on Postgres**: both schedulers (plugin tick + scheduled publish) use `pg_try_advisory_lock` for leader election, so running multiple containers behind a load balancer doesn't double-fire scheduled work. SQLite is single-instance by definition.
 - **Every untyped boundary uses TypeBox.** HTTP responses, request bodies, persisted JSON, plugin manifests, settings. `zod` is banned outside `server/handlers/agent/tools.ts`.
 
@@ -95,9 +95,9 @@ The repo is organized by responsibility, not by feature. Every file has one reas
 | Public-route surface         | `server/publish/publicRouter.ts`      | Resolve URL → page snapshot or data row + template. Layer A disk fast-path + Layer B in-memory LRU live here. |
 | Static artefact IO           | `server/publish/staticArtefact.ts`    | Layer A: two-slot symlink swap, atomic per-file rename, slot-aware read/write/purge. |
 | Render cache                 | `server/publish/renderCache.ts`       | Layer B: bounded LRU keyed by `(urlPath, queryString, publishVersion)`. Single-flight, `bumpPublishVersion()` invalidates. |
-| Server-island runtime        | `server/publish/holeRuntime.ts`       | Layer C: ~668 B hand-written `IntersectionObserver` runtime served at `/_pb/hole-runtime.js`. |
-| Hole endpoint                | `server/handlers/cms/hole.ts`         | `GET /_pb/hole/<nodeId>?v=<publishVersion>` renders one node subtree; response cached via Layer B. |
-| Plugin SDK                   | `src/core/plugin-sdk/*`               | Author-facing API + `pb-plugin` CLI                                  |
+| Server-island runtime        | `server/publish/holeRuntime.ts`       | Layer C: ~668 B hand-written `IntersectionObserver` runtime served at `/_instatic/hole-runtime.js`. |
+| Hole endpoint                | `server/handlers/cms/hole.ts`         | `GET /_instatic/hole/<nodeId>?v=<publishVersion>` renders one node subtree; response cached via Layer B. |
+| Plugin SDK                   | `src/core/plugin-sdk/*`               | Author-facing API + `instatic-plugin` CLI                                  |
 | Plugin runtime (host)        | `src/core/plugins/*`                  | In-process plugin lifecycle: install/activate/uninstall              |
 | Plugin sandbox (worker)      | `server/plugins/*`                    | QuickJS-WASM execution of plugin server code + module packs          |
 | Image-variant worker         | `server/handlers/cms/imageVariant*`   | `Bun.Worker` pool running sharp + blurhash off the main thread       |
@@ -213,7 +213,7 @@ publishDraftSite / publishDataRow      ← server/repositories/publish.ts
     │
     │  1. write PublishedPageSnapshot to data_row_versions.snapshot_json
     │  2. bake CSS bundles + runtime JS to the slot (writeStaticAsset)   ← Layer A
-    │  3. for each page (complete doc, or static shell with <pb-hole>):
+    │  3. for each page (complete doc, or static shell with <instatic-hole>):
     │       render via publishPage + applyPublishedHtmlPipeline
     │       writeArtefact(<inactive slot>, urlPath, html)   ← Layer A
     │  4. swapSlot — atomic symlink flip of uploads/published/current
@@ -238,10 +238,10 @@ visitor request → server/router.ts → tryServePublicRoute
     │     bumpPublishVersion() invalidates lazily on next read
     │
     └─ Layer C: server islands (holes) — only when the rendered page has
-       any node in findDynamicNodeIds(...). Publisher emits a <pb-hole>
+       any node in findDynamicNodeIds(...). Publisher emits a <instatic-hole>
        placeholder with optional staticPlaceholder(props) skeleton + a
        ~668 B IntersectionObserver runtime injected once into <head>.
-       Browser fetches /_pb/hole/<nodeId>?v=<publishVersion> lazily when
+       Browser fetches /_instatic/hole/<nodeId>?v=<publishVersion> lazily when
        each placeholder approaches viewport (rootMargin 200px). Each hole
        response is also cached via Layer B's LRU.
 ```
@@ -252,10 +252,10 @@ Key properties:
 - **Atomic publishing.** `uploads/published/current` is a symlink that targets either `slot-a/` or `slot-b/`. Full publishes build the inactive slot then atomic-rename the symlink — `rename(2)` of a symlink is a single-inode swap and is atomic across POSIX filesystems. There is no moment when `current` is missing or partially populated. In-flight readers that already resolved the old symlink hold file descriptors into the old slot — Unix semantics keep those files alive until they close. Incremental row publish (`publishDataRow`) writes a single file via tmp + rename into the active slot.
 - **Auto-detection is the seam.** `findDynamicNodesWithReasons(page, site, registry)` is the single walker that powers Layer A's "is this bakeable" predicate, Layer C's placeholder emission, and the diagnostic `staticReasons` helper. The four detection rules — `dynamic: true` modules, request-dependent bindings, request-dependent loop sources, VC-ref recursion — live in exactly one file. Cannot drift between layers.
 - **`publish.html` runs at publish time** for static routes (baked into the disk artefact). For dynamic routes, the filter still fires inside the Layer B factory but caches the result so it runs at most once per `(url, querystring, publishVersion)` triple.
-- **Three layers, automatic routing.** Layer A bakes fully-static pages to disk at publish time (`uploads/published/current/<route>.html`, atomic two-slot symlink swap). Layer B is an in-memory LRU keyed by `(urlPath, queryString, publishVersion)` for dynamic routes — single-flight, lazily invalidated on publish. Layer C emits `<pb-hole>` placeholders for nodes that auto-detect as request-dependent; a tiny client runtime lazy-loads each fragment via `IntersectionObserver`. The `PublishedPageSnapshot` (JSON) on `data_row_versions.snapshot_json` remains the canonical audit record from which all three layers derive.
-- **Pure render, no framework runtime on the page.** Published HTML is plain semantic HTML + CSS. Plugins can inject frontend assets (`server/publish/frontendInjections.ts`). The only first-party client script is the ~668 B Layer C hole runtime, and it's injected ONLY on pages that contain at least one `<pb-hole>` — fully-static pages ship zero JS from us.
+- **Three layers, automatic routing.** Layer A bakes fully-static pages to disk at publish time (`uploads/published/current/<route>.html`, atomic two-slot symlink swap). Layer B is an in-memory LRU keyed by `(urlPath, queryString, publishVersion)` for dynamic routes — single-flight, lazily invalidated on publish. Layer C emits `<instatic-hole>` placeholders for nodes that auto-detect as request-dependent; a tiny client runtime lazy-loads each fragment via `IntersectionObserver`. The `PublishedPageSnapshot` (JSON) on `data_row_versions.snapshot_json` remains the canonical audit record from which all three layers derive.
+- **Pure render, no framework runtime on the page.** Published HTML is plain semantic HTML + CSS. Plugins can inject frontend assets (`server/publish/frontendInjections.ts`). The only first-party client script is the ~668 B Layer C hole runtime, and it's injected ONLY on pages that contain at least one `<instatic-hole>` — fully-static pages ship zero JS from us.
 - **Sanitization happens at the publisher boundary.** DOMPurify in `src/core/sanitize.ts` cleans rich-text, HTML strings, AND `staticPlaceholder` output before they're frozen into a snapshot or baked into a disk artefact. Browser code uses the browser DOM; the Bun server installs an explicit happy-dom-backed DOMPurify runtime from `server/richtextSanitizer.ts` without adding DOM globals.
-- **Visual components are inlined.** Each VC instance is expanded with its slot fills materialized as locked child nodes in the consumer page tree. The publisher pairs each `base.slot-instance` with the matching `base.slot-outlet` by `slotName`. A VC ref whose definition tree contains any dynamic node becomes a single `<pb-hole>` at the ref boundary (the inner subtree renders inside the hole endpoint).
+- **Visual components are inlined.** Each VC instance is expanded with its slot fills materialized as locked child nodes in the consumer page tree. The publisher pairs each `base.slot-instance` with the matching `base.slot-outlet` by `slotName`. A VC ref whose definition tree contains any dynamic node becomes a single `<instatic-hole>` at the ref boundary (the inner subtree renders inside the hole endpoint).
 
 ---
 
@@ -268,7 +268,7 @@ Plugins are zip packages containing a `plugin.json` manifest and bundled entrypo
 - Author-facing API lives in `src/core/plugin-sdk/`
 - Host-side runtime (install, activate, deactivate, uninstall) lives in `src/core/plugins/`
 
-The sandbox has no Node, no Bun, no file system, no environment variables, and no network unless the plugin declares `network.outbound` permission and a `networkAllowedHosts` allowlist. The `pb-plugin build` CLI emits IIFE bundles and scans for forbidden literals (`'node:'`, `'bun:'`, `require(`, `process.binding`); the install handler scans again as defense-in-depth.
+The sandbox has no Node, no Bun, no file system, no environment variables, and no network unless the plugin declares `network.outbound` permission and a `networkAllowedHosts` allowlist. The `instatic-plugin build` CLI emits IIFE bundles and scans for forbidden literals (`'node:'`, `'bun:'`, `require(`, `process.binding`); the install handler scans again as defense-in-depth.
 
 Sandbox invariants are gated by `src/__tests__/architecture/plugin-sandbox-invariants.test.ts`.
 
@@ -322,7 +322,7 @@ The codebase enforces "validate, then trust": every untyped input goes through a
 
 Domain types come from `Static<typeof Schema>`. There is no parallel `interface Foo` next to `FooSchema`. **Schemas are the source of truth.**
 
-`zod` is banned from app and core code. The only legitimate `zod` usage is `server/handlers/agent/tools.ts`, because `@anthropic-ai/claude-agent-sdk`'s `tool()` API has a type-level `AnyZodRawShape` constraint TypeBox can't satisfy. Gated by `no-anthropic-sdk.test.ts` and import scans.
+`zod` is banned from app and core code. The only legitimate `zod` usage is inside `server/ai/drivers/` (`typeboxToZod.ts` and `anthropic.ts`), where the Anthropic driver translates TypeBox schemas to Zod before passing them to the SDK. Gated by `ai-driver-isolation.test.ts`.
 
 See [docs/reference/typebox-patterns.md](reference/typebox-patterns.md) for the cookbook.
 
@@ -367,7 +367,7 @@ Architectural rules live as tests in `src/__tests__/architecture/*.test.ts` and 
 | Icons come from `pixel-art-icons`                                                                     | `no-third-party-icons.test.ts`, `direct-icon-imports.test.ts`   |
 | Vendored icon set is fresh                                                                            | `vendor-icons-fresh.test.ts`                                    |
 | Plugin sandbox invariants (no `node:`, `bun:`, `require`, etc.)                                       | `plugin-sandbox-invariants.test.ts`                             |
-| No `@anthropic-ai/sdk` (must use `@anthropic-ai/claude-agent-sdk`)                                    | `no-anthropic-sdk.test.ts`                                      |
+| Provider SDKs only inside `server/ai/drivers/`; `@anthropic-ai/sdk` banned everywhere                 | `ai-driver-isolation.test.ts`                                   |
 | UI primitives live in `src/ui/components/`                                                            | `ui-primitives-location.test.ts`                                |
 
 See [docs/reference/architecture-tests.md](reference/architecture-tests.md) for the complete catalog (80+ gates).
