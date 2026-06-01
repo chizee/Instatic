@@ -106,22 +106,24 @@ Users can list active sessions and revoke them individually. `revokeOtherSession
 
 ## Capabilities
 
-19 core capabilities, defined as a TypeBox literal union in `server/auth/capabilities.ts`:
+36 core capabilities, defined as a closed TypeBox literal union in `server/auth/capabilities.ts`:
 
 ```ts
 type CoreCapability =
   | 'dashboard.read'
   | 'site.read'
-  | 'site.structure.edit'  | 'site.content.edit'  | 'site.style.edit'
-  | 'pages.edit'           | 'pages.publish'
-  | 'content.create'       | 'content.edit.own'   | 'content.edit.any'
-  | 'content.publish.own'  | 'content.publish.any'
+  | 'site.structure.edit' | 'site.content.edit' | 'site.style.edit'
+  | 'pages.edit'          | 'pages.publish'
+  | 'content.create'      | 'content.edit.own'  | 'content.edit.any'
+  | 'content.publish.own' | 'content.publish.any'
   | 'content.manage'
-  | 'media.manage'
-  | 'runtime.manage'
-  | 'plugins.manage'
-  | 'users.manage'         | 'roles.manage'
+  | 'media.read'    | 'media.write'       | 'media.replace'   | 'media.delete'
+  | 'runtime.dependencies' | 'storage.elect' | 'storage.migrate'
+  | 'plugins.read'  | 'plugins.configure' | 'plugins.install' | 'plugins.lifecycle'
+  | 'users.manage'  | 'roles.manage'
   | 'audit.read'
+  | 'data.tables.read' | 'data.tables.manage' | 'data.rows.move' | 'data.export' | 'data.import'
+  | 'ai.chat' | 'ai.tools.write' | 'ai.providers.manage' | 'ai.audit.read'
 ```
 
 ### Site-editing split
@@ -134,7 +136,7 @@ The site editor's permission surface is split three ways:
 | `site.content.edit`      | Modify content-typed props on existing nodes (text, image src/alt, link href)  |
 | `site.style.edit`        | Modify CSS classes, style overrides, breakpoints, framework tokens             |
 
-The "Client" role has only `site.content.edit` (a copy-editor surface — no structure, no styling). The "Editor" role has all three. A future "designer" role could have `site.style.edit` without structural rights.
+The "Client" role has only `site.content.edit` (a copy-editor surface — no structure, no styling). The "Admin" role has all three.
 
 `SITE_WRITE_CAPABILITIES = ['site.structure.edit', 'site.content.edit', 'site.style.edit']` — convenience set the save handler accepts. Granular diff validation enforces which kinds of changes are actually allowed once inside.
 
@@ -166,9 +168,11 @@ Four system roles, defined in `SYSTEM_ROLES`:
 
 `listRoles(db)` returns the built-ins in rank order (`owner`, `admin`, `client`, `member`), followed by custom roles alphabetized by name. Custom roles can be created via `roles.manage` (Owner-only). Roles are persisted in the `roles` table with `capabilities_json: CoreCapability[]`.
 
-### Owner auto-sync
+### System role auto-sync
 
-The Owner role's capability set is **force-reset to `CORE_CAPABILITIES`** on every server boot (`syncSystemRoles(db)` in `server/repositories/roles.ts`, called by `server/index.ts`). This guarantees adding a new capability to the codebase doesn't strand existing Owner accounts on a stale grant list.
+The **Owner** and **Admin** roles are force-resynced from `SYSTEM_ROLES` on every server boot (`syncSystemRoles(db)` in `server/repositories/roles.ts`, called by `server/index.ts`). Owner gets the full `CORE_CAPABILITIES` set; Admin gets its explicit list (all capabilities except `roles.manage`). This guarantees that adding a new capability to the codebase propagates to both roles at next boot — no existing Owner or Admin account is ever stranded on a stale grant list.
+
+Client and Member are seeded once and left editable; they do not auto-update on boot.
 
 ---
 
@@ -379,7 +383,7 @@ export async function handleSubscribersRoutes(req: Request, db: DbClient): Promi
 1. Add the literal to `CoreCapabilitySchema` and `CORE_CAPABILITIES` in `server/auth/capabilities.ts`.
 2. If it belongs to an existing role surface (admin / client), add it to the matching `*Capabilities` array.
 3. Use `requireCapability(req, db, 'your.new.capability')` in the handler that needs it.
-4. The Owner role auto-syncs on next boot — no migration needed for existing Owner accounts.
+4. Owner and Admin roles auto-sync on next boot — no migration needed for existing Owner or Admin accounts.
 5. Existing custom roles will NOT have the new capability until users grant it through the Roles admin page.
 
 ### Gate a sensitive action
