@@ -40,6 +40,11 @@ import { collectMediaTags, filterMediaAssets, type MediaFilters, type MediaSort,
 import { useUploadQueue, type UseUploadQueueResult } from './useUploadQueue'
 import { refreshCmsMediaAssetCache } from './useCmsMediaAssetByPath'
 import type { WorkspaceLoadState } from '@admin/lib/workspaceLoadState'
+import {
+  isSmartFolderId,
+  smartFolderPredicate,
+  type SmartFolderId,
+} from '../utils/smartFolders'
 
 /**
  * Sentinel folder ids used in the sidebar selection state. Real folder ids
@@ -48,70 +53,11 @@ import type { WorkspaceLoadState } from '@admin/lib/workspaceLoadState'
 export const FOLDER_ALL = '__all__' as const
 export const FOLDER_TRASH = '__trash__' as const
 
-/**
- * Built-in smart folder ids. Prefixed with `smart:` so we can route them
- * through the same `folderSelection` string without colliding with a real
- * (nanoid) folder id. Each one declares a `predicate` that runs client-side
- * over the active asset list — no extra server hit, no `media_usage_refs`
- * dependency (the "Unused" smart folder ships with M5 usage tracking).
- *
- * The built-in set is curated to NOT duplicate things already accessible
- * via sort or the type chip — every entry below surfaces a state that no
- * straight ordering can reveal.
- */
-export const SMART_MISSING_ALT = 'smart:missing-alt' as const
-export const SMART_MISSING_TITLE = 'smart:missing-title' as const
-export const SMART_UNTAGGED = 'smart:untagged' as const
-export const SMART_LARGE_FILES = 'smart:large-files' as const
-export const SMART_RECENTLY_REPLACED = 'smart:recently-replaced' as const
-
-export type SmartFolderId =
-  | typeof SMART_MISSING_ALT
-  | typeof SMART_MISSING_TITLE
-  | typeof SMART_UNTAGGED
-  | typeof SMART_LARGE_FILES
-  | typeof SMART_RECENTLY_REPLACED
-
-const SMART_FOLDER_IDS = new Set<string>([
-  SMART_MISSING_ALT,
-  SMART_MISSING_TITLE,
-  SMART_UNTAGGED,
-  SMART_LARGE_FILES,
-  SMART_RECENTLY_REPLACED,
-])
-
 export type FolderSelection =
   | string
   | typeof FOLDER_ALL
   | typeof FOLDER_TRASH
   | SmartFolderId
-
-function isSmartFolderId(value: FolderSelection): value is SmartFolderId {
-  return SMART_FOLDER_IDS.has(value)
-}
-
-/**
- * "Large files" threshold. 1 MiB picks up most page-weight offenders in
- * practice (typical optimized hero images land at 150–400 KB; anything
- * north of 1 MiB is usually an un-optimized PNG or a raw camera export).
- */
-const LARGE_FILE_BYTES = 1024 * 1024
-
-function smartFolderPredicate(id: SmartFolderId): (asset: CmsMediaAsset) => boolean {
-  switch (id) {
-    case SMART_MISSING_ALT:
-      return (asset) =>
-        asset.mimeType.startsWith('image/') && asset.altText.trim().length === 0
-    case SMART_MISSING_TITLE:
-      return (asset) => asset.title.trim().length === 0
-    case SMART_UNTAGGED:
-      return (asset) => asset.tags.length === 0
-    case SMART_LARGE_FILES:
-      return (asset) => asset.sizeBytes > LARGE_FILE_BYTES
-    case SMART_RECENTLY_REPLACED:
-      return (asset) => asset.replacedAt !== null
-  }
-}
 
 export interface UseMediaWorkspaceResult extends WorkspaceLoadState {
   // Async state (loading / error come from WorkspaceLoadState)

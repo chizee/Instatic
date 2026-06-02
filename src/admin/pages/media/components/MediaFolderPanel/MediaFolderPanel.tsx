@@ -41,7 +41,6 @@ import {
   TreeRow,
   treeDropStyles,
 } from '@admin/pages/site/ui/Tree'
-import type { CmsMediaAsset } from '@core/persistence/cmsMedia'
 import { flattenFolderTree, isFolderDescendant, type MediaFolderNode } from '../../utils/folderTree'
 import {
   hasMediaDropData,
@@ -52,26 +51,24 @@ import {
 import {
   FOLDER_ALL,
   FOLDER_TRASH,
+  type FolderSelection,
+  type UseMediaWorkspaceResult,
+} from '../../hooks/useMediaWorkspace'
+import {
   SMART_LARGE_FILES,
   SMART_MISSING_ALT,
   SMART_MISSING_TITLE,
   SMART_RECENTLY_REPLACED,
   SMART_UNTAGGED,
-  type FolderSelection,
   type SmartFolderId,
-  type UseMediaWorkspaceResult,
-} from '../../hooks/useMediaWorkspace'
+  smartFolderPredicate,
+} from '../../utils/smartFolders'
 import styles from './MediaFolderPanel.module.css'
-
-// Smart-folder predicates duplicated locally for row counts. Must stay
-// logically identical to `smartFolderPredicate` in `useMediaWorkspace`.
-const LARGE_FILE_BYTES = 1024 * 1024
 
 interface SmartFolderDescriptor {
   id: SmartFolderId
   label: string
   icon: IconComponent
-  matches: (asset: CmsMediaAsset) => boolean
   description: string
 }
 
@@ -81,36 +78,30 @@ const SMART_FOLDERS: SmartFolderDescriptor[] = [
     label: 'Missing alt text',
     icon: WarningDiamondSolidIcon,
     description: 'Image assets without a written alt text.',
-    matches: (asset) =>
-      asset.mimeType.startsWith('image/') && asset.altText.trim().length === 0,
   },
   {
     id: SMART_MISSING_TITLE,
     label: 'Missing title',
     icon: CircleAlertSolidIcon,
-    description: 'Assets with no title — the filename leaks into the UI.',
-    matches: (asset) => asset.title.trim().length === 0,
+    description: 'Image assets with no title — the filename leaks into the UI.',
   },
   {
     id: SMART_UNTAGGED,
     label: 'Untagged',
     icon: EraserSolidIcon,
     description: 'Assets with no tags assigned.',
-    matches: (asset) => asset.tags.length === 0,
   },
   {
     id: SMART_LARGE_FILES,
     label: 'Large files',
     icon: BoxStackSolidIcon,
     description: 'Assets larger than 1 MiB — likely page-weight offenders.',
-    matches: (asset) => asset.sizeBytes > LARGE_FILE_BYTES,
   },
   {
     id: SMART_RECENTLY_REPLACED,
     label: 'Recently replaced',
     icon: ReloadIcon,
     description: 'Assets whose binary has been swapped via "Replace file".',
-    matches: (asset) => asset.replacedAt !== null,
   },
 ]
 
@@ -291,7 +282,7 @@ export function MediaFolderPanel({ workspace }: MediaFolderPanelProps) {
           onDrop={(event) => void handleDropTargetDrop(event, null)}
         />
         {SMART_FOLDERS.map((descriptor) => {
-          const count = workspace.assets.filter(descriptor.matches).length
+          const count = workspace.assets.filter(smartFolderPredicate(descriptor.id)).length
           return (
             <SentinelRow
               key={descriptor.id}

@@ -93,6 +93,7 @@ The editor store does **not** grow new slices. The Media page is self-contained 
 - In **All files**, root folders render before root-level assets (assets with no folder assignment).
 - Inside a folder, immediate child folders render before assets, and a parent-folder item appears at the start of the grid/list.
 - Type filters other than `All` and active tag filters hide folder items so filtering remains literal. Search still matches folder names when folders are visible.
+- Image-metadata smart folders (`Missing alt text`, `Missing title`) only match `image/*` assets; fonts, documents, and other non-image files are excluded even when those metadata fields are empty.
 
 Drag/drop uses a media-specific `DataTransfer` payload helper in `src/admin/pages/media/utils/mediaDragDrop.ts`. Canvas folder items, the parent-folder item, and regular folder rows in `MediaFolderPanel` all accept the same payloads:
 

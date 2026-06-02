@@ -241,4 +241,25 @@ describe('Media workspace folder grid', () => {
       expect(moveAssetsToFolder).toHaveBeenCalledWith(['asset_1'], 'folder_assets')
     })
   })
+
+  it('counts only images in image-metadata smart folders', () => {
+    render(
+      <MediaFolderPanel
+        workspace={workspace({
+          assets: [
+            asset({ id: 'image_missing_title', mimeType: 'image/png', title: '' }),
+            asset({
+              id: 'font_missing_title',
+              filename: 'PPNeue.woff2',
+              mimeType: 'font/woff2',
+              title: '',
+            }),
+            asset({ id: 'image_with_title', mimeType: 'image/png', title: 'Hero' }),
+          ],
+        })}
+      />,
+    )
+
+    expect(screen.getByRole('treeitem', { name: 'Missing title — 1 asset' })).toBeTruthy()
+  })
 })
