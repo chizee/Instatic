@@ -8,7 +8,7 @@
  * Publish calls publishCmsDraft() from the persistence layer, wrapped in
  * `ctx.runStepUp` so the StepUpProvider's password re-entry dialog opens
  * when the server replies with `step_up_required` (publish is gated on a
- * fresh 15-minute step-up window on top of `pages.publish`).
+ * fresh step-up window on top of `pages.publish`).
  */
 
 import { StepUpCancelledMessage } from '@admin/shared/StepUp'

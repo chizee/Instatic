@@ -32,6 +32,8 @@ function toolbarUser(): CmsCurrentUser {
     mfaEnabled: false,
     mfaEnabledAt: null,
     mfaRecoveryCodesRemaining: 0,
+    stepUpAuthMode: 'required',
+    stepUpWindowMinutes: 15,
     avatarMediaId: null,
     avatarUrl: null,
     gravatarHash: '',

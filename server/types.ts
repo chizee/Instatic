@@ -7,6 +7,7 @@ export interface SiteRow {
 }
 
 export type UserStatus = 'active' | 'suspended'
+export type UserStepUpAuthMode = 'required' | 'disabled'
 
 export interface RoleRow {
   id: string
@@ -36,8 +37,9 @@ export interface UserRow {
   mfa_enabled_at: Date | string | null
   mfa_totp_secret: string | null
   mfa_recovery_code_hashes_json: unknown
+  step_up_auth_mode: UserStepUpAuthMode | string
+  step_up_window_minutes: number
   created_at: Date | string
   updated_at: Date | string
   deleted_at: Date | string | null
 }
-

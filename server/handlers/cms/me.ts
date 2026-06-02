@@ -33,6 +33,7 @@ import {
   enableUserTotpMfa,
   replaceUserRecoveryCodeHashes,
   setUserAvatarMediaId,
+  updateUserStepUpPolicy,
   updateUserPasswordHash,
 } from '../../repositories/users'
 import { revokeAllOtherSessions } from '../../repositories/sessions'
@@ -64,6 +65,21 @@ const ChangePasswordBodySchema = Type.Object({
 const EnableTotpBodySchema = Type.Object({
   secret: Type.String({ minLength: 16 }),
   code: Type.String({ minLength: 6 }),
+})
+
+const StepUpAuthModeSchema = Type.Union([
+  Type.Literal('required'),
+  Type.Literal('disabled'),
+])
+const StepUpWindowMinutesSchema = Type.Union([
+  Type.Literal(5),
+  Type.Literal(15),
+  Type.Literal(30),
+  Type.Literal(60),
+])
+const UpdateStepUpPolicyBodySchema = Type.Object({
+  mode: StepUpAuthModeSchema,
+  windowMinutes: StepUpWindowMinutesSchema,
 })
 
 function newRecoveryCodeSet(): { codes: string[]; hashes: string[] } {
@@ -192,6 +208,31 @@ export async function handleMeRoutes(
       ...requestAuditContext(req),
     })
     return jsonResponse({ user: updated, recoveryCodes: recovery.codes })
+  }
+
+  if (url.pathname === `${CMS_API_PREFIX}/me/security/step-up`) {
+    if (req.method !== 'PATCH') return methodNotAllowed()
+    const user = await requireStepUp(req, db, { policy: 'always' })
+    if (user instanceof Response) return user
+    const body = await readValidatedBody(req, UpdateStepUpPolicyBodySchema)
+    if (!body) return badRequest('Invalid step-up settings')
+    const updated = await updateUserStepUpPolicy(db, user.id, {
+      mode: body.mode,
+      windowMinutes: body.windowMinutes,
+    })
+    if (!updated) return jsonResponse({ error: 'User not found' }, { status: 404 })
+    await createAuditEvent(db, {
+      actorUserId: user.id,
+      action: 'user.update',
+      targetType: 'user',
+      targetId: user.id,
+      metadata: {
+        stepUpAuthMode: updated.stepUpAuthMode,
+        stepUpWindowMinutes: updated.stepUpWindowMinutes,
+      },
+      ...requestAuditContext(req),
+    })
+    return jsonResponse({ user: updated })
   }
 
   if (url.pathname !== `${CMS_API_PREFIX}/me/avatar`) return null

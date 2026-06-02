@@ -211,6 +211,84 @@ describe('Account security endpoints', () => {
     expect(revoked.rows[0]?.revoked_at).not.toBeNull()
   })
 
+  it('PATCH /me/security/step-up updates the policy and disabled mode bypasses normal sensitive gates', async () => {
+    const { db } = testDb
+    const { cookie } = await login(db)
+
+    const blockedReq = new Request('http://localhost/admin/api/cms/me/security/step-up', {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ mode: 'disabled', windowMinutes: 30 }),
+    })
+    blockedReq.headers.set('cookie', cookie)
+    const blockedRes = await handleCmsRequest(blockedReq, db)
+    expect(blockedRes.status).toBe(401)
+    expect(await blockedRes.json()).toEqual({ error: 'step_up_required' })
+
+    const steppedCookie = await stepUp(db, cookie)
+    const updateReq = new Request('http://localhost/admin/api/cms/me/security/step-up', {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ mode: 'disabled', windowMinutes: 30 }),
+    })
+    updateReq.headers.set('cookie', steppedCookie)
+    const updateRes = await handleCmsRequest(updateReq, db)
+    expect(updateRes.status).toBe(200)
+    const updateBody = await updateRes.json() as {
+      user: { stepUpAuthMode: string; stepUpWindowMinutes: number }
+    }
+    expect(updateBody.user.stepUpAuthMode).toBe('disabled')
+    expect(updateBody.user.stepUpWindowMinutes).toBe(30)
+
+    const fresh = await login(db)
+    const logoutAllReq = new Request('http://localhost/admin/api/cms/auth/logout-all', {
+      method: 'POST',
+    })
+    logoutAllReq.headers.set('cookie', fresh.cookie)
+    const logoutAllRes = await handleCmsRequest(logoutAllReq, db)
+    expect(logoutAllRes.status).toBe(200)
+
+    const reenableReq = new Request('http://localhost/admin/api/cms/me/security/step-up', {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ mode: 'required', windowMinutes: 15 }),
+    })
+    reenableReq.headers.set('cookie', fresh.cookie)
+    const reenableRes = await handleCmsRequest(reenableReq, db)
+    expect(reenableRes.status).toBe(401)
+    expect(await reenableRes.json()).toEqual({ error: 'step_up_required' })
+  })
+
+  it('uses the configured step-up window when re-authenticating', async () => {
+    const { db } = testDb
+    const { cookie } = await login(db)
+    const steppedCookie = await stepUp(db, cookie)
+
+    const updateReq = new Request('http://localhost/admin/api/cms/me/security/step-up', {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ mode: 'required', windowMinutes: 30 }),
+    })
+    updateReq.headers.set('cookie', steppedCookie)
+    const updateRes = await handleCmsRequest(updateReq, db)
+    expect(updateRes.status).toBe(200)
+
+    const before = Date.now()
+    const secondStepUpReq = new Request('http://localhost/admin/api/cms/auth/step-up', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ password: PASSWORD }),
+    })
+    secondStepUpReq.headers.set('cookie', steppedCookie)
+    const secondStepUpRes = await handleCmsRequest(secondStepUpReq, db)
+    expect(secondStepUpRes.status).toBe(200)
+    const body = await secondStepUpRes.json() as { stepUpExpiresAt: string }
+    const expiresAt = Date.parse(body.stepUpExpiresAt)
+    const thirtyMinutesMs = 30 * 60 * 1000
+    expect(expiresAt).toBeGreaterThanOrEqual(before + thirtyMinutesMs - 1000)
+    expect(expiresAt).toBeLessThanOrEqual(Date.now() + thirtyMinutesMs + 1000)
+  })
+
   it('enables TOTP MFA and blocks normal authenticated APIs until the second factor verifies', async () => {
     const { db } = testDb
     const { cookie } = await login(db)

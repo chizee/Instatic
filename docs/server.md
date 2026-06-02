@@ -247,7 +247,7 @@ if (user instanceof Response) return user   // 401 or 403 already encoded
 
 ### Step-up auth
 
-Sensitive actions (delete user, revoke another device, sign out all devices) require the user to have re-entered their password within the last `STEP_UP_WINDOW_MS` (15 minutes). The expiry lives on the session row as `step_up_expires_at` and is refreshed by `POST /admin/api/cms/auth/step-up`.
+Sensitive actions (delete user, revoke another device, sign out all devices) call `requireStepUp(req, db)`. Step-up is required by default with a 15-minute window, can be configured per user from Account -> Security, and can be disabled per user. The expiry lives on the session row as `step_up_expires_at` and is refreshed by `POST /admin/api/cms/auth/step-up`.
 
 ---
 

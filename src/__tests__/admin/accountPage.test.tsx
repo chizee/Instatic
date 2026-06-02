@@ -52,6 +52,8 @@ function makeUser(overrides: Partial<CmsCurrentUser> = {}): CmsCurrentUser {
     mfaEnabled: false,
     mfaEnabledAt: null,
     mfaRecoveryCodesRemaining: 0,
+    stepUpAuthMode: 'required',
+    stepUpWindowMinutes: 15,
     avatarMediaId: null,
     avatarUrl: null,
     gravatarHash: '',
@@ -244,12 +246,82 @@ describe('AccountPage', () => {
     fireEvent.click(screen.getByTestId('account-tab-security'))
 
     expect(screen.getByTestId('security-password-card')).toBeTruthy()
+    expect(screen.getByTestId('security-step-up-card')).toBeTruthy()
     expect(screen.getByTestId('security-mfa-card')).toBeTruthy()
     expect(screen.getByTestId('security-recovery-card')).toBeTruthy()
     expect(screen.getByTestId('security-connected-card')).toBeTruthy()
     expect(screen.getByTestId('security-change-password')).toBeTruthy()
+    expect(screen.getByTestId('security-step-up-toggle')).toBeTruthy()
+    expect(screen.getByTestId('security-step-up-window')).toBeTruthy()
     expect(screen.getByTestId('security-mfa-enable')).toBeTruthy()
     expect(screen.getByTestId('security-recovery-regenerate')).toBeTruthy()
+  })
+
+  it('Security tab disables step-up through the shared step-up flow', async () => {
+    let settingsPatchCalls = 0
+    let lastBody: unknown = null
+    globalThis.fetch = makeAccountFetch((url, init) => {
+      if (url.endsWith('/admin/api/cms/me/security/step-up') && init?.method === 'PATCH') {
+        settingsPatchCalls += 1
+        lastBody = JSON.parse(String(init.body))
+        if (settingsPatchCalls === 1) return jsonResponse({ error: 'step_up_required' }, 401)
+        return jsonResponse({
+          user: makeUser({
+            stepUpAuthMode: 'disabled',
+            stepUpWindowMinutes: 15,
+          }),
+        })
+      }
+      if (url.endsWith('/admin/api/cms/auth/step-up')) {
+        return jsonResponse({ ok: true, stepUpExpiresAt: '2026-05-09T11:15:00.000Z' })
+      }
+      return undefined
+    })
+
+    renderWithUser(makeUser())
+    fireEvent.click(screen.getByTestId('account-tab-security'))
+    fireEvent.click(screen.getByTestId('security-step-up-toggle'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('step-up-dialog')).toBeTruthy()
+    })
+    fireEvent.change(screen.getByTestId('step-up-password'), {
+      target: { value: 'long-enough-password' },
+    })
+    fireEvent.click(screen.getByTestId('step-up-confirm'))
+
+    await waitFor(() => {
+      expect(screen.getByText('Step-up authentication disabled.')).toBeTruthy()
+    })
+    expect(settingsPatchCalls).toBe(2)
+    expect(lastBody).toEqual({ mode: 'disabled', windowMinutes: 15 })
+    expect(screen.getByText('Disabled')).toBeTruthy()
+  })
+
+  it('Security tab configures the step-up window', async () => {
+    let lastBody: unknown = null
+    globalThis.fetch = makeAccountFetch((url, init) => {
+      if (url.endsWith('/admin/api/cms/me/security/step-up') && init?.method === 'PATCH') {
+        lastBody = JSON.parse(String(init.body))
+        return jsonResponse({
+          user: makeUser({
+            stepUpAuthMode: 'required',
+            stepUpWindowMinutes: 30,
+          }),
+        })
+      }
+      return undefined
+    })
+
+    renderWithUser(makeUser())
+    fireEvent.click(screen.getByTestId('account-tab-security'))
+    fireEvent.click(screen.getByTestId('security-step-up-window'))
+    fireEvent.click(screen.getByRole('option', { name: '30 minutes' }))
+
+    await waitFor(() => {
+      expect(screen.getByText('Step-up authentication updated to 30 minutes.')).toBeTruthy()
+    })
+    expect(lastBody).toEqual({ mode: 'required', windowMinutes: 30 })
   })
 
   it('Security tab changes password through the shared step-up flow', async () => {

@@ -831,4 +831,20 @@ export const pgMigrations: Migration[] = [
         add column if not exists plugin_actor_id text;
     `,
   },
+  {
+    id: '011_user_step_up_policy',
+    sql: `
+      -- ─── Per-user step-up policy ─────────────────────────────────────────
+      --
+      -- Account -> Security can disable step-up for sensitive actions or
+      -- choose how long a successful password re-entry stays fresh.
+      alter table users
+        add column step_up_auth_mode text not null default 'required',
+        add column step_up_window_minutes integer not null default 15,
+        add constraint users_step_up_auth_mode_check
+          check (step_up_auth_mode in ('required', 'disabled')),
+        add constraint users_step_up_window_minutes_check
+          check (step_up_window_minutes in (5, 15, 30, 60));
+    `,
+  },
 ]

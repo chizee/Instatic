@@ -92,6 +92,8 @@ async function findSessionUserRow(
            users.mfa_enabled_at,
            users.mfa_totp_secret,
            users.mfa_recovery_code_hashes_json,
+           users.step_up_auth_mode,
+           users.step_up_window_minutes,
            users.created_at,
            users.updated_at,
            users.deleted_at,

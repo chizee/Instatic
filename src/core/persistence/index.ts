@@ -83,6 +83,7 @@ export {
   setupCms,
   startCurrentUserTotpSetup,
   stepUpCms,
+  updateCurrentUserStepUpSettings,
   uploadCurrentUserAvatar,
   verifyCmsMfa,
 } from './cmsAuth'
@@ -91,6 +92,8 @@ export type {
   CmsLoginActivityEvent,
   CmsLoginActivityResult,
   CmsSession,
+  CmsStepUpAuthMode,
+  CmsStepUpWindowMinutes,
 } from './cmsAuth'
 export type { CmsPublicSite, CmsSetupStatus } from './responseSchemas'
 // usePersistence moved to src/editor/hooks/usePersistence.ts (Constraint #179 — no React in core)

@@ -18,7 +18,7 @@ import {
   sessionExpiry,
 } from '../../../server/auth/tokens'
 import { loginPerIpRateLimit, loginRateLimit, mfaRateLimit } from '../../../server/auth/rateLimit'
-import { STEP_UP_WINDOW_MS } from '../../../server/auth/authz'
+import { STEP_UP_DEFAULT_WINDOW_MS } from '../../../server/auth/stepUpPolicy'
 import { createTestDb } from '../helpers/createTestDb'
 import { createHmac } from 'node:crypto'
 
@@ -170,7 +170,7 @@ describe('Step-up auth', () => {
     resetLimiters()
   })
 
-  it('POST /step-up with the correct password opens a 15-minute window', async () => {
+  it('POST /step-up with the correct password opens the default window', async () => {
     const { db } = testDb
     const cookie = await login(db)
     const before = Date.now()
@@ -182,8 +182,8 @@ describe('Step-up auth', () => {
     expect(cookieFromSetCookie(res)).not.toBe(cookie)
 
     const expiresAt = Date.parse(body.stepUpExpiresAt)
-    expect(expiresAt).toBeGreaterThanOrEqual(before + STEP_UP_WINDOW_MS - 1000)
-    expect(expiresAt).toBeLessThanOrEqual(Date.now() + STEP_UP_WINDOW_MS + 1000)
+    expect(expiresAt).toBeGreaterThanOrEqual(before + STEP_UP_DEFAULT_WINDOW_MS - 1000)
+    expect(expiresAt).toBeLessThanOrEqual(Date.now() + STEP_UP_DEFAULT_WINDOW_MS + 1000)
   })
 
   it('POST /step-up rotates the session token and revokes the old token', async () => {
@@ -238,7 +238,7 @@ describe('Step-up auth', () => {
     }
     expect(body.ok).toBe(true)
     expect(body.user.mfaEnabled).toBe(true)
-    expect(Date.parse(body.stepUpExpiresAt)).toBeGreaterThanOrEqual(before + STEP_UP_WINDOW_MS - 1000)
+    expect(Date.parse(body.stepUpExpiresAt)).toBeGreaterThanOrEqual(before + STEP_UP_DEFAULT_WINDOW_MS - 1000)
   })
 
   it('POST /step-up for an MFA-enabled account accepts and burns a recovery code', async () => {

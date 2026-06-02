@@ -28,6 +28,22 @@ interface CmsStepUpInput {
   mfaCode?: string
 }
 
+export const CmsStepUpAuthModeSchema = Type.Union([
+  Type.Literal('required'),
+  Type.Literal('disabled'),
+])
+
+export type CmsStepUpAuthMode = Static<typeof CmsStepUpAuthModeSchema>
+
+export const CmsStepUpWindowMinutesSchema = Type.Union([
+  Type.Literal(5),
+  Type.Literal(15),
+  Type.Literal(30),
+  Type.Literal(60),
+])
+
+export type CmsStepUpWindowMinutes = Static<typeof CmsStepUpWindowMinutesSchema>
+
 export const CmsCurrentUserRoleSchema = Type.Object({
   id: Type.String(),
   slug: Type.String(),
@@ -53,6 +69,8 @@ export const CmsCurrentUserSchema = Type.Object({
   mfaEnabled: Type.Boolean(),
   mfaEnabledAt: Type.Union([Type.String(), Type.Null()]),
   mfaRecoveryCodesRemaining: Type.Number(),
+  stepUpAuthMode: CmsStepUpAuthModeSchema,
+  stepUpWindowMinutes: CmsStepUpWindowMinutesSchema,
   /**
    * Identifier of the media asset backing the avatar, or null when the user
    * relies on the Gravatar identicon fallback.
@@ -236,6 +254,11 @@ const RecoveryCodesEnvelope = Type.Object(
   { additionalProperties: true },
 )
 
+interface CmsStepUpSettingsInput {
+  mode: CmsStepUpAuthMode
+  windowMinutes: CmsStepUpWindowMinutes
+}
+
 /**
  * Upload a new avatar image for the current user. The file is sent as a
  * multipart `file=` part — the server sniffs the bytes for the actual MIME
@@ -369,6 +392,25 @@ export async function regenerateCurrentUserRecoveryCodes(
   return { user: body.user, recoveryCodes: body.recoveryCodes }
 }
 
+export async function updateCurrentUserStepUpSettings(
+  input: CmsStepUpSettingsInput,
+  fetchImpl: FetchLike = globalThis.fetch.bind(globalThis),
+  basePath = '/admin/api/cms',
+): Promise<CmsCurrentUser> {
+  const res = await fetchImpl(`${basePath}/me/security/step-up`, {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(input),
+  })
+  const body = await readEnvelope(
+    res,
+    MeUserEnvelope,
+    `CMS step-up settings update failed with ${res.status}`,
+  )
+  return body.user
+}
+
 // ─── Sessions (Account → Sessions tab) ───────────────────────────────────────
 
 const CmsSessionSchema = Type.Object({
@@ -440,7 +482,7 @@ const CmsStepUpResponseSchema = Type.Object({
  * Re-authenticate the current session by re-entering the user's password,
  * plus a second-factor code when MFA is enabled.
  * On success, sensitive endpoints (delete user, revoke device, sign out
- * all devices) accept actions for the next 15 minutes.
+ * all devices) accept actions until the user's configured window expires.
  *
  * The handler treats a 401 response as a retryable re-authentication error —
  * the calling UI should re-prompt, not redirect to the login form.

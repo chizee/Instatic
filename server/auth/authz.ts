@@ -7,12 +7,14 @@ import type { AuthUser } from '../repositories/users'
 
 /**
  * Step-up auth window — sensitive actions (delete user, revoke another
- * device, sign out all devices, …) require the user to have re-entered
- * their password within the last 15 minutes. Stored on the session row as
- * `step_up_expires_at`; cleared automatically by elapse, or refreshed by
+ * device, sign out all devices, ...) require the user to have re-entered
+ * their password inside their configured window. Stored on the session row
+ * as `step_up_expires_at`; cleared automatically by elapse, or refreshed by
  * `POST /admin/api/cms/auth/step-up`.
  */
-export const STEP_UP_WINDOW_MS = 15 * 60 * 1000
+interface RequireStepUpOptions {
+  policy?: 'user' | 'always'
+}
 
 function readCookie(req: Request, name: string): string {
   const cookie = req.headers.get('cookie') ?? ''
@@ -97,9 +99,13 @@ export async function requireAnyCapability(
 export async function requireStepUp(
   req: Request,
   db: DbClient,
+  options: RequireStepUpOptions = {},
 ): Promise<AuthUser | Response> {
   const user = await requireAuthenticatedUser(req, db)
   if (user instanceof Response) return user
+  if ((options.policy ?? 'user') === 'user' && user.stepUpAuthMode === 'disabled') {
+    return user
+  }
   const idHash = await getSessionHash(req)
   if (!idHash) {
     return jsonResponse({ error: 'step_up_required' }, { status: 401 })

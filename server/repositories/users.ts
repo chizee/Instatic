@@ -3,6 +3,12 @@ import { nanoid } from 'nanoid'
 import type { DbClient } from '../db/client'
 import { isoDateOrNull } from '@core/utils/isoDate'
 import { normalizeCapabilities, type CoreCapability } from '../auth/capabilities'
+import {
+  normalizeStepUpAuthMode,
+  normalizeStepUpWindowMinutes,
+  type StepUpAuthMode,
+  type StepUpWindowMinutes,
+} from '../auth/stepUpPolicy'
 import type { UserRow, UserStatus } from '../types'
 import { Type, filterArray } from '@core/utils/typeboxHelpers'
 
@@ -30,6 +36,8 @@ export interface CmsUser {
   mfaEnabled: boolean
   mfaEnabledAt: string | null
   mfaRecoveryCodesRemaining: number
+  stepUpAuthMode: StepUpAuthMode
+  stepUpWindowMinutes: StepUpWindowMinutes
   /** Public path of the uploaded avatar (resolved from media_assets), or null. */
   avatarUrl: string | null
   /** SHA-256 hex of the normalized email — drives the Gravatar fallback URL. */
@@ -115,6 +123,8 @@ export function rowToUser(row: JoinedUserRow): AuthUser {
     mfaTotpSecret: row.mfa_totp_secret ?? null,
     mfaRecoveryCodeHashes,
     mfaRecoveryCodesRemaining: mfaRecoveryCodeHashes.length,
+    stepUpAuthMode: normalizeStepUpAuthMode(row.step_up_auth_mode),
+    stepUpWindowMinutes: normalizeStepUpWindowMinutes(row.step_up_window_minutes),
     avatarUrl: row.avatar_public_path ?? null,
     gravatarHash: computeGravatarHash(row.email),
     createdAt: isoDateOrNull(row.created_at)!,
@@ -138,6 +148,8 @@ export function toPublicUser(user: AuthUser): CmsUser {
     mfaEnabled: user.mfaEnabled,
     mfaEnabledAt: user.mfaEnabledAt,
     mfaRecoveryCodesRemaining: user.mfaRecoveryCodesRemaining,
+    stepUpAuthMode: user.stepUpAuthMode,
+    stepUpWindowMinutes: user.stepUpWindowMinutes,
     avatarUrl: user.avatarUrl,
     gravatarHash: user.gravatarHash,
     createdAt: user.createdAt,
@@ -163,6 +175,8 @@ export async function listUsers(db: DbClient): Promise<CmsUser[]> {
            users.mfa_enabled_at,
            users.mfa_totp_secret,
            users.mfa_recovery_code_hashes_json,
+           users.step_up_auth_mode,
+           users.step_up_window_minutes,
            users.created_at,
            users.updated_at,
            users.deleted_at,
@@ -199,6 +213,8 @@ export async function findUserById(db: DbClient, userId: string): Promise<AuthUs
            users.mfa_enabled_at,
            users.mfa_totp_secret,
            users.mfa_recovery_code_hashes_json,
+           users.step_up_auth_mode,
+           users.step_up_window_minutes,
            users.created_at,
            users.updated_at,
            users.deleted_at,
@@ -236,6 +252,8 @@ export async function findUserByEmail(db: DbClient, email: string): Promise<Auth
            users.mfa_enabled_at,
            users.mfa_totp_secret,
            users.mfa_recovery_code_hashes_json,
+           users.step_up_auth_mode,
+           users.step_up_window_minutes,
            users.created_at,
            users.updated_at,
            users.deleted_at,
@@ -280,7 +298,7 @@ export async function createUser(
   const { rows } = await db<UserRow>`
     insert into users (id, email, email_normalized, display_name, password_hash, status, role_id)
     values (${id}, ${email}, ${emailNormalized}, ${displayName}, ${input.passwordHash}, ${status}, ${input.roleId})
-    returning id, email, email_normalized, display_name, password_hash, status, role_id, last_login_at, failed_login_count, locked_until, avatar_media_id, password_updated_at, mfa_enabled, mfa_enabled_at, mfa_totp_secret, mfa_recovery_code_hashes_json, created_at, updated_at, deleted_at
+    returning id, email, email_normalized, display_name, password_hash, status, role_id, last_login_at, failed_login_count, locked_until, avatar_media_id, password_updated_at, mfa_enabled, mfa_enabled_at, mfa_totp_secret, mfa_recovery_code_hashes_json, step_up_auth_mode, step_up_window_minutes, created_at, updated_at, deleted_at
   `
   const created = await findUserById(db, rows[0]!.id)
   if (!created) throw new UserMutationError('User was not created', 500)
@@ -324,7 +342,7 @@ export async function updateUser(
         updated_at = current_timestamp
     where id = ${userId}
       and deleted_at is null
-    returning id, email, email_normalized, display_name, password_hash, status, role_id, last_login_at, failed_login_count, locked_until, avatar_media_id, password_updated_at, mfa_enabled, mfa_enabled_at, mfa_totp_secret, mfa_recovery_code_hashes_json, created_at, updated_at, deleted_at
+    returning id, email, email_normalized, display_name, password_hash, status, role_id, last_login_at, failed_login_count, locked_until, avatar_media_id, password_updated_at, mfa_enabled, mfa_enabled_at, mfa_totp_secret, mfa_recovery_code_hashes_json, step_up_auth_mode, step_up_window_minutes, created_at, updated_at, deleted_at
   `
   if (!rows[0]) return null
   const updated = await findUserById(db, rows[0].id)
@@ -426,6 +444,27 @@ export async function replaceUserRecoveryCodeHashes(
     where id = ${userId}
       and deleted_at is null
       and mfa_enabled = ${true}
+  `
+  if (result.rowCount === 0) return null
+  const refreshed = await findUserById(db, userId)
+  return refreshed ? toPublicUser(refreshed) : null
+}
+
+export async function updateUserStepUpPolicy(
+  db: DbClient,
+  userId: string,
+  input: {
+    mode: StepUpAuthMode
+    windowMinutes: StepUpWindowMinutes
+  },
+): Promise<CmsUser | null> {
+  const result = await db`
+    update users
+    set step_up_auth_mode = ${input.mode},
+        step_up_window_minutes = ${input.windowMinutes},
+        updated_at = current_timestamp
+    where id = ${userId}
+      and deleted_at is null
   `
   if (result.rowCount === 0) return null
   const refreshed = await findUserById(db, userId)

@@ -12,7 +12,7 @@
  *                                              capabilities (used by the admin shell).
  *   GET    /admin/api/cms/auth/sessions      — list this user's live sessions.
  *   DELETE /admin/api/cms/auth/sessions/:id  — revoke one of this user's sessions.
- *   POST   /admin/api/cms/auth/step-up       — open a 15-minute step-up window.
+ *   POST   /admin/api/cms/auth/step-up       — open the user's step-up window.
  *   GET    /admin/api/cms/auth/activity      — login attempts for this user.
  *   POST   /admin/api/cms/auth/logout-all    — revoke every other session for this user.
  *
@@ -53,8 +53,8 @@ import {
   requireAuthenticatedUser,
   requireStepUp,
   getSessionHash,
-  STEP_UP_WINDOW_MS,
 } from '../../auth/authz'
+import { stepUpWindowMs } from '../../auth/stepUpPolicy'
 import { createAuditEvent } from '../../repositories/audit'
 import {
   listLoginActivityForUser,
@@ -541,8 +541,8 @@ async function handleListSessions(req: Request, db: DbClient): Promise<Response>
  * current cookie would otherwise remain on the client until next request.
  *
  * Step-up gated: the user must have re-entered their password within the
- * last 15 minutes — kicking another device off your account is sensitive
- * enough that we don't want a stolen cookie alone to enable it.
+ * inside their configured window — kicking another device off your account
+ * is sensitive enough that we don't want a stolen cookie alone to enable it.
  */
 async function handleRevokeSession(
   req: Request,
@@ -768,7 +768,7 @@ async function verifyStepUpMfa(
 
 /**
  * POST /auth/step-up — re-authenticate with the current user's password to
- * open a 15-minute step-up window on the active session. Sensitive endpoints
+ * open the configured step-up window on the active session. Sensitive endpoints
  * (delete user, revoke device, sign out all devices) call `requireStepUp`
  * and return 401 `{ error: 'step_up_required' }` when the window is closed;
  * the client shows a step-up dialog that POSTs here, then retries the
@@ -823,7 +823,7 @@ async function handleStepUp(req: Request, db: DbClient): Promise<Response> {
     refreshedUser = mfaResult.user
   }
 
-  const expiresAt = new Date(Date.now() + STEP_UP_WINDOW_MS)
+  const expiresAt = new Date(Date.now() + stepUpWindowMs(refreshedUser.stepUpWindowMinutes))
   const nextToken = createSessionToken()
   const rotatedSession = await rotateSessionToken(db, idHash, {
     nextIdHash: await hashSessionToken(nextToken),

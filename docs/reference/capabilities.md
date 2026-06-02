@@ -182,7 +182,7 @@ Each returns `AuthUser | Response`. The handler checks `instanceof Response` and
 Step-up-gated actions:
 
 ```ts
-requireStepUp(req, db)        // re-auth within last 15 minutes
+requireStepUp(req, db)        // per-user sensitive-action step-up policy
 ```
 
 See [docs/features/auth-and-access.md](../features/auth-and-access.md) for the full step-up flow.

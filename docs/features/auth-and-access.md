@@ -12,7 +12,7 @@ Every state-changing CMS request goes through one auth funnel: parse the session
 - **Capabilities** are the access model. 19 `CoreCapability` strings defined in `server/auth/capabilities.ts`. Roles are sets of capabilities. Handlers gate on capability, not role.
 - **`requireCapability(req, db, 'site.read')`** is the canonical handler entrypoint. Returns the `AuthUser` or a 401/403 `Response`.
 - **MFA (TOTP)** is per-user opt-in. Sessions for MFA-enrolled users are `pending_mfa` until verified, then become `active`. Failed MFA codes go through `mfaRateLimit`.
-- **Step-up auth** gates sensitive actions (delete user, revoke another device, sign out all). 15-minute window after password re-entry.
+- **Step-up auth** gates sensitive actions (delete user, revoke another device, sign out all) unless the user disables it on Account -> Security. The default window is 15 minutes; users can configure 5, 15, 30, or 60 minutes.
 - **Lockout** kicks in after 5 failed logins. Exponential backoff capped at 24 hours.
 - **CSRF defense in depth.** State-changing methods must come from a matching `Origin`. `SameSite=Lax` covers the rest.
 - **CORS** is dev-only. Production is same-origin behind Caddy.
@@ -26,6 +26,7 @@ server/auth/
 ├── authz.ts          — requireAuthenticatedUser, requireCapability, requireAnyCapability, requireStepUp
 ├── capabilities.ts   — CoreCapability enum, SYSTEM_ROLES, SITE_WRITE_CAPABILITIES
 ├── sessions.ts       — createSession, findUserBySessionHash, rotateSessionToken, MFA gates, step-up timer
+├── stepUpPolicy.ts   — step-up modes and allowed window lengths
 ├── tokens.ts         — SESSION_COOKIE_NAME, hashSessionToken
 ├── mfa.ts            — generateTotpSecret, verifyTotpCode, recovery codes
 ├── lockout.ts        — evaluateFailedAttempt, evaluateLockState
@@ -210,19 +211,22 @@ if (user instanceof Response) return user
 
 ### `requireStepUp(req, db)`
 
-Gates sensitive actions on a 15-minute step-up window.
+Gates sensitive actions on the user's step-up policy.
 
 ```ts
 const user = await requireStepUp(req, db)
 if (user instanceof Response) return user
-// User has re-entered their password within the last 15 minutes.
+// User has either disabled step-up, or has re-entered their password inside
+// their configured step-up window.
 ```
 
 ---
 
 ## Step-up auth
 
-Sensitive actions (delete user, revoke another device, sign out all devices, change owner email, regenerate MFA) require the user to have re-entered their password within `STEP_UP_WINDOW_MS = 15 * 60 * 1000` ms.
+Sensitive actions (delete user, revoke another device, sign out all devices, change owner email, regenerate MFA) call `requireStepUp(req, db)` in `server/auth/authz.ts`. When `users.step_up_auth_mode = 'required'`, the current session must have `sessions.step_up_expires_at > now()`. The default policy is required with a 15-minute window; Account -> Security can change the mode to `disabled` or set `users.step_up_window_minutes` to 5, 15, 30, or 60.
+
+The Account -> Security policy endpoint (`PATCH /admin/api/cms/me/security/step-up`) calls `requireStepUp(req, db, { policy: 'always' })`, so changing the policy itself still requires a fresh password even when normal sensitive-action step-up is disabled.
 
 ```text
 User clicks "Delete user X"
@@ -230,6 +234,8 @@ User clicks "Delete user X"
     ▼
 Handler calls requireStepUp(req, db)
     │
+    ├─→ user.stepUpAuthMode = disabled
+    │       → proceed
     ├─→ check sessions.step_up_expires_at > now()
     │       → yes: proceed
     │       → no:  return 401 { error: 'step_up_required' }
@@ -241,7 +247,7 @@ Client shows step-up dialog:
 POST /admin/api/cms/auth/step-up { password }
     │
     ▼
-verify password → sessions.step_up_expires_at := now() + STEP_UP_WINDOW_MS
+verify password → sessions.step_up_expires_at := now() + users.step_up_window_minutes
     │
     ▼
 Client retries the sensitive action — step-up gate now passes.
