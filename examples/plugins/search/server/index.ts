@@ -20,7 +20,7 @@
  *   publish.html — extract + upsert the rendered page HTML into the search index.
  *                  The 2nd-arg context provides { pageId, slug } directly.
  */
-import type { ServerPluginApi, ServerPluginModule } from '@pagebuilder/plugin-sdk'
+import type { ServerPluginApi, ServerPluginModule } from '@instatic/plugin-sdk'
 import { createMeiliSearchBackend } from './backends/meilisearch'
 import { createTypesenseBackend } from './backends/typesense'
 import { extractSearchDoc } from './extract'
@@ -37,7 +37,7 @@ function readBackendOptions(api: ServerPluginApi): SearchBackendOptions | null {
   const endpoint = api.cms.settings.get<string>('endpoint') ?? ''
   const adminApiKey = api.cms.settings.get<string>('adminApiKey') ?? ''
   const searchApiKey = api.cms.settings.get<string>('searchApiKey') ?? ''
-  const indexName = api.cms.settings.get<string>('indexName') ?? 'pagebuilder'
+  const indexName = api.cms.settings.get<string>('indexName') ?? 'instatic'
   const searchableFieldsRaw = api.cms.settings.get<string>('searchableFields') ?? 'title\nheadings\ncontent'
   const excerptLength = Number(api.cms.settings.get<number>('excerptLength') ?? 200)
 

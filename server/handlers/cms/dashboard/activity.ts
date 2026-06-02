@@ -190,7 +190,7 @@ function resolveActivityTarget(
   context: { targetUserLabel: string | null },
 ): { code: string | null; text: string | null } {
   // Data-row events: render a code-styled path so the row reads
-  // "edited /blog/launching-page-builder".
+  // "edited /blog/launching-instatic".
   if (action.startsWith('data.row.') || action === 'data.author.assign') {
     const tableId = readMetadataString(metadata, 'tableId')
     const slug = readMetadataString(metadata, 'slug')

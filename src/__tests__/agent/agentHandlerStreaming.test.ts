@@ -60,7 +60,7 @@ describe('agent handler SDK streaming', () => {
         content_block: {
           type: 'tool_use',
           id: 'toolu_1',
-          name: 'mcp__page_builder__inspect_page',
+          name: 'mcp__instatic__inspect_page',
           input: {},
         },
       },
@@ -68,7 +68,7 @@ describe('agent handler SDK streaming', () => {
       {
         type: 'toolCall',
         toolCallId: 'toolu_1',
-        toolName: 'mcp__page_builder__inspect_page',
+        toolName: 'mcp__instatic__inspect_page',
         status: 'pending',
         input: {},
       },
@@ -85,7 +85,7 @@ describe('agent handler SDK streaming', () => {
       {
         type: 'toolResult',
         toolCallId: 'toolu_1',
-        toolName: 'mcp__page_builder__inspect_page',
+        toolName: 'mcp__instatic__inspect_page',
         ok: true,
       },
     ])

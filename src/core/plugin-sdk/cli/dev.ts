@@ -1,5 +1,5 @@
 /**
- * `pb-plugin dev` — watch source files, rebuild, and sync into the host's
+ * `instatic-plugin dev` — watch source files, rebuild, and sync into the host's
  * `<uploadsDir>/plugins/<id>/<version>/` directly.
  *
  * Mechanics:
@@ -35,7 +35,7 @@ export async function runPluginDev(options: PluginDevOptions): Promise<void> {
     uploadsDirFlag: options.uploadsDirFlag,
   })
 
-  console.log(`▶ pb-plugin dev`)
+  console.log(`▶ instatic-plugin dev`)
   console.log(`  source: ${pluginDir}`)
   console.log(`  uploads: ${targets.uploadsDir} (${targets.source})`)
   console.log()
@@ -59,7 +59,7 @@ export async function runPluginDev(options: PluginDevOptions): Promise<void> {
   await new Promise<void>((resolveProcess) => {
     process.on('SIGINT', () => {
       watcher.close()
-      console.log('\n▶ pb-plugin dev — stopped.')
+      console.log('\n▶ instatic-plugin dev — stopped.')
       resolveProcess()
     })
   })

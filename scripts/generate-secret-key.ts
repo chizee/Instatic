@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 /**
  * Generate a fresh 32-byte (256-bit) base64 AES key suitable for
- * `PAGE_BUILDER_SECRET_KEY`.
+ * `INSTATIC_SECRET_KEY`.
  *
  * Usage:
  *
@@ -32,7 +32,7 @@ if (process.stderr.isTTY) {
   process.stderr.write(
     `\nGenerated a new 256-bit master key for the AI credential store.\n` +
     `Add it to your environment to use it:\n\n` +
-    `    export PAGE_BUILDER_SECRET_KEY=${key}\n\n` +
+    `    export INSTATIC_SECRET_KEY=${key}\n\n` +
     `Or set it in your deployment's secret manager. Without it, AI ` +
     `credentials cannot be decrypted (existing rows become unreadable ` +
     `if the key is lost).\n`,

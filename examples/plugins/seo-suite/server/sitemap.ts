@@ -6,8 +6,8 @@
  * manifest declares `cms.routes.public` so the install dialog flags it.
  *
  * Full mount paths (reverse-proxy these to the site root — see README.md):
- *   GET /admin/api/cms/plugins/pagebuilder.seo-suite/runtime/sitemap.xml
- *   GET /admin/api/cms/plugins/pagebuilder.seo-suite/runtime/robots.txt
+ *   GET /admin/api/cms/plugins/instatic.seo-suite/runtime/sitemap.xml
+ *   GET /admin/api/cms/plugins/instatic.seo-suite/runtime/robots.txt
  *
  * Route handlers return `{ __response: true, status, headers, body }` —
  * the plugin worker serialises this shape into a real Response with the
@@ -19,7 +19,7 @@
  * The seo-entries storage collection is consulted only for per-page overrides
  * (no-index flag, canonical URL).
  */
-import type { ServerPluginApi } from '@pagebuilder/plugin-sdk'
+import type { ServerPluginApi } from '@instatic/plugin-sdk'
 import { Type } from '@sinclair/typebox'
 import { Value } from '@sinclair/typebox/value'
 

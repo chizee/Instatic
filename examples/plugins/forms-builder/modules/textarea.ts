@@ -1,12 +1,12 @@
 /**
- * Forms Builder — `pagebuilder.forms.textarea`
+ * Forms Builder — `instatic.forms.textarea`
  *
  * Multi-line textarea field with accessible label and helper text.
  */
-import { control, defineModule, html, raw } from '@pagebuilder/plugin-sdk'
+import { control, defineModule, html, raw } from '@instatic/plugin-sdk'
 
 export default defineModule({
-  id: 'pagebuilder.forms.textarea',
+  id: 'instatic.forms.textarea',
   name: 'Textarea',
   description: 'Multi-line text area field.',
   category: 'Forms',
@@ -35,17 +35,17 @@ export default defineModule({
     const requiredAttr = props.required ? ' required' : ''
     const placeholderAttr = props.placeholder ? ` placeholder="${props.placeholder}"` : ''
     const asterisk = props.required
-      ? raw('<span class="pb-forms-required" aria-hidden="true">*</span>')
+      ? raw('<span class="instatic-forms-required" aria-hidden="true">*</span>')
       : raw('')
     const helper = props.helperText
-      ? html`<small class="pb-forms-help">${props.helperText}</small>`
+      ? html`<small class="instatic-forms-help">${props.helperText}</small>`
       : ''
     return {
-      html: html`<div class="pb-forms-field">
-  <label class="pb-forms-label" for="pb-${props.name}">${props.label}${asterisk}</label>
+      html: html`<div class="instatic-forms-field">
+  <label class="instatic-forms-label" for="instatic-${props.name}">${props.label}${asterisk}</label>
   <textarea
-    class="pb-forms-control"
-    id="pb-${props.name}"
+    class="instatic-forms-control"
+    id="instatic-${props.name}"
     name="${props.name}"
     rows="${props.rows}"${raw(placeholderAttr)}${raw(requiredAttr)}
   ></textarea>

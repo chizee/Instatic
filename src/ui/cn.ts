@@ -1,5 +1,5 @@
 /**
- * Class composition helper for the page-builder.
+ * Class composition helper for the instatic.
  *
  * Joins truthy strings into a single space-separated className.
  * Falsy values (false / null / undefined) are dropped so callers can

@@ -1,6 +1,6 @@
 # Benchmark suite
 
-A reusable performance suite for the page-builder. Spans both ends of the stack: bundle composition, publisher render speed, the editor store under class/tree stress, HTTP latency + throughput, SQLite performance, plugin sandbox cost, repo footprint, and code-health snapshot.
+A reusable performance suite for the instatic. Spans both ends of the stack: bundle composition, publisher render speed, the editor store under class/tree stress, HTTP latency + throughput, SQLite performance, plugin sandbox cost, repo footprint, and code-health snapshot.
 
 Everything writes to `.tmp/benchmarks/` (gitignored). One run produces a single `REPORT.md` plus per-bench logs.
 
@@ -215,7 +215,7 @@ export const myBench: BenchModule = {
 `.tmp/benchmarks/REPORT.md` looks like:
 
 ```markdown
-# Page Builder — Benchmark Report
+# Instatic — Benchmark Report
 
 Run at: 2026-05-20T18:55:32.123Z
 Host: darwin arm64 Apple M2 Pro

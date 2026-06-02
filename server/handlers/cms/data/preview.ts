@@ -33,8 +33,8 @@ import { applyPublishedHtmlPipeline } from '../../../publish/publishedHtmlPipeli
 import { badRequest, jsonResponse, methodNotAllowed, readValidatedBody } from '../../../http'
 import { canReadDataRow, forbidden, requireDataAccess } from './access'
 
-const CSS_ASSET_BASE_URL = '/_pb/css/'
-const LOOP_ENDPOINT_BASE_URL = '/_pb/loop/'
+const CSS_ASSET_BASE_URL = '/_instatic/css/'
+const LOOP_ENDPOINT_BASE_URL = '/_instatic/loop/'
 
 // ---------------------------------------------------------------------------
 // Request schema

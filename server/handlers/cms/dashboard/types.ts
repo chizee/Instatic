@@ -206,7 +206,7 @@ export interface RecentActivityStats {
 /**
  * Per-category storage breakdown shown by the dashboard Storage widget.
  *
- * There is intentionally **no quota** here — self-hosted Page Builder
+ * There is intentionally **no quota** here — self-hosted Instatic
  * never imposes an artificial disk cap. The widget shows real usage and
  * stretches its breakdown bar to the sum of the segments, so each
  * category reads as a proportion of *total used* rather than of an

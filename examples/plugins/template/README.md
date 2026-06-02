@@ -1,6 +1,6 @@
 # Template Plugin
 
-Minimal starter plugin for the Page Builder CMS. Use this as the base for your own plugin.
+Minimal starter plugin for the Instatic. Use this as the base for your own plugin.
 
 ## Quick start
 

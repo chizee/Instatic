@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * Page Builder benchmark suite — CLI orchestrator.
+ * Instatic benchmark suite — CLI orchestrator.
  *
  * Usage:
  *   bun run bench                    # full suite, write .tmp/benchmarks/REPORT.md
@@ -98,7 +98,7 @@ function parseArgs(argv: readonly string[]): CliFlags {
 
 function printHelp(): void {
   console.log(`
-Page Builder benchmark suite.
+Instatic benchmark suite.
 
 Usage:
   bun run bench [flags]
@@ -171,7 +171,7 @@ async function main(): Promise<void> {
     baseUrl: flags.baseUrl,
   }
 
-  log.section('Page Builder benchmark suite')
+  log.section('Instatic benchmark suite')
   log.detail(`Running ${benches.length} bench${benches.length === 1 ? '' : 'es'}: ${benches.map((b) => b.name).join(', ')}`)
   if (flags.quick) log.detail('Quick mode — reduced iteration counts.')
   if (flags.baseUrl) log.detail(`Targeting external server: ${flags.baseUrl}`)

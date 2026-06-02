@@ -45,8 +45,8 @@ coverage/
 !.agents/skills/agent-browser/**
 !.agents/skills/skill-creator/
 !.agents/skills/skill-creator/**
-!.agents/skills/page-builder-user-e2e/
-!.agents/skills/page-builder-user-e2e/**
+!.agents/skills/instatic-user-e2e/
+!.agents/skills/instatic-user-e2e/**
 .skills/
 
 # User uploads — runtime data, never commit

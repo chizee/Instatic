@@ -1,8 +1,8 @@
 /**
- * `@pagebuilder/host-hooks` — React hooks plugin code can use to reach into
+ * `@instatic/host-hooks` — React hooks plugin code can use to reach into
  * host editor state, settings, and command runtime.
  *
- *   import { useEditorStore, usePluginSettings } from '@pagebuilder/host-hooks'
+ *   import { useEditorStore, usePluginSettings } from '@instatic/host-hooks'
  *
  *   function MyPanel() {
  *     const selected = useEditorStore((s) => s.selectedNodeId)
@@ -10,7 +10,7 @@
  *     return <p>Selected: {selected ?? 'none'}, sample: {settings.sampleRate}</p>
  *   }
  *
- * Like `@pagebuilder/host-ui`, this is an externalized package — plugin
+ * Like `@instatic/host-ui`, this is an externalized package — plugin
  * bundles compile against the named exports but resolve the runtime at
  * mount time through the host's import map. Plugins still need the
  * matching permission to call mutating hooks (e.g. `useEditorTransaction`
@@ -30,14 +30,14 @@ export const CANVAS_OVERLAY_LAYER_ATTRIBUTE = 'data-canvas-overlay-layer'
  * (admin pages don't have an editor mounted, so the underlying store is
  * empty there).
  *
- * Re-exported under the plugin SDK's `@pagebuilder/host-hooks` import-map
+ * Re-exported under the plugin SDK's `@instatic/host-hooks` import-map
  * name so plugin bundles don't need to know the host's internal store path.
  */
 export { useEditorStore }
 
 /**
  * Read the current plugin's persisted settings as a typed snapshot.
- * Updates flow through `setPluginSettings(...)` from `@pagebuilder/host-hooks`
+ * Updates flow through `setPluginSettings(...)` from `@instatic/host-hooks`
  * (round-trips through the host's settings PUT endpoint).
  */
 export function usePluginSettings<

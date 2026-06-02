@@ -36,7 +36,7 @@ interface ServerRuntime {
  * A route handler returns a `Response` if it owns the request, or `null` if
  * the URL/method doesn't match — the dispatcher walks the `routes` table and
  * returns the first non-null response. Prefix-namespaced handlers (e.g.
- * `/_pb/css/`, `/_pb/runtime/cache/`) absorb their entire namespace and emit
+ * `/_instatic/css/`, `/_instatic/runtime/cache/`) absorb their entire namespace and emit
  * a 404 themselves rather than falling through, so unknown paths under a
  * known prefix can't accidentally match a later route.
  */
@@ -144,12 +144,12 @@ function tryServeLoopRuntimeAsset(req: Request, _runtime: ServerRuntime, _url: U
 }
 
 function tryServeLoop(req: Request, runtime: ServerRuntime, url: URL, pathname: string): Promise<Response> | null {
-  if (!pathname.startsWith('/_pb/loop/')) return null
+  if (!pathname.startsWith('/_instatic/loop/')) return null
   return handleLoopRequest(req, url, { db: runtime.db })
 }
 
 /**
- * The hole runtime is a fixed CMS asset served at `/_pb/hole-runtime.js`.
+ * The hole runtime is a fixed CMS asset served at `/_instatic/hole-runtime.js`.
  * Registered before `tryServeHole` so the exact path is consumed here and
  * never falls through to the hole fragment handler.
  */
@@ -159,11 +159,11 @@ function tryServeHoleRuntimeAsset(req: Request, _runtime: ServerRuntime, _url: U
 }
 
 /**
- * Layer C hole fragment endpoint — `/_pb/hole/<nodeId>`.
+ * Layer C hole fragment endpoint — `/_instatic/hole/<nodeId>`.
  * Renders a dynamic node subtree on-demand and caches the result via Layer B.
  */
 function tryServeHole(req: Request, runtime: ServerRuntime, url: URL, pathname: string): Promise<Response> | null {
-  if (!pathname.startsWith('/_pb/hole/')) return null
+  if (!pathname.startsWith('/_instatic/hole/')) return null
   return handleHoleRequest(req, url, { db: runtime.db })
 }
 
@@ -173,12 +173,12 @@ function tryServePublicFormRuntimeAsset(req: Request, _runtime: ServerRuntime, _
 }
 
 function tryServePublicForm(req: Request, runtime: ServerRuntime, url: URL, pathname: string): Promise<Response | null> | null {
-  if (!pathname.startsWith('/_pb/form/')) return null
+  if (!pathname.startsWith('/_instatic/form/')) return null
   return handlePublicFormRequest(req, runtime.db, url)
 }
 
 async function tryServeRuntimeAsset(req: Request, runtime: ServerRuntime, _url: URL, pathname: string): Promise<Response | null> {
-  if (req.method !== 'GET' || !pathname.startsWith('/_pb/assets/')) return null
+  if (req.method !== 'GET' || !pathname.startsWith('/_instatic/assets/')) return null
 
   // Disk-first: a full publish bakes the runtime JS into the active slot, so
   // published pages serve their scripts straight off disk (no DB round-trip,
@@ -230,13 +230,13 @@ function contentTypeForAssetPath(pathname: string): string {
 
 /**
  * Per-site runtime dependency cache — served from the hashed
- * `bun install` workspace under `/_pb/runtime/cache/<hash>/<...path>`.
+ * `bun install` workspace under `/_instatic/runtime/cache/<hash>/<...path>`.
  * The publisher emits a `<script type="importmap">` mapping bare
  * specifiers like `three` to URLs in this namespace, so plugin module
  * scripts and frontend bundles share a single locally-installed copy
  * of every site dependency.
  *
- * The /_pb/runtime/cache/ namespace is exclusive: unknown paths under it
+ * The /_instatic/runtime/cache/ namespace is exclusive: unknown paths under it
  * 404 here rather than falling through to a later matcher.
  */
 async function tryServeRuntimePackageNamespace(req: Request, _runtime: ServerRuntime, _url: URL, pathname: string): Promise<Response | null> {
@@ -251,13 +251,13 @@ async function tryServeRuntimePackageNamespace(req: Request, _runtime: ServerRun
  * the browser falls back to refetching the HTML (which carries the new
  * hash).
  *
- * The /_pb/css/ namespace is exclusive: any unknown path under it is a
+ * The /_instatic/css/ namespace is exclusive: any unknown path under it is a
  * 404, never falls through to the public-slug handler. That prevents an
- * unrelated path like `/_pb/css/anything.css` from accidentally
+ * unrelated path like `/_instatic/css/anything.css` from accidentally
  * rendering the homepage.
  */
 async function tryServeSiteCssNamespace(req: Request, runtime: ServerRuntime, _url: URL, pathname: string): Promise<Response | null> {
-  if (req.method !== 'GET' || !pathname.startsWith('/_pb/css/')) return null
+  if (req.method !== 'GET' || !pathname.startsWith('/_instatic/css/')) return null
   return (await serveSiteCss(runtime.db, pathname, runtime.uploadsDir)) ?? new Response('Not found', { status: 404 })
 }
 
@@ -266,7 +266,7 @@ async function tryServeSiteCssNamespace(req: Request, runtime: ServerRuntime, _u
  * adapter with `servingMode !== 'public-url'`.
  *
  * `dispatchUpload` synthesises a host-owned URL of the shape
- *   /_pb/media/<adapterId>/<storagePath>
+ *   /_instatic/media/<adapterId>/<storagePath>
  * for non-public-url writes, then stores that on `media_assets.public_path`
  * (or inside each variant's `path`). Browsers hit this route; we ask the
  * adapter for a freshly-signed read URL and 302-redirect.
@@ -286,11 +286,11 @@ async function tryServeMediaRedirect(
   _url: URL,
   pathname: string,
 ): Promise<Response | null> {
-  if (!pathname.startsWith('/_pb/media/')) return null
+  if (!pathname.startsWith('/_instatic/media/')) return null
   if (req.method !== 'GET' && req.method !== 'HEAD') {
     return new Response('Method not allowed', { status: 405 })
   }
-  const match = pathname.match(/^\/_pb\/media\/([^/]+)\/(.+)$/)
+  const match = pathname.match(/^\/_instatic\/media\/([^/]+)\/(.+)$/)
   if (!match) return new Response('Not found', { status: 404 })
   const adapterId = decodeURIComponent(match[1])
   const storagePath = decodeURIComponent(match[2])
@@ -332,7 +332,7 @@ async function tryServeMediaRedirect(
  *   - `/favicon.svg`               — the site favicon copied from `public/`.
  *   - `/runtime/<shim>.js`         — plugin-runtime ESM shims that the
  *                                    admin's import map re-exports
- *                                    `react`, `react-dom`, `@pagebuilder/*`
+ *                                    `react`, `react-dom`, `@instatic/*`
  *                                    from. Without these, plugin bundles
  *                                    fail to fetch on a production install
  *                                    (the dev server hides this because
@@ -469,7 +469,7 @@ function adminUiNotBuiltResponse(pathname: string): Response {
 /**
  * Serve one of the three site CSS bundle files (reset / framework / style).
  *
- * The URL path is `/_pb/css/<bundle>-<hash>.css` where `<bundle>` is the
+ * The URL path is `/_instatic/css/<bundle>-<hash>.css` where `<bundle>` is the
  * logical layer name and `<hash>` is the 12-hex SHA-256 prefix that
  * `buildSiteCssBundle` produces.
  *
@@ -493,7 +493,7 @@ function adminUiNotBuiltResponse(pathname: string): Response {
  * published pages until one produces the requested hash.
  */
 async function serveSiteCss(db: DbClient, pathname: string, uploadsDir?: string): Promise<Response | null> {
-  const filename = pathname.slice('/_pb/css/'.length)
+  const filename = pathname.slice('/_instatic/css/'.length)
   const match = filename.match(/^(reset|framework|style|userStyles)-([a-f0-9]{12})\.css$/)
   if (!match) return null
 

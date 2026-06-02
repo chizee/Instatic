@@ -53,7 +53,7 @@ Every production stack starts with `compose.prod.yml`. Layered overrides switch 
 | `docker compose -f compose.prod.yml up -d` | Postgres | `http://server:${HOST_PORT}` | `app` + `postgres` | [vps-compose.md](vps-compose.md) |
 | `docker compose -f compose.prod.yml -f compose.tls.yml up -d` | Postgres | `https://${DOMAIN}` | `app` + `postgres` + `caddy` | [tls-caddy.md](tls-caddy.md) |
 
-Build-from-source (when no published image exists yet): append `-f compose.build.yml --build` to any of the above and ensure `PAGE_BUILDER_IMAGE` resolves to a tag your local Docker daemon can produce.
+Build-from-source (when no published image exists yet): append `-f compose.build.yml --build` to any of the above and ensure `INSTATIC_IMAGE` resolves to a tag your local Docker daemon can produce.
 
 ### No-Docker installs
 
@@ -109,6 +109,6 @@ Same code, same migrations, same image — just no container around it. Docker i
 
 ## Image registry
 
-- `PAGE_BUILDER_IMAGE` defaults to `ghcr.io/GITHUB_OWNER/IMAGE_NAME:latest` (placeholder).
-- For a local build: `docker build -t page-builder-cms:local .` and set `PAGE_BUILDER_IMAGE=page-builder-cms:local` in `.env`.
+- `INSTATIC_IMAGE` defaults to `ghcr.io/GITHUB_OWNER/IMAGE_NAME:latest` (placeholder).
+- For a local build: `docker build -t instatic-cms:local .` and set `INSTATIC_IMAGE=instatic-cms:local` in `.env`.
 - Once the public release lands, the placeholders get replaced with the real image name everywhere.

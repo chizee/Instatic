@@ -1,6 +1,6 @@
 # Cloudflare R2 Storage
 
-Official Page Builder plugin that routes uploaded media to **Cloudflare R2** — S3-compatible object storage with **zero egress fees**. Often the best default for self-hosted CMS deployments that serve a lot of media.
+Official Instatic plugin that routes uploaded media to **Cloudflare R2** — S3-compatible object storage with **zero egress fees**. Often the best default for self-hosted CMS deployments that serve a lot of media.
 
 ## Why R2 over generic S3?
 
@@ -25,7 +25,7 @@ The plugin never touches the bytes of an upload — the host's executor streams 
 ## Build
 
 ```bash
-bun pb-plugin build examples/plugins/r2-storage
+bun instatic-plugin build examples/plugins/r2-storage
 ```
 
 Produces `examples/plugins/r2-storage.plugin.zip` (~14 KB).
@@ -44,7 +44,7 @@ Produces `examples/plugins/r2-storage.plugin.zip` (~14 KB).
    - **Signed redirect** (recommended) — bucket stays private; the host signs read URLs on demand.
    - **Public URL** — enable "Public Bucket" on the R2 bucket (R2 → bucket → Settings → Public Access). Copy the `https://pub-<HASH>.r2.dev/` URL into the plugin's "Public URL base" setting. Alternatively front the bucket with a custom domain (R2 → bucket → Settings → Domains).
 
-## Install in Page Builder
+## Install in Instatic
 
 1. Upload `r2-storage.plugin.zip` from `/admin/plugins` and approve the requested permissions:
    - `media.storage.adapter`

@@ -1,6 +1,6 @@
 # Uptime Monitor
 
-A complete demo plugin for Page Builder. Periodically pings a list of URLs and reports uptime + latency, surfaced in a custom admin dashboard.
+A complete demo plugin for Instatic. Periodically pings a list of URLs and reports uptime + latency, surfaced in a custom admin dashboard.
 
 It's the most complete example in the repo — exercising **every** piece of the plugin SDK in one coherent, useful tool:
 
@@ -19,7 +19,7 @@ Everything runs inside the QuickJS-WASM sandbox — the plugin has no Node, Bun,
 ## Install
 
 ```bash
-bun pb-plugin build examples/plugins/uptime-monitor
+bun instatic-plugin build examples/plugins/uptime-monitor
 ```
 
 This produces `examples/plugins/uptime-monitor.plugin.zip`. Upload it from `/admin/plugins` and approve all the requested permissions.
@@ -63,7 +63,7 @@ Add a URL that streams a large response (e.g. a huge file). After the next check
 
 ```
 examples/plugins/uptime-monitor/
-├── pb-plugin.config.ts    ← manifest: id, permissions, settings, allowlist, admin page
+├── instatic-plugin.config.ts    ← manifest: id, permissions, settings, allowlist, admin page
 ├── server/index.ts        ← lifecycle hooks + schedules + route + hook listeners
 ├── admin/dashboard.tsx    ← React dashboard (runs in the browser, not the sandbox)
 ├── icon.svg               ← shown on the Plugins admin card
@@ -83,13 +83,13 @@ examples/plugins/uptime-monitor/
 
 ```bash
 # Build the zip
-bun pb-plugin build examples/plugins/uptime-monitor
+bun instatic-plugin build examples/plugins/uptime-monitor
 
 # Iterate with auto-sync into a running dev CMS
-bun pb-plugin dev examples/plugins/uptime-monitor
+bun instatic-plugin dev examples/plugins/uptime-monitor
 ```
 
-When developing locally, `pb-plugin dev` writes built files directly into the host's `uploads/plugins/acme.uptime/1.0.0/`. The first install still goes through the admin UI so the operator approves permissions. After that, every rebuild flows in on the next plugin re-activation.
+When developing locally, `instatic-plugin dev` writes built files directly into the host's `uploads/plugins/acme.uptime/1.0.0/`. The first install still goes through the admin UI so the operator approves permissions. After that, every rebuild flows in on the next plugin re-activation.
 
 ## Removing it
 

@@ -65,7 +65,7 @@ const BUCKET_LABELS: Record<MediaBucket, string> = {
   other: 'Other',
 }
 
-const VIEW_MODE_STORAGE_KEY = 'pb-media-explorer-view-mode'
+const VIEW_MODE_STORAGE_KEY = 'instatic-media-explorer-view-mode'
 
 function readStoredViewMode(): MediaViewMode {
   try {

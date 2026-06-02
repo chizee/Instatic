@@ -467,7 +467,7 @@ describe('CMS plugin handlers', () => {
   })
 
   it('installs zip plugin packages, writes assets, and activates backend routes', async () => {
-    const uploadsDir = await mkdtemp(join(tmpdir(), 'page-builder-plugins-'))
+    const uploadsDir = await mkdtemp(join(tmpdir(), 'instatic-plugins-'))
     const db = makeFakeDb()
     const cookie = await createCookie(db)
     const manifest = {
@@ -548,7 +548,7 @@ describe('CMS plugin handlers', () => {
   })
 
   it('runs packaged server plugin lifecycle hooks on install, disable, enable, and remove', async () => {
-    const uploadsDir = await mkdtemp(join(tmpdir(), 'page-builder-lifecycle-'))
+    const uploadsDir = await mkdtemp(join(tmpdir(), 'instatic-lifecycle-'))
     // The QuickJS-sandboxed plugin can't touch node:fs. We use the hookBus as
     // the sandbox-safe cross-context channel — the plugin emits lifecycle
     // events as hook events, the host subscribes to record them.
@@ -742,7 +742,7 @@ describe('CMS plugin handlers', () => {
   })
 
   it('stores lifecycle errors for admin diagnostics without losing the plugin row', async () => {
-    const uploadsDir = await mkdtemp(join(tmpdir(), 'page-builder-lifecycle-error-'))
+    const uploadsDir = await mkdtemp(join(tmpdir(), 'instatic-lifecycle-error-'))
     const db = makeFakeDb()
     const cookie = await createCookie(db)
     const manifest = {
@@ -795,7 +795,7 @@ describe('CMS plugin handlers', () => {
   // version on activate failure.
 
   it('routes a same-id newer-version upload through the upgrade flow with migrate', async () => {
-    const uploadsDir = await mkdtemp(join(tmpdir(), 'page-builder-upgrade-'))
+    const uploadsDir = await mkdtemp(join(tmpdir(), 'instatic-upgrade-'))
     // Plugin runs in a QuickJS sandbox — no node:fs. Use the hookBus as the
     // sandbox-safe cross-context channel. Re-attach the listener after every
     // CMS request because `activateInstalledServerPlugins` calls
@@ -904,7 +904,7 @@ describe('CMS plugin handlers', () => {
   })
 
   it('rolls back to the prior version when the new version\'s activate hook throws', async () => {
-    const uploadsDir = await mkdtemp(join(tmpdir(), 'page-builder-rollback-'))
+    const uploadsDir = await mkdtemp(join(tmpdir(), 'instatic-rollback-'))
     const db = makeFakeDb()
     const cookie = await createCookie(db)
     const baseManifest = (version: string) => ({
@@ -965,7 +965,7 @@ describe('CMS plugin handlers', () => {
   })
 
   it('refuses to downgrade to an older version', async () => {
-    const uploadsDir = await mkdtemp(join(tmpdir(), 'page-builder-downgrade-'))
+    const uploadsDir = await mkdtemp(join(tmpdir(), 'instatic-downgrade-'))
     const db = makeFakeDb()
     const cookie = await createCookie(db)
     const baseManifest = (version: string) => ({
@@ -1074,7 +1074,7 @@ describe('CMS plugin handlers', () => {
   // ─── Manual restart endpoint ──────────────────────────────────────────────
 
   it('POST /restart resets crash counter, drops crash events, and re-activates the plugin', async () => {
-    const uploadsDir = await mkdtemp(join(tmpdir(), 'page-builder-restart-'))
+    const uploadsDir = await mkdtemp(join(tmpdir(), 'instatic-restart-'))
     const db = makeFakeDb()
     const cookie = await createCookie(db)
     // Sandbox-safe activation tracking via hookBus — re-attach after every
@@ -1159,7 +1159,7 @@ describe('CMS plugin handlers', () => {
   // serving routes — proving that crashes are isolated per pluginId.
 
   it('crash in one plugin\'s worker does not affect a sibling plugin\'s worker', async () => {
-    const uploadsDir = await mkdtemp(join(tmpdir(), 'page-builder-crash-iso-'))
+    const uploadsDir = await mkdtemp(join(tmpdir(), 'instatic-crash-iso-'))
     const db = makeFakeDb()
     const cookie = await createCookie(db)
 

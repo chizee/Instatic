@@ -1,5 +1,5 @@
 {
-  "//": "Uptime Monitor plugin tsconfig — same path setup as the showcase plugin so the IDE resolves @pagebuilder/* against host source for type-check.",
+  "//": "Uptime Monitor plugin tsconfig — same path setup as the showcase plugin so the IDE resolves @instatic/* against host source for type-check.",
   "compilerOptions": {
     "target": "es2023",
     "lib": ["ES2023", "DOM"],
@@ -11,11 +11,11 @@
     "verbatimModuleSyntax": true,
     "skipLibCheck": true,
     "paths": {
-      "@pagebuilder/host-ui": ["../../../src/core/plugin-host-ui/index.ts"],
-      "@pagebuilder/host-hooks": ["../../../src/core/plugin-host-hooks/index.ts"],
-      "@pagebuilder/plugin-sdk": ["../../../src/core/plugin-sdk/index.ts"],
+      "@instatic/host-ui": ["../../../src/core/plugin-host-ui/index.ts"],
+      "@instatic/host-hooks": ["../../../src/core/plugin-host-hooks/index.ts"],
+      "@instatic/plugin-sdk": ["../../../src/core/plugin-sdk/index.ts"],
       "@core/*": ["../../../src/core/*"]
     }
   },
-  "include": ["pb-plugin.config.ts", "admin/**/*", "server/**/*"]
+  "include": ["instatic-plugin.config.ts", "admin/**/*", "server/**/*"]
 }

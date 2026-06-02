@@ -15,7 +15,7 @@
  *   - stats.ts   — dashboard query helpers
  *   - csv.ts     — CSV serialization for export
  */
-import type { ServerPluginApi, ServerPluginModule } from '@pagebuilder/plugin-sdk'
+import type { ServerPluginApi, ServerPluginModule } from '@instatic/plugin-sdk'
 import { handleTrackerEvent } from './ingest'
 import { runRollup, runPrune } from './rollup'
 import { getDashboardStats } from './stats'
@@ -183,7 +183,7 @@ const mod: ServerPluginModule = {
     })
 
     // GET /is-admin — detects whether the requesting browser has an active
-    // admin session cookie. The host's session cookie name is `pb_admin_session`;
+    // admin session cookie. The host's session cookie name is `instatic_admin_session`;
     // presence (not validity) is sufficient to identify admin self-traffic.
     // The frontend tracker calls this once per session and includes the result
     // in every subsequent event payload. The ingest handler drops admin events
@@ -192,7 +192,7 @@ const mod: ServerPluginModule = {
       const cookie = ctx.req.headers.get('cookie') ?? ''
       // Cookie presence check — an expired-but-not-cleared cookie gives a
       // false positive, which is the safe direction (under-count, not over-count).
-      const admin = cookie.includes('pb_admin_session=')
+      const admin = cookie.includes('instatic_admin_session=')
       return { admin }
     })
 

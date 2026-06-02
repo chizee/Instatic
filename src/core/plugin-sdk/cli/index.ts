@@ -1,16 +1,16 @@
 /**
- * `pb-plugin` CLI entry.
+ * `instatic-plugin` CLI entry.
  *
  * Usage:
- *   pb-plugin init <name>
- *   pb-plugin build [<plugin-dir>]
- *   pb-plugin dev   [<plugin-dir>] [--uploads <path>]
+ *   instatic-plugin init <name>
+ *   instatic-plugin build [<plugin-dir>]
+ *   instatic-plugin dev   [<plugin-dir>] [--uploads <path>]
  *
  * Run via Bun:
- *   bun run pb-plugin <cmd>
+ *   bun run instatic-plugin <cmd>
  *
  * The CLI lives inside the SDK so plugin authors get the same code that
- * powers the host's `bun run pb-plugin` script. No HTTP, no auth, no env
+ * powers the host's `bun run instatic-plugin` script. No HTTP, no auth, no env
  * gate — the dev command writes built files directly into the host's
  * `uploads/plugins/<id>/<version>/` directory.
  */
@@ -49,7 +49,7 @@ function parseArgs(argv: string[]): ParsedArgs {
 }
 
 function printHelp(): void {
-  console.log(`pb-plugin — Page Builder plugin CLI
+  console.log(`instatic-plugin — Instatic plugin CLI
 
 Commands:
   init <name>             Scaffold a new plugin in <name>/
@@ -66,17 +66,17 @@ Options for \`init\`:
 
 Options for \`dev\`:
   --uploads <path>        Override the host's uploads directory.
-                          Falls back to PB_UPLOADS_DIR env var, then to
+                          Falls back to INSTATIC_UPLOADS_DIR env var, then to
                           auto-detection (walks up from the plugin folder
                           looking for an uploads/plugins/ directory).
 
 Examples:
-  pb-plugin init acme.confetti
-  pb-plugin init acme.seo --kind content-editor
-  pb-plugin lint examples/plugins/forms-builder
-  pb-plugin build examples/plugins/forms-builder
-  pb-plugin dev examples/plugins/forms-builder
-  pb-plugin dev --uploads ../page-builder/uploads
+  instatic-plugin init acme.confetti
+  instatic-plugin init acme.seo --kind content-editor
+  instatic-plugin lint examples/plugins/forms-builder
+  instatic-plugin build examples/plugins/forms-builder
+  instatic-plugin dev examples/plugins/forms-builder
+  instatic-plugin dev --uploads ../instatic/uploads
 `)
 }
 
@@ -91,7 +91,7 @@ async function main(): Promise<void> {
   if (command === 'init') {
     const name = positional[0]
     if (!name) {
-      console.error('Usage: pb-plugin init <name> [--kind=module|content-editor]')
+      console.error('Usage: instatic-plugin init <name> [--kind=module|content-editor]')
       process.exit(1)
     }
     const kindFlag = flags.kind
@@ -104,7 +104,7 @@ async function main(): Promise<void> {
     const kind: 'module' | 'content-editor' = kindFlag === 'content-editor' ? 'content-editor' : 'module'
     const created = await runPluginInit(name, { kind })
     console.log(`✓ Created plugin at ${created}`)
-    console.log(`  cd ${created.split('/').pop()} && pb-plugin dev`)
+    console.log(`  cd ${created.split('/').pop()} && instatic-plugin dev`)
     return
   }
 

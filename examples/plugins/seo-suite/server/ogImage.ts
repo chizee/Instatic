@@ -8,11 +8,11 @@
  * Provider contract: POST { title, description, siteName, url } → 200 { url: string }
  * See README.md for more details and a self-hosted example.
  *
- * Security: `networkAllowedHosts` in pb-plugin.config.ts is empty by default.
+ * Security: `networkAllowedHosts` in instatic-plugin.config.ts is empty by default.
  * The operator must add their provider host there and rebuild before this job
  * can make any outbound calls — fail-closed design.
  */
-import type { ServerPluginApi, PluginRecord } from '@pagebuilder/plugin-sdk'
+import type { ServerPluginApi, PluginRecord } from '@instatic/plugin-sdk'
 import { Type } from '@sinclair/typebox'
 import { Value } from '@sinclair/typebox/value'
 

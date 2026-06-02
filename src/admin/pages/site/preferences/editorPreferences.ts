@@ -30,7 +30,7 @@ import {
   type SelectPreferenceId,
 } from './catalog'
 
-export const EDITOR_PREFS_KEY = 'pb-editor-prefs'
+export const EDITOR_PREFS_KEY = 'instatic-editor-prefs'
 
 // ---------------------------------------------------------------------------
 // Schema and defaults — derived from the catalog

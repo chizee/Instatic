@@ -3,4 +3,4 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: ${PAGE_BUILDER_IMAGE:-page-builder-cms:local}
+    image: ${INSTATIC_IMAGE:-instatic-cms:local}

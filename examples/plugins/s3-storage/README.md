@@ -1,6 +1,6 @@
 # Amazon S3 Storage
 
-Official Page Builder plugin that routes uploaded media to Amazon S3 (or any S3-compatible backend — Cloudflare R2, Backblaze B2, DigitalOcean Spaces, MinIO).
+Official Instatic plugin that routes uploaded media to Amazon S3 (or any S3-compatible backend — Cloudflare R2, Backblaze B2, DigitalOcean Spaces, MinIO).
 
 ## What it does
 
@@ -17,7 +17,7 @@ The plugin never touches the bytes of an upload. The host's executor (`server/ha
 ## Build
 
 ```bash
-bun pb-plugin build examples/plugins/s3-storage
+bun instatic-plugin build examples/plugins/s3-storage
 ```
 
 Produces `examples/plugins/s3-storage.plugin.zip` (~13 KB).
@@ -48,13 +48,13 @@ Minimum policy for a dedicated IAM user:
   "Version": "2012-10-17",
   "Statement": [
     {
-      "Sid": "PageBuilderS3Bucket",
+      "Sid": "InstaticS3Bucket",
       "Effect": "Allow",
       "Action": "s3:ListBucket",
       "Resource": "arn:aws:s3:::YOUR-BUCKET"
     },
     {
-      "Sid": "PageBuilderS3Objects",
+      "Sid": "InstaticS3Objects",
       "Effect": "Allow",
       "Action": [
         "s3:PutObject",
@@ -85,7 +85,7 @@ admin POST /admin/api/cms/media          (multipart with file=)
 host: magic-byte sniff → dispatchUpload(role: 'original', bytes, mime)
     │
     ▼
-host: getElectedAdapterId('original') → 'pagebuilder.s3-storage.adapter'
+host: getElectedAdapterId('original') → 'instatic.s3-storage.adapter'
     │
     ▼
 adapter.beginWrite({ mimeType, suggestedStoragePath, contentHash, sizeBytes })
@@ -105,7 +105,7 @@ host: executeUploadPlan(plan, bytes)
 adapter.finalizeWrite({ storagePath, uploadReceipts: [{ etag }] })
     │  ── runs in the QuickJS sandbox ──
     │  returns { publicUrl }   (the absolute S3 URL, or the
-    │                            host-substituted /_pb/media/... URL
+    │                            host-substituted /_instatic/media/... URL
     │                            for signed-redirect mode)
     │
     ▼
@@ -124,7 +124,7 @@ browser GET <img src="https://my-bucket.s3.us-east-1.amazonaws.com/originals/abc
 **`signed-redirect` mode** (private bucket):
 
 ```
-browser GET <img src="/_pb/media/pagebuilder.s3-storage.adapter/originals%2Fabc-hero.jpg">
+browser GET <img src="/_instatic/media/instatic.s3-storage.adapter/originals%2Fabc-hero.jpg">
    ▼
 host's tryServeMediaRedirect:
    resolves adapter → adapter.getReadUrl(storagePath, 3600)

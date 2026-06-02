@@ -16,7 +16,7 @@ Use these whenever a task asks you to smoke-test the admin UI in a browser. Do n
 
 ## What this project is
 
-A self-hosted, open-source CMS with a built-in visual page builder and a first-class plugin system. One Bun server backed by either Postgres or SQLite (selected by `DATABASE_URL`). The output is intentionally plain, semantic HTML with hand-clean CSS — no framework runtimes injected into published pages.
+A self-hosted, open-source CMS with a built-in visual editor and a first-class plugin system. One Bun server backed by either Postgres or SQLite (selected by `DATABASE_URL`). The output is intentionally plain, semantic HTML with hand-clean CSS — no framework runtimes injected into published pages.
 
 The product is **self-hosted only**. The codebase should not carry assumptions about multi-tenant SaaS operation.
 
@@ -45,7 +45,7 @@ Read [`docs/architecture.md`](docs/architecture.md) for the system overview, [`d
 ```
 server/         Bun server: router, handlers, repositories, auth, plugins, publish, db
 src/admin/      Admin app (React) — shell, workspaces, plugin host UI
-src/admin/pages/site/   Visual page builder (canvas, panels, toolbar, editor store)
+src/admin/pages/site/   Visual editor (canvas, panels, toolbar, editor store)
 src/core/       Engine: page tree, publisher, plugin SDK + runtime, persistence
 src/modules/    First-party block modules (container, text, image, button, …)
 src/ui/         Shared UI primitives (Button, Input, Tree, icons, cn)

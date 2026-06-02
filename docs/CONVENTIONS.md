@@ -37,7 +37,7 @@ Top-level docs are **long-lived and authoritative**. They describe the system as
 
 ### 2. Features (`docs/features/*.md`)
 
-One doc per first-class feature. "Feature" means a coherent capability with a name a user would recognize: plugin system, page builder, publisher, media, visual components, auth, etc.
+One doc per first-class feature. "Feature" means a coherent capability with a name a user would recognize: plugin system, visual editor, publisher, media, visual components, auth, etc.
 
 Feature docs explain **what the feature is, how it's built, where its code lives, and how to extend it**. They are not specs of what to build — they are descriptions of what exists.
 

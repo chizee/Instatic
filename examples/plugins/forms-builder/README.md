@@ -1,6 +1,6 @@
 # Forms Builder
 
-A drag-and-drop form builder for Page Builder CMS. Drop canvas modules onto your pages to create contact forms, surveys, or any HTML form — submissions are stored, spam-filtered, and delivered by email.
+A drag-and-drop form builder for Instatic. Drop canvas modules onto your pages to create contact forms, surveys, or any HTML form — submissions are stored, spam-filtered, and delivered by email.
 
 ---
 
@@ -17,7 +17,7 @@ A drag-and-drop form builder for Page Builder CMS. Drop canvas modules onto your
 
 1. Build the plugin zip from the repo root:
    ```sh
-   bun run pb-plugin build examples/plugins/forms-builder
+   bun run instatic-plugin build examples/plugins/forms-builder
    ```
 2. Go to **Admin → Plugins → Install** and upload `examples/plugins/forms-builder.plugin.zip`.
 3. Activate the plugin.

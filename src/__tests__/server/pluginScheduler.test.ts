@@ -85,7 +85,7 @@ describe('computeNextRun', () => {
 // ---------------------------------------------------------------------------
 
 async function setupDb(): Promise<{ db: DbClient; cleanup: () => Promise<void> }> {
-  const dir = await mkdtemp(join(tmpdir(), 'pb-scheduler-'))
+  const dir = await mkdtemp(join(tmpdir(), 'instatic-scheduler-'))
   const dbPath = join(dir, 'test.db')
   const db = createSqliteClient(dbPath)
   await runMigrations(db, sqliteMigrations)

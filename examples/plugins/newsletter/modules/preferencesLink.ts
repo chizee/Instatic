@@ -1,5 +1,5 @@
 /**
- * pagebuilder.newsletter.preferences-link
+ * instatic.newsletter.preferences-link
  *
  * Renders an anchor tag with the `{{preferences_url}}` placeholder for use
  * inside broadcast HTML bodies. The email-send logic substitutes the
@@ -13,7 +13,7 @@
  */
 import { control, defineModule, html } from '@core/plugin-sdk'
 
-const PLUGIN_ID = 'pagebuilder.newsletter'
+const PLUGIN_ID = 'instatic.newsletter'
 
 export default defineModule({
   id: `${PLUGIN_ID}.preferences-link`,

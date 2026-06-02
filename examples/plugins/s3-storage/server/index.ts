@@ -23,7 +23,7 @@
  *     adapter down via `mediaStorageRegistry.unregisterPlugin(pluginId)`
  *     without us needing to do anything explicit here.
  */
-import type { ServerPluginApi, ServerPluginModule } from '@pagebuilder/plugin-sdk'
+import type { ServerPluginApi, ServerPluginModule } from '@instatic/plugin-sdk'
 import { buildS3Adapter } from './adapter'
 
 const mod: ServerPluginModule = {

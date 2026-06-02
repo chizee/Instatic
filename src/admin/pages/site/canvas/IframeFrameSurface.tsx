@@ -54,7 +54,7 @@
  * inside the iframe never bubble to the parent's `window`, so the parent's
  * pointermove / up / cancel listeners go silent the moment the cursor
  * enters a frame. To fix that, `useCanvasReorderDrag` sets
- * `data-pb-canvas-dragging` and `data-pb-canvas-dragging-pointer-id` on
+ * `data-instatic-canvas-dragging` and `data-instatic-canvas-dragging-pointer-id` on
  * the parent's `<html>` while a drag is in flight. Every iframe reads
  * those flags inside its pointer handler and, when set, forwards the
  * three pointer event types to the parent (using the original drag's
@@ -147,7 +147,7 @@ export interface IframeFrameSurfaceHandle {
   contentBody: HTMLBodyElement | null
 }
 
-type IframeWithCleanup = HTMLIFrameElement & { _pbCleanup?: () => void }
+type IframeWithCleanup = HTMLIFrameElement & { _instaticCleanup?: () => void }
 
 export const IframeFrameSurface = forwardRef<IframeFrameSurfaceHandle, IframeFrameSurfaceProps>(
   function IframeFrameSurface(
@@ -193,8 +193,8 @@ export const IframeFrameSurface = forwardRef<IframeFrameSurfaceHandle, IframeFra
     const attachIframeDoc = (iframe: HTMLIFrameElement | null) => {
       const previousIframe = iframeRef.current as IframeWithCleanup | null
       if (previousIframe && previousIframe !== iframe) {
-        previousIframe._pbCleanup?.()
-        previousIframe._pbCleanup = undefined
+        previousIframe._instaticCleanup?.()
+        previousIframe._instaticCleanup = undefined
       }
       iframeRef.current = iframe
       if (!iframe) {
@@ -211,9 +211,9 @@ export const IframeFrameSurface = forwardRef<IframeFrameSurfaceHandle, IframeFra
       // function may be called again with null on unmount) doesn't leak
       // listeners.
       const cleanableIframe = iframe as IframeWithCleanup
-      cleanableIframe._pbCleanup = () => {
+      cleanableIframe._instaticCleanup = () => {
         iframe.removeEventListener('load', tryCapture)
-        cleanableIframe._pbCleanup = undefined
+        cleanableIframe._instaticCleanup = undefined
       }
     }
 
@@ -427,7 +427,7 @@ export const IframeFrameSurface = forwardRef<IframeFrameSurfaceHandle, IframeFra
     //      pointer down fires in the parent, then as the cursor enters an
     //      iframe its pointermove/up events go to the iframe instead of
     //      bubbling up to `window`. `useCanvasReorderDrag` sets
-    //      `data-pb-canvas-dragging` on `<html>` so each iframe knows to
+    //      `data-instatic-canvas-dragging` on `<html>` so each iframe knows to
     //      forward pointermove / up / cancel events while the drag is in
     //      flight. The drag id is also stashed so we can mint forwarded
     //      events with the matching pointerId.
@@ -489,8 +489,8 @@ export const IframeFrameSurface = forwardRef<IframeFrameSurfaceHandle, IframeFra
       const isCanvasDragActive = (): { pointerId: number } | null => {
         const html = iframe.ownerDocument?.documentElement
         if (!html) return null
-        if (html.dataset.pbCanvasDragging !== '1') return null
-        const id = Number(html.dataset.pbCanvasDraggingPointerId ?? NaN)
+        if (html.dataset.instaticCanvasDragging !== '1') return null
+        const id = Number(html.dataset.instaticCanvasDraggingPointerId ?? NaN)
         return Number.isFinite(id) ? { pointerId: id } : { pointerId: 0 }
       }
       // True while a pan gesture started inside this iframe is still in
@@ -689,10 +689,10 @@ function applyIframeBodyReset(
   if (interaction === 'live') return
   iframeDoc.documentElement.style.height = 'auto'
   iframeDoc.body.style.height = 'auto'
-  let chrome = iframeDoc.head.querySelector('style[data-pb-canvas-chrome]')
+  let chrome = iframeDoc.head.querySelector('style[data-instatic-canvas-chrome]')
   if (!chrome) {
     chrome = iframeDoc.createElement('style')
-    chrome.setAttribute('data-pb-canvas-chrome', '')
+    chrome.setAttribute('data-instatic-canvas-chrome', '')
     chrome.textContent = CANVAS_CHROME_CSS
     iframeDoc.head.appendChild(chrome)
   }

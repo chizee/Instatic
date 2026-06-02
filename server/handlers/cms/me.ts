@@ -114,7 +114,7 @@ export async function handleMeRoutes(
     return jsonResponse({
       secret,
       otpauthUrl: totpProvisioningUri({
-        issuer: 'Page Builder CMS',
+        issuer: 'Instatic',
         accountName: user.email,
         secret,
       }),

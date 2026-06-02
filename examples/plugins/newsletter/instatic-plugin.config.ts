@@ -1,10 +1,10 @@
 /**
- * Newsletter plugin — Page Builder plugin configuration.
+ * Newsletter plugin — Instatic plugin configuration.
  *
  * Sends newsletters via Resend: double opt-in, list management, broadcast
  * composer, scheduled sends, delivery tracking, and webhook-driven analytics.
  *
- * Build:   bun run pb-plugin build examples/plugins/newsletter
+ * Build:   bun run instatic-plugin build examples/plugins/newsletter
  * Install: upload examples/plugins/newsletter.plugin.zip from /admin/plugins
  */
 import { definePlugin, permissions } from '@core/plugin-sdk'
@@ -12,12 +12,12 @@ import subscribeForm from './modules/subscribeForm'
 import preferencesLink from './modules/preferencesLink'
 
 export default definePlugin({
-  id: 'pagebuilder.newsletter',
+  id: 'instatic.newsletter',
   name: 'Newsletter',
   version: '0.1.0',
   description:
     'Email newsletter plugin powered by Resend. Subscriber management, double opt-in, list segmentation, broadcast composer, scheduled sends, and webhook-driven open/click tracking.',
-  author: { name: 'Page Builder', email: 'plugins@pagebuilder.dev' },
+  author: { name: 'Instatic', email: 'plugins@instatic.dev' },
   license: 'MIT',
   keywords: ['newsletter', 'email', 'resend', 'subscribers', 'broadcasts'],
   icon: 'icon.svg',

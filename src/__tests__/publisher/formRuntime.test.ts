@@ -15,7 +15,7 @@ const PAGE_WITH_CMS_FORM = `<!doctype html>
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'none'; worker-src 'none'; style-src 'self'; img-src 'self' data:; connect-src 'self';">
 </head>
 <body>
-<form data-pb-form-mode="cms" data-pb-form-id="contact"></form>
+<form data-instatic-form-mode="cms" data-instatic-form-id="contact"></form>
 </body>
 </html>`
 
@@ -24,16 +24,16 @@ describe('published form runtime', () => {
     const html = injectFormRuntime(PAGE_WITH_CMS_FORM, 'page-home')
 
     expect(html).toContain(`src="${FORM_RUNTIME_PATH}"`)
-    expect(html).toContain('data-pb-form-runtime')
-    expect(html).toContain('data-pb-page-id="page-home"')
-    expect(html).toContain('data-pb-page-token=')
+    expect(html).toContain('data-instatic-form-runtime')
+    expect(html).toContain('data-instatic-page-id="page-home"')
+    expect(html).toContain('data-instatic-page-token=')
     expect(html).toContain("script-src 'self';")
     expect(html).toContain("worker-src 'none';")
   })
 
   it('does not inject anything when no CMS-native form is present', () => {
     const html = injectFormRuntime(
-      PAGE_WITH_CMS_FORM.replace('data-pb-form-mode="cms"', 'data-pb-form-mode="external"'),
+      PAGE_WITH_CMS_FORM.replace('data-instatic-form-mode="cms"', 'data-instatic-form-mode="external"'),
       'page-home',
     )
 
@@ -55,18 +55,18 @@ describe('published form runtime', () => {
 
     expect(response.headers.get('content-type')).toBe('text/javascript; charset=utf-8')
     expect(response.headers.get('cache-control')).toBe('public, max-age=3600')
-    expect(body).toContain('/_pb/form/challenge')
-    expect(body).toContain('/_pb/form/submit')
+    expect(body).toContain('/_instatic/form/challenge')
+    expect(body).toContain('/_instatic/form/submit')
     expect(body).toContain('pageToken')
   })
 
   it('prefetches the submit challenge on attach and reuses it on submit', async () => {
     document.body.innerHTML = `
-      <script data-pb-form-runtime data-pb-page-id="page-home"></script>
-      <form data-pb-form-mode="cms" data-pb-form-id="contact" data-pb-page-token="page-token">
+      <script data-instatic-form-runtime data-instatic-page-id="page-home"></script>
+      <form data-instatic-form-mode="cms" data-instatic-form-id="contact" data-instatic-page-token="page-token">
         <input name="email" value="ai@example.com">
         <button type="submit">Send</button>
-        <p data-pb-form-message="status"></p>
+        <p data-instatic-form-message="status"></p>
       </form>
     `
 
@@ -82,7 +82,7 @@ describe('published form runtime', () => {
       const payload = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>
       calls.push({ path, payload })
 
-      if (path === '/_pb/form/challenge') {
+      if (path === '/_instatic/form/challenge') {
         return new Response(JSON.stringify({
           token: 'prefetched-token',
           challenge: 'prefetched-challenge',
@@ -103,15 +103,15 @@ describe('published form runtime', () => {
       await importRuntimeScript(FORM_RUNTIME_JS)
       await flushRuntime()
 
-      expect(calls.map((call) => call.path)).toEqual(['/_pb/form/challenge'])
+      expect(calls.map((call) => call.path)).toEqual(['/_instatic/form/challenge'])
 
       const form = document.querySelector('form')
       expect(form).not.toBeNull()
       form?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
       await waitForCalls(calls, 2)
 
-      expect(calls[0].path).toBe('/_pb/form/challenge')
-      expect(calls[1].path).toBe('/_pb/form/submit')
+      expect(calls[0].path).toBe('/_instatic/form/challenge')
+      expect(calls[1].path).toBe('/_instatic/form/submit')
       expect(calls[1].payload.token).toBe('prefetched-token')
       expect(calls[1].payload.challenge).toBe('prefetched-challenge')
     } finally {

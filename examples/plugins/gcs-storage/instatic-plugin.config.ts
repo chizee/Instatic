@@ -1,5 +1,5 @@
 /**
- * Google Cloud Storage adapter — official Page Builder plugin.
+ * Google Cloud Storage adapter — official Instatic plugin.
  *
  * Uses GCS's S3-compatible XML API: SigV4 with `AWS4-HMAC-SHA256`,
  * service `s3` in the credential scope, region `auto`, addressing
@@ -12,18 +12,18 @@
  * use — GCS's S3-compat surface intentionally accepts AWS4-HMAC-SHA256
  * signatures verbatim, so there's no per-provider crypto fork.
  *
- * Build:   bun pb-plugin build examples/plugins/gcs-storage
+ * Build:   bun instatic-plugin build examples/plugins/gcs-storage
  * Install: upload `examples/plugins/gcs-storage.plugin.zip` from /admin/plugins
  */
-import { definePlugin, permissions } from '@pagebuilder/plugin-sdk'
+import { definePlugin, permissions } from '@instatic/plugin-sdk'
 
 export default definePlugin({
-  id: 'pagebuilder.gcs-storage',
+  id: 'instatic.gcs-storage',
   name: 'Google Cloud Storage',
   version: '1.0.0',
   description:
     'Stores uploaded media on Google Cloud Storage via the S3-compatible XML API. Pre-signed PUTs upload directly from the host; pre-signed GETs serve private buckets via a host redirect.',
-  author: { name: 'Page Builder', email: 'plugins@pagebuilder.dev' },
+  author: { name: 'Instatic', email: 'plugins@instatic.dev' },
   license: 'MIT',
   keywords: ['storage', 'gcs', 'google-cloud', 'media', 'adapter'],
   icon: 'icon.svg',

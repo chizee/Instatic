@@ -1,5 +1,5 @@
 /**
- * Azure Blob Storage adapter — official Page Builder plugin.
+ * Azure Blob Storage adapter — official Instatic plugin.
  *
  * Unlike S3 / R2 / GCS, Azure Blob does NOT speak S3 SigV4 — it uses
  * its own Shared Access Signature (SAS) scheme. SAS signing is
@@ -12,18 +12,18 @@
  * container-scoped for verify-via-list). API version 2024-11-04 is what
  * we sign with — stable, supports every field this plugin uses.
  *
- * Build:   bun pb-plugin build examples/plugins/azure-blob-storage
+ * Build:   bun instatic-plugin build examples/plugins/azure-blob-storage
  * Install: upload `examples/plugins/azure-blob-storage.plugin.zip` from /admin/plugins
  */
-import { definePlugin, permissions } from '@pagebuilder/plugin-sdk'
+import { definePlugin, permissions } from '@instatic/plugin-sdk'
 
 export default definePlugin({
-  id: 'pagebuilder.azure-blob-storage',
+  id: 'instatic.azure-blob-storage',
   name: 'Azure Blob Storage',
   version: '1.0.0',
   description:
     'Stores uploaded media on Azure Blob Storage using Shared Access Signatures (SAS). Pre-signed PUTs upload directly from the host; pre-signed GETs serve private containers via a host redirect.',
-  author: { name: 'Page Builder', email: 'plugins@pagebuilder.dev' },
+  author: { name: 'Instatic', email: 'plugins@instatic.dev' },
   license: 'MIT',
   keywords: ['storage', 'azure', 'blob', 'media', 'adapter'],
   icon: 'icon.svg',

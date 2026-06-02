@@ -5,8 +5,8 @@
  * /search route, which isn't reachable via usePluginRoutes()).
  */
 import { useCallback, useState } from 'react'
-import { Alert, Button, Card, Heading, Input, Stack, Text } from '@pagebuilder/host-ui'
-import { usePluginRoutes } from '@pagebuilder/host-hooks'
+import { Alert, Button, Card, Heading, Input, Stack, Text } from '@instatic/host-ui'
+import { usePluginRoutes } from '@instatic/host-hooks'
 import { SearchResponseSchema, type SearchHit } from '../apiSchemas'
 import styles from './DocumentsList.module.css'
 

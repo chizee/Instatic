@@ -12,7 +12,7 @@
  *   • `api.cms.media.registerStorageAdapter` — registers the adapter
  *     shim with the host.
  */
-import type { ServerPluginApi, ServerPluginModule } from '@pagebuilder/plugin-sdk'
+import type { ServerPluginApi, ServerPluginModule } from '@instatic/plugin-sdk'
 import { buildR2Adapter } from './adapter'
 
 const mod: ServerPluginModule = {

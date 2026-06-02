@@ -105,7 +105,7 @@ describe('Site Explorer architecture', () => {
     expect(uiSlice.includes('setFilesPanelOpen')).toBe(false)
     expect(layoutStorage.includes("'files'")).toBe(false)
     expect(layoutStorage.includes('readLegacyPanelPosition')).toBe(false)
-    expect(layoutStorage.includes('pb-${panelId}-panel-pos')).toBe(false)
+    expect(layoutStorage.includes('instatic-${panelId}-panel-pos')).toBe(false)
     expect(layoutPersistence.includes('panels?.files')).toBe(false)
   })
 

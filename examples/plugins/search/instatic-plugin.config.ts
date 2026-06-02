@@ -4,7 +4,7 @@
  * Provides full-text search for published pages via MeiliSearch or Typesense.
  * Indexes are built on publish and can be rebuilt on demand from the admin.
  *
- * Run `bun run pb-plugin build examples/plugins/search` to produce the
+ * Run `bun run instatic-plugin build examples/plugins/search` to produce the
  * runtime zip at `examples/plugins/search.plugin.zip`.
  */
 import { definePlugin, permissions } from '@core/plugin-sdk'
@@ -12,12 +12,12 @@ import searchBox from './modules/searchBox'
 import searchResults from './modules/searchResults'
 
 export default definePlugin({
-  id: 'pagebuilder.search',
+  id: 'instatic.search',
   name: 'Search',
   version: '1.0.0',
   description:
     'Full-text search for published pages. Indexes page content via MeiliSearch or Typesense and exposes a fast public search API.',
-  author: { name: 'Page Builder', email: 'hello@davidbabinec.com' },
+  author: { name: 'Instatic', email: 'hello@davidbabinec.com' },
   license: 'MIT',
   keywords: ['search', 'fulltext', 'meilisearch', 'typesense', 'index'],
   icon: 'icon.svg',
@@ -117,8 +117,8 @@ export default definePlugin({
       id: 'indexName',
       label: 'Index name',
       type: 'text',
-      default: 'pagebuilder',
-      placeholder: 'pagebuilder',
+      default: 'instatic',
+      placeholder: 'instatic',
       description: 'Name of the index / collection in the search engine.',
     },
     {

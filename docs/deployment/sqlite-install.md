@@ -1,6 +1,6 @@
 # SQLite deployment (default)
 
-**SQLite is the default database engine for self-hosting Page Builder CMS.** It's a first-class adapter alongside Postgres — same code, same migrations, same image — selected by `DATABASE_URL`. For most users this is the right choice: one container, file-based backups, near-zero ops surface.
+**SQLite is the default database engine for self-hosting Instatic.** It's a first-class adapter alongside Postgres — same code, same migrations, same image — selected by `DATABASE_URL`. For most users this is the right choice: one container, file-based backups, near-zero ops surface.
 
 If you have a multi-author editorial team or need to run more than one app container, see [the deployment overview](README.md#advanced-postgres) for when to upgrade to Postgres instead.
 
@@ -10,7 +10,7 @@ If you have a multi-author editorial team or need to run more than one app conta
 docker compose -f compose.prod.yml -f compose.sqlite.yml up -d
 ```
 
-That's the full install. **No `.env` file required.** SQLite mode disables the Postgres service entirely (`compose.sqlite.yml` puts it in the `_disabled` profile), and every other variable in `compose.prod.yml` has a working default. Copy `.env.production.example` only if you want to customize `HOST_PORT`, the image tag (`PAGE_BUILDER_IMAGE`), or set `DOMAIN` for TLS.
+That's the full install. **No `.env` file required.** SQLite mode disables the Postgres service entirely (`compose.sqlite.yml` puts it in the `_disabled` profile), and every other variable in `compose.prod.yml` has a working default. Copy `.env.production.example` only if you want to customize `HOST_PORT`, the image tag (`INSTATIC_IMAGE`), or set `DOMAIN` for TLS.
 
 Until the public Docker image is published, build the image from source instead:
 

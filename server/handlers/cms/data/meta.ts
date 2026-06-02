@@ -1,5 +1,5 @@
 /**
- * Meta endpoint — lean binding catalog for the page-builder picker.
+ * Meta endpoint — lean binding catalog for the instatic picker.
  *
  *   GET /admin/api/cms/data/_meta
  *

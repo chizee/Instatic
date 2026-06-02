@@ -47,7 +47,7 @@ export function scriptTagsForRuntimeAssets(
       const integrity = asset.integrity
         ? ` integrity="${escapeAttribute(asset.integrity)}" crossorigin="anonymous"`
         : ''
-      return `  <script type="module" src="${escapeAttribute(asset.src.trim())}" data-pb-runtime-script="${escapeAttribute(asset.fileId)}"${integrity}></script>`
+      return `  <script type="module" src="${escapeAttribute(asset.src.trim())}" data-instatic-runtime-script="${escapeAttribute(asset.fileId)}"${integrity}></script>`
     })
     .join('\n')
 }

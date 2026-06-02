@@ -1,6 +1,6 @@
 # Google Cloud Storage
 
-Official Page Builder plugin that routes uploaded media to **Google Cloud Storage** via its S3-compatible XML API.
+Official Instatic plugin that routes uploaded media to **Google Cloud Storage** via its S3-compatible XML API.
 
 ## Why this plugin
 
@@ -24,7 +24,7 @@ Use this plugin when:
 ## Build
 
 ```bash
-bun pb-plugin build examples/plugins/gcs-storage
+bun instatic-plugin build examples/plugins/gcs-storage
 ```
 
 Produces `examples/plugins/gcs-storage.plugin.zip` (~14 KB).
@@ -41,7 +41,7 @@ Produces `examples/plugins/gcs-storage.plugin.zip` (~14 KB).
    - **Signed redirect** (recommended) — bucket stays private; the host signs read URLs on demand.
    - **Public URL** — set the bucket's IAM to `allUsers: Storage Object Viewer`, OR front it with Cloud CDN + a custom domain.
 
-## Install in Page Builder
+## Install in Instatic
 
 1. Upload `gcs-storage.plugin.zip` via `/admin/plugins` and approve the requested permissions:
    - `media.storage.adapter`

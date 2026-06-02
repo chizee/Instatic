@@ -1,6 +1,6 @@
 # Azure Blob Storage
 
-Official Page Builder plugin that routes uploaded media to **Azure Blob Storage** using Shared Access Signatures (SAS).
+Official Instatic plugin that routes uploaded media to **Azure Blob Storage** using Shared Access Signatures (SAS).
 
 ## Why this plugin
 
@@ -24,7 +24,7 @@ Use this plugin when:
 ## Build
 
 ```bash
-bun pb-plugin build examples/plugins/azure-blob-storage
+bun instatic-plugin build examples/plugins/azure-blob-storage
 ```
 
 Produces `examples/plugins/azure-blob-storage.plugin.zip`.
@@ -38,7 +38,7 @@ Produces `examples/plugins/azure-blob-storage.plugin.zip`.
    - **Signed redirect** (recommended) — container stays private; the host signs read URLs on demand.
    - **Public URL** — set the container's public access level to "Blob" via the portal, OR front it with Azure Front Door + a custom domain.
 
-## Install in Page Builder
+## Install in Instatic
 
 1. Upload `azure-blob-storage.plugin.zip` via `/admin/plugins` and approve the requested permissions:
    - `media.storage.adapter`

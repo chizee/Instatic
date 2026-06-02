@@ -11,7 +11,7 @@ const fakeDb = createFakeDb(async (sql) => {
 })
 
 function createStaticDir(): string {
-  const dir = mkdtempSync(join(tmpdir(), 'page-builder-static-'))
+  const dir = mkdtempSync(join(tmpdir(), 'instatic-static-'))
   mkdirSync(join(dir, 'assets'))
   writeFileSync(join(dir, 'index.html'), '<div id="root">admin app</div>')
   writeFileSync(join(dir, 'assets', 'app.js'), 'console.log("admin")')
@@ -52,7 +52,7 @@ describe('self-hosted admin static serving', () => {
   })
 
   it('serves uploaded media files from /uploads', async () => {
-    const uploadsDir = mkdtempSync(join(tmpdir(), 'page-builder-uploads-'))
+    const uploadsDir = mkdtempSync(join(tmpdir(), 'instatic-uploads-'))
     try {
       writeFileSync(join(uploadsDir, 'hero.png'), 'image-bytes')
 
@@ -79,7 +79,7 @@ describe('self-hosted admin static serving', () => {
   // any non-inert MIME prevents top-level navigation from rendering it as
   // HTML on the admin origin.
   it('forces attachment disposition for non-inert MIMEs in /uploads (F-0002)', async () => {
-    const uploadsDir = mkdtempSync(join(tmpdir(), 'page-builder-uploads-'))
+    const uploadsDir = mkdtempSync(join(tmpdir(), 'instatic-uploads-'))
     try {
       writeFileSync(join(uploadsDir, 'pwn.html'), '<script>alert(1)</script>')
 
@@ -100,7 +100,7 @@ describe('self-hosted admin static serving', () => {
   })
 
   it('forces attachment disposition for SVG in /uploads (XSS gadget)', async () => {
-    const uploadsDir = mkdtempSync(join(tmpdir(), 'page-builder-uploads-'))
+    const uploadsDir = mkdtempSync(join(tmpdir(), 'instatic-uploads-'))
     try {
       writeFileSync(
         join(uploadsDir, 'evil.svg'),

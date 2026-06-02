@@ -1,5 +1,5 @@
 /**
- * `pb-plugin lint` — pre-publish health check for a plugin source tree.
+ * `instatic-plugin lint` — pre-publish health check for a plugin source tree.
  *
  * Validates the manifest, the declared entrypoints' source files, and (when
  * a `dist/` directory exists) the bundled output. Returns a list of human-
@@ -7,14 +7,14 @@
  * finding has severity `error`.
  *
  * Checks performed:
- *   • `pb-plugin.config.ts` exists, evaluates, default-exports a plugin definition
+ *   • `instatic-plugin.config.ts` exists, evaluates, default-exports a plugin definition
  *   • Manifest validates against the host's TypeBox schema
  *   • Every entrypoint declared in the manifest has a source file on disk
  *     (or a built artifact in `dist/`)
  *   • Plugin source files in `server/` and `modules/` do not import Node/Bun
  *     primitives (`'node:*'`, `'bun:*'`, `require(`, `process.binding`, …)
  *   • Bundled outputs in `dist/server/index.js` and `dist/modules/index.js`
- *     pass the same scan (catches authors that bypass `pb-plugin build`)
+ *     pass the same scan (catches authors that bypass `instatic-plugin build`)
  *   • If `network.outbound` is requested, `networkAllowedHosts` is non-empty
  *
  * The intent: catch every common authoring mistake BEFORE the developer
@@ -50,7 +50,7 @@ const SANDBOXED_ENTRYPOINTS: ReadonlyArray<'server' | 'modules'> = ['server', 'm
 
 /**
  * Run all lint checks for a plugin source directory. Throws on a corrupt
- * `pb-plugin.config.ts`; everything else is reported as a finding so the
+ * `instatic-plugin.config.ts`; everything else is reported as a finding so the
  * CLI can list multiple problems in one pass.
  */
 export async function lintPlugin(sourceDir: string): Promise<LintResult> {
@@ -65,7 +65,7 @@ export async function lintPlugin(sourceDir: string): Promise<LintResult> {
         severity: 'error',
         scope: 'config',
         message: err instanceof Error ? err.message : String(err),
-        file: 'pb-plugin.config.ts',
+        file: 'instatic-plugin.config.ts',
       }],
     }
   }
@@ -250,7 +250,7 @@ export async function lintPlugin(sourceDir: string): Promise<LintResult> {
         findings.push({
           severity: 'error',
           scope: `bundle:${kind}`,
-          message: `bundled output references forbidden sandbox literal \`${offender.literal}\`. Re-run \`pb-plugin build\` and check imports.`,
+          message: `bundled output references forbidden sandbox literal \`${offender.literal}\`. Re-run \`instatic-plugin build\` and check imports.`,
           file: `dist/${kind}/index.js`,
         })
       }

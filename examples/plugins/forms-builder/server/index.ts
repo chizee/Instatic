@@ -106,7 +106,7 @@ const mod: ServerPluginModule = {
         return { ok: true }
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err)
-        console.error('[plugin:pagebuilder.forms] Resend failed:', err)
+        console.error('[plugin:instatic.forms] Resend failed:', err)
         await submissions
           .update(id, { status: 'failed', errorMessage: message })
           .catch((_e) => { /* non-fatal */ })

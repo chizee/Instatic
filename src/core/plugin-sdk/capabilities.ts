@@ -91,7 +91,7 @@ export const PLUGIN_CAPABILITIES: PluginCapability[] = [
   },
   {
     permission: 'modules.register',
-    label: 'Register page builder modules',
+    label: 'Register visual editor modules',
     description: 'Allows the plugin to ship new modules that show up in the canvas module library.',
     risk: 'high',
     surfaces: ['editor', 'manifest'],

@@ -98,7 +98,7 @@ The parent calls this handle from the title-Enter handler, the notch actions, an
 
 ### Why not drag-and-drop block reorder
 
-The content editor is a document surface (one ProseMirror doc), not a page builder. Block reorder is done via cut/paste or keyboard move. Drag handles are the right primitive for the visual page builder, not a writing surface.
+The content editor is a document surface (one ProseMirror doc), not a visual editor. Block reorder is done via cut/paste or keyboard move. Drag handles are the right primitive for the visual editor, not a writing surface.
 
 ---
 

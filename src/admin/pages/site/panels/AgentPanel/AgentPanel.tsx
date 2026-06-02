@@ -444,7 +444,7 @@ function ToolCallBadge({ toolCall }: { toolCall: AgentToolCall }) {
 }
 
 function formatToolCallType(actionType: string): string {
-  return actionType.replace(/^mcp__page_builder__/, '')
+  return actionType.replace(/^mcp__instatic__/, '')
 }
 
 function formatActionLabel(actionType: string, params: unknown): string {

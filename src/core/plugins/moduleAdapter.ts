@@ -174,7 +174,7 @@ export function pluginModuleToHostModule(
         return { html: out.html, css: out.css }
       } catch (err) {
         console.error(`[plugin-module:${definition.id}] render() threw:`, err)
-        return { html: `<!-- pb: plugin module "${definition.id}" render failed -->` }
+        return { html: `<!-- instatic: plugin module "${definition.id}" render failed -->` }
       }
     },
   }

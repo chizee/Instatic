@@ -11,7 +11,7 @@
  * Scheduled job ('send-scheduled', every 5 min):
  *   Finds broadcasts with status='scheduled' and scheduledAt ≤ now; sends each.
  */
-import type { ServerPluginApi } from '@pagebuilder/plugin-sdk'
+import type { ServerPluginApi } from '@instatic/plugin-sdk'
 import { sendEmail, sendBatch } from './resend'
 import { renderBroadcastEmail } from './templates'
 import type { SubscriberData } from './subscribe'

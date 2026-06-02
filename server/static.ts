@@ -327,7 +327,7 @@ const LOGIN_SKELETON_HTML = `<div class="login-skeleton" data-initial-login-skel
 //     any module script downloads or evaluates. The fetches start at
 //     ~5 ms instead of ~350 ms.
 //
-// The fetches' result promises live on `window.__pbBootPromises` so
+// The fetches' result promises live on `window.__instaticBootPromises` so
 // `useAdminBoot` can consume them inside its `useEffect` and skip the
 // network entirely (the response is already in hand).
 //
@@ -344,7 +344,7 @@ const BOOT_API_KICKOFF = `
               return r.json();
             });
         };
-        window.__pbBootPromises = {
+        window.__instaticBootPromises = {
           setupStatus: json('/admin/api/cms/setup/status'),
           // /me is allowed to fail (401 when unauthenticated) — swallow
           // here so the await in useAdminBoot doesn't see a rejected
@@ -480,14 +480,14 @@ function buildPostLoginPrefetchHints(staticDir: string): string {
 //   - Workspace page chunks prefetch in browser idle time, so clicking
 //     between Site / Content / Data / etc. in the nav is instant — no
 //     Suspense loading screen flash.
-//   - `window.__pbAuthed = 1` flag tells the client this is the
+//   - `window.__instaticAuthed = 1` flag tells the client this is the
 //     authenticated path. The session cookie is `HttpOnly` so
 //     `document.cookie` can't see it; this flag lets `main.tsx` decide
 //     whether to `await import('./AuthenticatedAdmin')` BEFORE the first
 //     React mount (eliminates the post-Suspense concurrent re-render
 //     delay — see main.tsx for the full sequence).
 const AUTHED_FLAG_SCRIPT = `
-    <script>window.__pbAuthed = 1;</script>`
+    <script>window.__instaticAuthed = 1;</script>`
 function injectAuthenticatedHints(html: string, staticDir: string): string {
   const prefetchHints = buildPostLoginPrefetchHints(staticDir)
   // Use `</head>` as the anchor — it's guaranteed to be in the document

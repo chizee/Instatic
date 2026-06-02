@@ -6,7 +6,7 @@
  * range includes today). Computes delta percentages against the previous
  * equivalent window.
  */
-import type { ServerPluginApi, PluginRecord } from '@pagebuilder/plugin-sdk'
+import type { ServerPluginApi, PluginRecord } from '@instatic/plugin-sdk'
 
 export type DateRange = '1d' | '7d' | '30d' | '90d' | { from: string; to: string }
 

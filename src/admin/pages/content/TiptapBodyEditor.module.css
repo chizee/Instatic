@@ -167,13 +167,13 @@
 
 /* Media node */
 
-.proseSurface :global(figure[data-pb-media]) {
+.proseSurface :global(figure[data-instatic-media]) {
     margin: 0.9em 0;
     padding: 0;
 }
 
-.proseSurface :global(figure[data-pb-media] img),
-.proseSurface :global(figure[data-pb-media] video) {
+.proseSurface :global(figure[data-instatic-media] img),
+.proseSurface :global(figure[data-instatic-media] video) {
     display: block;
     width: 100%;
     height: auto;
@@ -181,7 +181,7 @@
     background: var(--editor-surface-3);
 }
 
-.proseSurface :global(figure[data-pb-media].ProseMirror-selectednode) {
+.proseSurface :global(figure[data-instatic-media].ProseMirror-selectednode) {
     outline: 2px solid var(--canvas-selection-ring);
     outline-offset: 4px;
     border-radius: var(--panel-radius);

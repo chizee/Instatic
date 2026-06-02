@@ -9,8 +9,8 @@ CMS-native forms let the visual editor build semantic HTML forms from primitive 
 - Presets in `src/admin/pages/site/module-picker/formPresets.ts` insert ordinary primitive nodes; nothing is hidden inside the preset.
 - Paste HTML, agent HTML insert/replace, and Super Import all use `@core/htmlImport`, so semantic HTML form tags import as these same primitive modules.
 - CMS form snapshots are derived at publish/request time by `src/core/forms/snapshot.ts`.
-- Public submissions go through `POST /_pb/form/challenge` and `POST /_pb/form/submit`, implemented in `server/forms/handler.ts`.
-- Published pages that contain CMS-native forms get `/_pb/form-runtime.js` injected by `server/forms/formRuntime.ts`.
+- Public submissions go through `POST /_instatic/form/challenge` and `POST /_instatic/form/submit`, implemented in `server/forms/handler.ts`.
+- Published pages that contain CMS-native forms get `/_instatic/form-runtime.js` injected by `server/forms/formRuntime.ts`.
 
 ## Editor Model
 
@@ -49,8 +49,8 @@ The published runtime finalizes auto labels in the browser because labels and in
 
 CMS-native submission is a two-step public flow:
 
-1. The runtime requests a short-lived challenge from `/_pb/form/challenge` when the form attaches in the browser.
-2. The runtime posts values plus the challenge to `/_pb/form/submit`.
+1. The runtime requests a short-lived challenge from `/_instatic/form/challenge` when the form attaches in the browser.
+2. The runtime posts values plus the challenge to `/_instatic/form/submit`.
 
 The submit handler reloads the latest published site snapshot, derives the form snapshot from the published page tree, requires the target `DataTable` to be a non-system `data` table, validates fields against that table, and creates a `data_rows` record with `createDataRow`.
 

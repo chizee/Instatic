@@ -75,7 +75,7 @@ export function bumpPublishVersion(): void {
 
 /**
  * Return the current publish version. Used by Layer C hole placeholders
- * (`data-pb-version`) and the hole endpoint to detect stale requests.
+ * (`data-instatic-version`) and the hole endpoint to detect stale requests.
  * A `?v=` value on the hole endpoint that doesn't match this returns a
  * lightweight stale fragment rather than rendering the full subtree.
  */

@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "page-builder",
+      "name": "instatic",
       "dependencies": {
         "@anthropic-ai/claude-agent-sdk": "^0.2.126",
         "@codemirror/lang-css": "^6.3.1",

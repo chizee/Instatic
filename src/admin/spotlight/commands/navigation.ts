@@ -47,7 +47,7 @@ export function getNavigationCommands(): Command[] {
     {
       id: 'navigation.goToSite',
       title: 'Go to Site editor',
-      subtitle: 'Open the visual page builder',
+      subtitle: 'Open the visual editor',
       group: 'navigation',
       iconName: 'layout-solid',
       keywords: ['site', 'editor', 'pages', 'builder', 'visual'],

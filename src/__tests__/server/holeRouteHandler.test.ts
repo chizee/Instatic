@@ -1,5 +1,5 @@
 /**
- * Tests for the `/_pb/hole/<nodeId>` and `/_pb/hole-runtime.js` endpoints.
+ * Tests for the `/_instatic/hole/<nodeId>` and `/_instatic/hole-runtime.js` endpoints.
  *
  * Uses a minimal fake DbClient that intercepts `getLatestPublishedSiteSnapshot`
  * queries (the same pattern as publicRouterCache.test.ts).
@@ -139,15 +139,15 @@ beforeEach(() => {
 // ---------------------------------------------------------------------------
 
 describe('isHoleRuntimeAssetPath', () => {
-  it('returns true for /_pb/hole-runtime.js', () => {
-    expect(isHoleRuntimeAssetPath('/_pb/hole-runtime.js')).toBe(true)
+  it('returns true for /_instatic/hole-runtime.js', () => {
+    expect(isHoleRuntimeAssetPath('/_instatic/hole-runtime.js')).toBe(true)
   })
 
   it('returns false for other paths', () => {
-    expect(isHoleRuntimeAssetPath('/_pb/hole/')).toBe(false)
-    expect(isHoleRuntimeAssetPath('/_pb/hole-runtime')).toBe(false)
-    expect(isHoleRuntimeAssetPath('/_pb/assets/loop-runtime.js')).toBe(false)
-    expect(isHoleRuntimeAssetPath('/_pb/hole/some-node-id')).toBe(false)
+    expect(isHoleRuntimeAssetPath('/_instatic/hole/')).toBe(false)
+    expect(isHoleRuntimeAssetPath('/_instatic/hole-runtime')).toBe(false)
+    expect(isHoleRuntimeAssetPath('/_instatic/assets/loop-runtime.js')).toBe(false)
+    expect(isHoleRuntimeAssetPath('/_instatic/hole/some-node-id')).toBe(false)
   })
 })
 
@@ -179,7 +179,7 @@ describe('handleHoleRequest — method guard', () => {
     const db = makeFakeDb(null)
 
     for (const method of ['POST', 'PUT', 'DELETE', 'PATCH']) {
-      const url = new URL('http://localhost/_pb/hole/text-node?v=0')
+      const url = new URL('http://localhost/_instatic/hole/text-node?v=0')
       const req = new Request(url, { method })
       const res = await handleHoleRequest(req, url, { db })
       expect(res.status).toBe(405)
@@ -195,7 +195,7 @@ describe('handleHoleRequest — site not published', () => {
   it('returns 404 when no published snapshot exists', async () => {
     const db = makeFakeDb(null)
     const currentVersion = getPublishVersion()
-    const url = new URL(`http://localhost/_pb/hole/text-node?v=${currentVersion}`)
+    const url = new URL(`http://localhost/_instatic/hole/text-node?v=${currentVersion}`)
     const req = new Request(url)
     const res = await handleHoleRequest(req, url, { db })
     expect(res.status).toBe(404)
@@ -216,13 +216,13 @@ describe('handleHoleRequest — stale version', () => {
     const currentVersion = getPublishVersion() // = 1
 
     // Request with the old version (0, now stale)
-    const url = new URL(`http://localhost/_pb/hole/text-node?v=0`)
+    const url = new URL(`http://localhost/_instatic/hole/text-node?v=0`)
     const req = new Request(url)
     const res = await handleHoleRequest(req, url, { db })
 
     const body = await res.text()
-    expect(body).toContain('pb-hole-stale')
-    expect(body).toContain('data-pb-stale="true"')
+    expect(body).toContain('instatic-hole-stale')
+    expect(body).toContain('data-instatic-stale="true"')
     expect(res.headers.get('cache-control')).toBe('no-store')
     // Stale responses must NOT be 404 or 500 — the browser replaces the
     // placeholder with the stale sentinel and the user can still see content
@@ -239,11 +239,11 @@ describe('handleHoleRequest — stale version', () => {
     bumpPublishVersion()
 
     // Old version
-    const url = new URL(`http://localhost/_pb/hole/text-node?v=0`)
+    const url = new URL(`http://localhost/_instatic/hole/text-node?v=0`)
     const req = new Request(url)
     const res = await handleHoleRequest(req, url, { db })
 
-    expect((await res.text())).toContain('pb-hole-stale')
+    expect((await res.text())).toContain('instatic-hole-stale')
   })
 })
 
@@ -257,7 +257,7 @@ describe('handleHoleRequest — node not found', () => {
     const db = makeFakeDb(snapshot)
 
     const currentVersion = getPublishVersion()
-    const url = new URL(`http://localhost/_pb/hole/no-such-node?v=${currentVersion}`)
+    const url = new URL(`http://localhost/_instatic/hole/no-such-node?v=${currentVersion}`)
     const req = new Request(url)
     const res = await handleHoleRequest(req, url, { db })
     expect(res.status).toBe(404)
@@ -274,7 +274,7 @@ describe('handleHoleRequest — successful render', () => {
     const db = makeFakeDb(snapshot)
 
     const currentVersion = getPublishVersion()
-    const url = new URL(`http://localhost/_pb/hole/text-node?v=${currentVersion}`)
+    const url = new URL(`http://localhost/_instatic/hole/text-node?v=${currentVersion}`)
     const req = new Request(url)
     const res = await handleHoleRequest(req, url, { db })
 
@@ -291,7 +291,7 @@ describe('handleHoleRequest — successful render', () => {
     const db = makeFakeDb(snapshot)
 
     const currentVersion = getPublishVersion()
-    const url = new URL(`http://localhost/_pb/hole/text-node?v=${currentVersion}`)
+    const url = new URL(`http://localhost/_instatic/hole/text-node?v=${currentVersion}`)
 
     const res1 = await handleHoleRequest(new Request(url), url, { db })
     const body1 = await res1.text()
@@ -311,11 +311,11 @@ describe('handleHoleRequest — successful render', () => {
     bumpPublishVersion() // now = 1
 
     // Old version is now stale
-    const url = new URL(`http://localhost/_pb/hole/text-node?v=${oldVersion}`)
+    const url = new URL(`http://localhost/_instatic/hole/text-node?v=${oldVersion}`)
     const req = new Request(url)
     const res = await handleHoleRequest(req, url, { db })
 
     const body = await res.text()
-    expect(body).toContain('pb-hole-stale')
+    expect(body).toContain('instatic-hole-stale')
   })
 })

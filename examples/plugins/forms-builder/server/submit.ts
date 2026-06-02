@@ -128,7 +128,7 @@ export function registerSubmitRoute(api: ServerPluginApi): void {
         errorMessage: '',
       })
     } catch (err) {
-      console.error('[plugin:pagebuilder.forms] Failed to persist submission:', err)
+      console.error('[plugin:instatic.forms] Failed to persist submission:', err)
       return errorResponse(500, 'Could not save your submission. Please try again later.')
     }
 
@@ -149,7 +149,7 @@ export function registerSubmitRoute(api: ServerPluginApi): void {
         await submissions.update(record.id, { status: 'sent', errorMessage: '' })
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err)
-        console.error('[plugin:pagebuilder.forms] Email delivery failed:', err)
+        console.error('[plugin:instatic.forms] Email delivery failed:', err)
         await submissions
           .update(record.id, { status: 'failed', errorMessage: message })
           .catch((_e) => { /* storage update failure is non-fatal */ })

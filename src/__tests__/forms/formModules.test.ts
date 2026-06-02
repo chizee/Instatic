@@ -27,9 +27,9 @@ describe('base form primitive modules', () => {
     }, ['<input name="email">'])
 
     expect(output.html).toContain('<form')
-    expect(output.html).toContain('data-pb-form-id="newsletter"')
-    expect(output.html).toContain('data-pb-form-mode="cms"')
-    expect(output.html).toContain('data-pb-success-message="Thanks"')
+    expect(output.html).toContain('data-instatic-form-id="newsletter"')
+    expect(output.html).toContain('data-instatic-form-mode="cms"')
+    expect(output.html).toContain('data-instatic-success-message="Thanks"')
     expect(output.html).toContain('<input type="text" name="company"')
     expect(output.html).toContain('<input name="email">')
     expect(output.html).toContain('</form>')
@@ -37,7 +37,7 @@ describe('base form primitive modules', () => {
 
   it('renders labels and text-like controls as semantic HTML', () => {
     expect(LabelModule.render({ text: 'Email', targetMode: 'auto', targetId: '' }, []).html)
-      .toBe('<label data-pb-label-target="auto">Email</label>')
+      .toBe('<label data-instatic-label-target="auto">Email</label>')
 
     const input = InputModule.render({
       inputType: 'email',
@@ -59,8 +59,8 @@ describe('base form primitive modules', () => {
 
     expect(input).toContain('<input')
     expect(input).toContain('type="email"')
-    expect(input).toContain('data-pb-form-control="input"')
-    expect(input).toContain('data-pb-field-id="email"')
+    expect(input).toContain('data-instatic-form-control="input"')
+    expect(input).toContain('data-instatic-field-id="email"')
     expect(input).toContain('name="email"')
     expect(input).toContain('required')
     expect(input).toContain('autocomplete="email"')
@@ -79,7 +79,7 @@ describe('base form primitive modules', () => {
       rows: 4,
       minLength: 0,
       maxLength: 500,
-    }, []).html).toBe('<textarea data-pb-form-control="textarea" data-pb-field-id="message" name="message" id="message-input" placeholder="Message" rows="4" maxlength="500">Hello</textarea>')
+    }, []).html).toBe('<textarea data-instatic-form-control="textarea" data-instatic-field-id="message" name="message" id="message-input" placeholder="Message" rows="4" maxlength="500">Hello</textarea>')
 
     expect(OptionModule.render({ value: 'pro', label: 'Pro', selected: true, disabled: false }, []).html)
       .toBe('<option value="pro" selected>Pro</option>')
@@ -95,7 +95,7 @@ describe('base form primitive modules', () => {
       disabled: false,
       multiple: false,
     }, ['<option value="pro">Pro</option>']).html)
-      .toBe('<select data-pb-form-control="select" data-pb-field-id="plan" name="plan" id="plan-select" required><option value="pro">Pro</option></select>')
+      .toBe('<select data-instatic-form-control="select" data-instatic-field-id="plan" name="plan" id="plan-select" required><option value="pro">Pro</option></select>')
   })
 
   it('renders choice controls, submit, and form messages', () => {
@@ -107,7 +107,7 @@ describe('base form primitive modules', () => {
       checked: true,
       required: true,
       disabled: false,
-    }, []).html).toBe('<input type="checkbox" data-pb-form-control="checkbox" data-pb-field-id="agree" name="agree" id="agree-input" value="yes" checked required>')
+    }, []).html).toBe('<input type="checkbox" data-instatic-form-control="checkbox" data-instatic-field-id="agree" name="agree" id="agree-input" value="yes" checked required>')
 
     expect(RadioModule.render({
       fieldId: 'plan',
@@ -117,7 +117,7 @@ describe('base form primitive modules', () => {
       checked: false,
       required: false,
       disabled: false,
-    }, []).html).toBe('<input type="radio" data-pb-form-control="radio" data-pb-field-id="plan" name="plan" id="plan-pro" value="pro">')
+    }, []).html).toBe('<input type="radio" data-instatic-form-control="radio" data-instatic-field-id="plan" name="plan" id="plan-pro" value="pro">')
 
     expect(SubmitModule.render({ label: 'Subscribe', disabled: false, formId: '' }, []).html)
       .toBe('<button type="submit">Subscribe</button>')
@@ -126,6 +126,6 @@ describe('base form primitive modules', () => {
       formId: 'newsletter',
       kind: 'success',
       text: 'Thanks',
-    }, []).html).toBe('<div data-pb-form-message="success" data-pb-form-id="newsletter" role="status">Thanks</div>')
+    }, []).html).toBe('<div data-instatic-form-message="success" data-instatic-form-id="newsletter" role="status">Thanks</div>')
   })
 })

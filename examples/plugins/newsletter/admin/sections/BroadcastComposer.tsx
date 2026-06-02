@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { Alert, Button, Heading, Input, Stack, Text, Textarea } from '@pagebuilder/host-ui'
-import { usePluginRoutes } from '@pagebuilder/host-hooks'
+import { Alert, Button, Heading, Input, Stack, Text, Textarea } from '@instatic/host-ui'
+import { usePluginRoutes } from '@instatic/host-hooks'
 
 interface ListRow {
   id: string

@@ -4,7 +4,7 @@
  * What this provides
  * ------------------
  * - `<Router>`         browser router; subscribes to popstate + custom
- *                      'pb:locationchange' event for pushState/replaceState
+ *                      'instatic:locationchange' event for pushState/replaceState
  * - `<MemoryRouter>`   in-memory router for tests; maintains its own
  *                      pathname/search state
  * - `<Routes>` /       declarative route matching, supports `:param`

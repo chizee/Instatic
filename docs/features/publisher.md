@@ -15,7 +15,7 @@ The published output has **no framework runtime**, **no client-side hydration of
 - Module `render()` is a **pure function**: no DOM, no React, no side effects (Constraint #179).
 - Every node's props pass through `escapeProps` before `render()` (Constraint #211).
 - Server-side wrappers (`server/publish/publicRouter.ts` → `publicRenderer.ts` → `publishedHtmlPipeline.ts`) call `publishPage`, run plugin filters, and return the HTML in the visitor response.
-- Output is routed through a three-layer publishing pipeline: **Layer A** bakes fully-static pages to `uploads/published/current/<route>.html` at publish time (atomic two-slot symlink swap). **Layer B** memoises dynamic pages in an in-memory LRU keyed by `(urlPath, queryString, publishVersion)`. **Layer C** emits `<pb-hole>` placeholders for nodes auto-classified as request-dependent; a ~668 B `IntersectionObserver` runtime lazy-loads each fragment via `/_pb/hole/<nodeId>`.
+- Output is routed through a three-layer publishing pipeline: **Layer A** bakes fully-static pages to `uploads/published/current/<route>.html` at publish time (atomic two-slot symlink swap). **Layer B** memoises dynamic pages in an in-memory LRU keyed by `(urlPath, queryString, publishVersion)`. **Layer C** emits `<instatic-hole>` placeholders for nodes auto-classified as request-dependent; a ~668 B `IntersectionObserver` runtime lazy-loads each fragment via `/_instatic/hole/<nodeId>`.
 - Auto-classification lives in `src/core/publisher/dynamicDetection.ts:findDynamicNodesWithReasons` — one walker, four rules, used by `isFullyStaticPage` (Layer A) and `renderNode`'s placeholder emission (Layer C). Authors don't toggle anything.
 
 ---
@@ -25,7 +25,7 @@ The published output has **no framework runtime**, **no client-side hydration of
 ```text
 src/core/publisher/
 ├── render.ts                       — publishPage (entry point + page-level orchestration)
-├── renderNode.ts                   — recursive node walker; emits <pb-hole> for nodes in dynamicNodeIds
+├── renderNode.ts                   — recursive node walker; emits <instatic-hole> for nodes in dynamicNodeIds
 ├── renderContext.ts                — RenderContext shape (includes dynamicNodeIds + publishVersion)
 ├── renderVisualComponentRef.ts     — inline a Visual Component instance into the page
 ├── renderLoop.ts                   — iterate a loop source, round-robin child variants
@@ -189,7 +189,7 @@ This is what shrinks published CSS by ~60–80% on typical pages (Decision #308)
 
 ### Hashed bundle filenames
 
-The server's `siteCssBundle.ts` and the client's `siteCssBundle.ts` together name each bundle file `<group>-<contentHash>.css`. The publisher emits `<link rel="stylesheet" href="/_pb/css/<bundle>-<hash>.css">` per non-empty bundle. `Cache-Control: immutable` (1 year) is safe because the hash changes whenever the content does.
+The server's `siteCssBundle.ts` and the client's `siteCssBundle.ts` together name each bundle file `<group>-<contentHash>.css`. The publisher emits `<link rel="stylesheet" href="/_instatic/css/<bundle>-<hash>.css">` per non-empty bundle. `Cache-Control: immutable` (1 year) is safe because the hash changes whenever the content does.
 
 Four bundles per page (each hashed independently): `reset`, `framework`,
 `style`, `userStyles` — see the cascade table above.
@@ -200,26 +200,26 @@ A full publish (`publishDraftSite`) bakes **every page** plus all of its assets
 into the publish slot:
 
 - **HTML** — fully-static pages bake to a complete document; pages with dynamic
-  nodes bake their static **shell** with `<pb-hole>` placeholders (the hole
-  runtime hydrates each fragment from `/_pb/hole/`). Either way the HTML is on
+  nodes bake their static **shell** with `<instatic-hole>` placeholders (the hole
+  runtime hydrates each fragment from `/_instatic/hole/`). Either way the HTML is on
   disk. A page that fails to render (e.g. a VC ref cycle) is skipped and falls
   through to the live renderer.
-- **CSS bundles** — `/_pb/css/<bundle>-<hash>.css`, for every page.
-- **Runtime JS** — `/_pb/assets/<versionId>/…`, for every page.
+- **CSS bundles** — `/_instatic/css/<bundle>-<hash>.css`, for every page.
+- **Runtime JS** — `/_instatic/assets/<versionId>/…`, for every page.
 
 The visitor router serves all of these straight off disk (`readArtefact` /
 `readStaticAsset`) — no DB round-trip, no per-request rebuild. The slot is a
 self-contained static export: **a published page never hits the server to
 generate its HTML, CSS, or JS. The only request that touches the DB is the
-`/_pb/hole/` fragment fetch** for a page's dynamic islands.
+`/_instatic/hole/` fragment fetch** for a page's dynamic islands.
 
 Hole shells are stamped with the *next* publish version (`getPublishVersion() +
 1`) at bake time, because `bumpPublishVersion()` runs as the synchronous
-statement right after the slot swap — so a baked `<pb-hole data-pb-version>`
+statement right after the slot swap — so a baked `<instatic-hole data-instatic-version>`
 always matches what the hole endpoint expects (a mismatch would make the
 endpoint refuse to hydrate).
 
-The exclusive namespaces `/_pb/css/*` (`serveSiteCss`) and `/_pb/assets/*`
+The exclusive namespaces `/_instatic/css/*` (`serveSiteCss`) and `/_instatic/assets/*`
 (`tryServeRuntimeAsset`) are served **disk-first**, falling back to a rebuild
 (`serveSiteCss`) or the DB (`published_runtime_assets`) only for preview or a
 publish whose disk write failed. Unknown paths under either prefix 404 rather
@@ -237,9 +237,9 @@ The publisher emits `<head>` in this order:
 4. `<meta name="description">` if present in page settings
 5. `<link rel="icon">` if a favicon is configured
 6. Font import `<link>` if site uses a non-system font
-7. `<script type="importmap">` mapping bare specifiers (e.g. `three`) to `/_pb/runtime/cache/<hash>/...` URLs
+7. `<script type="importmap">` mapping bare specifiers (e.g. `three`) to `/_instatic/runtime/cache/<hash>/...` URLs
 8. Runtime asset `<script>` tags (`scriptTagsForRuntimeAssets`)
-9. `<link rel="stylesheet" href="/_pb/css/<bundle>-<hash>.css">` per bundle
+9. `<link rel="stylesheet" href="/_instatic/css/<bundle>-<hash>.css">` per bundle
 10. **`head` placement** plugin-injected tags (after the publisher's own head, before custom user head content)
 11. `<meta http-equiv="Content-Security-Policy" content="...">` — assembled based on what's actually in the page
 
@@ -273,7 +273,7 @@ Editing the CSP manually is **not** safe — it's a derived value. Edit the sour
 | `server/publish/mediaPresentation.ts`           | At publish time, build `<picture>` / `<img srcset>` markup from `media_assets.variants_json`. |
 | `server/publish/mediaPrefetch.ts`               | Resolve all referenced media into a `Map<url, ResolvedMedia>` before render. |
 | `server/publish/loopPrefetch.ts`                | Fetch every loop source's items before render so the walker is purely synchronous. |
-| `server/publish/runtime/packageServer.ts`       | Serve per-site `bun install` workspace under `/_pb/runtime/cache/`. |
+| `server/publish/runtime/packageServer.ts`       | Serve per-site `bun install` workspace under `/_instatic/runtime/cache/`. |
 | `server/publish/loopRuntime.ts`                 | The loop runtime asset (small JS shim used by certain loop variants).|
 | `server/richtextSanitizer.ts`                   | Installs the server's happy-dom-backed DOMPurify runtime without global DOM objects. |
 
@@ -315,7 +315,7 @@ publishDraftSite (server/repositories/publish.ts)
     │
     ├─→ Layer A bake — CSS bundles + runtime JS → writeStaticAsset(<slot>)
     │
-    ├─→ Layer A bake — every page (complete doc, or static shell with <pb-hole>):
+    ├─→ Layer A bake — every page (complete doc, or static shell with <instatic-hole>):
     │     ├── renderPublishedSnapshot(snapshot, { db, url, publishVersion }) → HTML
     │     ├── applyPublishedHtmlPipeline(rendered, db) → final HTML
     │     │   (plugin filters + frontend asset injection baked in)
@@ -360,7 +360,7 @@ tryServePublicRoute (server/router.ts)
 The visitor-facing artefacts are:
 1. **Disk files in the active slot** (`uploads/published/current/<route>.html`) — for fully-static routes. Final HTML, post-filter, frontend assets baked in. Rebuilt on each full publish.
 2. **In-memory LRU entries** — for dynamic routes (loops, request-dependent bindings). Filled lazily, evicted on every publish.
-3. **`<pb-hole>` fragment responses** at `/_pb/hole/<nodeId>` — for dynamic nodes inside otherwise-cacheable pages. Fetched lazily by the IntersectionObserver runtime; also cached in Layer B.
+3. **`<instatic-hole>` fragment responses** at `/_instatic/hole/<nodeId>` — for dynamic nodes inside otherwise-cacheable pages. Fetched lazily by the IntersectionObserver runtime; also cached in Layer B.
 
 The `PublishedPageSnapshot` (JSON) in `data_row_versions.snapshot_json` remains the canonical audit record — all three layers derive from it.
 

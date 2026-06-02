@@ -1,5 +1,5 @@
 /**
- * Browser-side executor for page-builder write tools.
+ * Browser-side executor for instatic write tools.
  *
  * The AI runtime defines these browser-executed tools server-side, then emits a
  * `toolRequest` stream event so the browser can apply the mutation against the
@@ -625,7 +625,7 @@ async function runRenderSnapshot(
 // ---------------------------------------------------------------------------
 
 /**
- * Apply a single page-builder write tool against the editor store.
+ * Apply a single instatic write tool against the editor store.
  *
  * The browser receives a `toolRequest` event from the server stream,
  * dispatches the tool here, and POSTs the canonical result back to
@@ -672,7 +672,7 @@ export async function executeAgentTool(
       case 'render_snapshot':
         return await runRenderSnapshot(parseValue(renderSnapshotSchema, rawInput))
       default:
-        return aiToolError(`Unknown page-builder tool: ${toolName}`)
+        return aiToolError(`Unknown instatic tool: ${toolName}`)
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)

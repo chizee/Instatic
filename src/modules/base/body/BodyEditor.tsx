@@ -41,7 +41,7 @@ export const BodyEditor = ({ children, mcClassName, nodeWrapperProps }: ModuleCo
         ref={probeRef}
         aria-hidden="true"
         style={{ display: 'contents' }}
-        data-pb-body-probe=""
+        data-instatic-body-probe=""
       />
       {children}
     </>

@@ -81,7 +81,7 @@ const LoopModule: ModuleDefinition<LoopProps> = {
    * called. This implementation is intentionally unreachable under
    * normal operation.
    */
-  render: () => ({ html: '<!-- pb: loop render fell through to default -->' }),
+  render: () => ({ html: '<!-- instatic: loop render fell through to default -->' }),
 }
 
 registry.registerOrReplace(LoopModule)

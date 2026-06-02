@@ -1,10 +1,10 @@
 /**
- * Forms Builder — `pagebuilder.forms.select`
+ * Forms Builder — `instatic.forms.select`
  *
  * Dropdown select field. Options are configured as a newline-separated
  * "label:value" or just "value" list in a textarea prop.
  */
-import { control, defineModule, html, raw } from '@pagebuilder/plugin-sdk'
+import { control, defineModule, html, raw } from '@instatic/plugin-sdk'
 
 function parseOptions(raw: string): Array<{ label: string; value: string }> {
   return raw
@@ -19,7 +19,7 @@ function parseOptions(raw: string): Array<{ label: string; value: string }> {
 }
 
 export default defineModule({
-  id: 'pagebuilder.forms.select',
+  id: 'instatic.forms.select',
   name: 'Select',
   description: 'Dropdown selection field.',
   category: 'Forms',
@@ -49,19 +49,19 @@ export default defineModule({
   render: ({ props }) => {
     const requiredAttr = props.required ? ' required' : ''
     const asterisk = props.required
-      ? raw('<span class="pb-forms-required" aria-hidden="true">*</span>')
+      ? raw('<span class="instatic-forms-required" aria-hidden="true">*</span>')
       : raw('')
     const helper = props.helperText
-      ? html`<small class="pb-forms-help">${props.helperText}</small>`
+      ? html`<small class="instatic-forms-help">${props.helperText}</small>`
       : ''
     const opts = parseOptions(String(props.options))
     const optionsHtml = opts
       .map((o) => html`<option value="${o.value}">${o.label}</option>`)
       .join('\n  ')
     return {
-      html: html`<div class="pb-forms-field">
-  <label class="pb-forms-label" for="pb-${props.name}">${props.label}${asterisk}</label>
-  <select class="pb-forms-control" id="pb-${props.name}" name="${props.name}"${raw(requiredAttr)}>
+      html: html`<div class="instatic-forms-field">
+  <label class="instatic-forms-label" for="instatic-${props.name}">${props.label}${asterisk}</label>
+  <select class="instatic-forms-control" id="instatic-${props.name}" name="${props.name}"${raw(requiredAttr)}>
   ${raw(optionsHtml)}
   </select>
   ${raw(helper)}

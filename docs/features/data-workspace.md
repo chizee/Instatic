@@ -112,7 +112,7 @@ applyEditState(field, state, labelLocked): DataField // draft → persisted
 - **Display** — `CellDisplayRenderer.tsx` picks the per-type display component from `cells/`.
 - **Edit** — `CellEditorRenderer.tsx` picks the per-type inline editor on cell click.
 
-The primary-column width is persisted to `localStorage` via `usePrimaryColumnWidth.ts` (key: `pb-data-grid-primary-widths-v1`).
+The primary-column width is persisted to `localStorage` via `usePrimaryColumnWidth.ts` (key: `instatic-data-grid-primary-widths-v1`).
 
 Header cells (`DataGridHeaderCell.tsx`) render the field type icon by calling `getFieldIcon(field.type)({ size: 13 })` directly — not as a component — to avoid the `react-hooks/static-components` lint rule for a plain icon call.
 
@@ -146,7 +146,7 @@ Both dialogs are opened from `DataSidebar`.
 
 - [docs/features/content-storage.md](content-storage.md) — `DataField` schema, field types, `data_tables` / `data_rows` structure
 - [docs/reference/ui-primitives.md](../reference/ui-primitives.md) — `Button`, `Input`, `Select`, `Switch` usage
-- [docs/reference/persistence-keys.md](../reference/persistence-keys.md) — `pb-data-grid-primary-widths-v1`
+- [docs/reference/persistence-keys.md](../reference/persistence-keys.md) — `instatic-data-grid-primary-widths-v1`
 - Source-of-truth files:
   - `src/admin/pages/data/` — all Data workspace components
   - `src/admin/pages/data/components/DataInspector/` — inspector, field management modules

@@ -60,7 +60,7 @@ const ALLOWLIST: ReadonlyMap<string, string> = new Map([
   ['imageVariantProtocol.ts', 'Worker protocol type definitions; no handlers.'],
   ['imageVariantWorker.ts', 'Worker thread entrypoint; runs out-of-band, not a Bun.serve route.'],
   ['imageVariantWorkerHost.ts', 'Worker host helper; called by gated parent handlers.'],
-  // Loop runtime — `/_pb/loop/...` is a runtime endpoint for published
+  // Loop runtime — `/_instatic/loop/...` is a runtime endpoint for published
   // pages, not a CMS admin route. Reached only via the public router.
   ['loop.ts', 'Published-page runtime endpoint; not a /admin/api/cms/ route.'],
   ['hole.ts', 'Published-page runtime endpoint; not a /admin/api/cms/ route.'],

@@ -5,9 +5,9 @@
  * on. Response is validated with TypeBox via `routes.json()`.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Card, Heading, Stack, Text, Button, Alert } from '@pagebuilder/host-ui'
+import { Card, Heading, Stack, Text, Button, Alert } from '@instatic/host-ui'
 import { LiveResponseSchema, type AnalyticsPluginRecord } from '../schemas'
-import type { usePluginRoutes } from '@pagebuilder/host-hooks'
+import type { usePluginRoutes } from '@instatic/host-hooks'
 
 type Routes = ReturnType<typeof usePluginRoutes>
 

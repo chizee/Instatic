@@ -2,18 +2,18 @@
  * Browser runtime for `base.loop` infinite loading.
  *
  * Self-contained ES module — no dependencies, no framework. The publisher
- * injects a `<script type="module" src="/_pb/assets/loop-runtime.js">` tag
+ * injects a `<script type="module" src="/_instatic/assets/loop-runtime.js">` tag
  * into pages that contain at least one `pagination='infinite'` loop.
  *
  * On load, the runtime:
- *   1. Finds every `[data-pb-loop][data-pb-loop-mode="infinite"]` element.
- *   2. If `data-pb-loop-has-more="true"`, attaches a "Load more" button.
+ *   1. Finds every `[data-instatic-loop][data-instatic-loop-mode="infinite"]` element.
+ *   2. If `data-instatic-loop-has-more="true"`, attaches a "Load more" button.
  *   3. On click, fetches `<endpoint>/<loopId>?page=N` and appends the
  *      returned HTML to the wrapper, then increments the page counter.
  *   4. When `hasMore=false`, removes the button.
  *
- * Endpoint URL is read from `data-pb-loop-endpoint` on the script tag —
- * defaults to `/_pb/loop/`. Each loop sends its own pageId (the published
+ * Endpoint URL is read from `data-instatic-loop-endpoint` on the script tag —
+ * defaults to `/_instatic/loop/`. Each loop sends its own pageId (the published
  * page) via a header attached at server-render time below.
  *
  * The runtime is intentionally tiny (< 2 KB minified) to keep the
@@ -23,22 +23,22 @@
 
 export const LOOP_RUNTIME_JS = `(()=>{
   const scriptEl = document.currentScript;
-  const endpointBase = (scriptEl && scriptEl.getAttribute('data-pb-loop-endpoint')) || '/_pb/loop/';
+  const endpointBase = (scriptEl && scriptEl.getAttribute('data-instatic-loop-endpoint')) || '/_instatic/loop/';
   const pagePath = location.pathname;
 
   function attach(loopEl) {
-    let pageNumber = parseInt(loopEl.getAttribute('data-pb-loop-page') || '1', 10);
-    let hasMore = loopEl.getAttribute('data-pb-loop-has-more') === 'true';
+    let pageNumber = parseInt(loopEl.getAttribute('data-instatic-loop-page') || '1', 10);
+    let hasMore = loopEl.getAttribute('data-instatic-loop-has-more') === 'true';
     if (!hasMore) return;
 
-    const loopId = loopEl.getAttribute('data-pb-loop');
+    const loopId = loopEl.getAttribute('data-instatic-loop');
     if (!loopId) return;
 
     const button = document.createElement('button');
     button.type = 'button';
-    button.className = 'pb-loop-load-more';
+    button.className = 'instatic-loop-load-more';
     button.textContent = 'Load more';
-    button.setAttribute('data-pb-loop-load-more', loopId);
+    button.setAttribute('data-instatic-loop-load-more', loopId);
 
     let busy = false;
     button.addEventListener('click', async () => {
@@ -64,13 +64,13 @@ export const LOOP_RUNTIME_JS = `(()=>{
         }
         pageNumber += 1;
         hasMore = body.hasMore === true;
-        loopEl.setAttribute('data-pb-loop-page', String(pageNumber));
-        loopEl.setAttribute('data-pb-loop-has-more', hasMore ? 'true' : 'false');
+        loopEl.setAttribute('data-instatic-loop-page', String(pageNumber));
+        loopEl.setAttribute('data-instatic-loop-has-more', hasMore ? 'true' : 'false');
         if (!hasMore) {
           button.remove();
         }
       } catch (err) {
-        console.error('[pb-loop]', err);
+        console.error('[instatic-loop]', err);
         button.textContent = 'Try again';
       } finally {
         busy = false;
@@ -83,7 +83,7 @@ export const LOOP_RUNTIME_JS = `(()=>{
   }
 
   function init() {
-    document.querySelectorAll('[data-pb-loop][data-pb-loop-mode="infinite"]').forEach(attach);
+    document.querySelectorAll('[data-instatic-loop][data-instatic-loop-mode="infinite"]').forEach(attach);
   }
 
   if (document.readyState === 'loading') {

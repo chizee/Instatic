@@ -9,8 +9,8 @@ import {
   Select,
   Stack,
   Text,
-} from '@pagebuilder/host-ui'
-import { usePluginRoutes } from '@pagebuilder/host-hooks'
+} from '@instatic/host-ui'
+import { usePluginRoutes } from '@instatic/host-hooks'
 
 interface SubscriberRow {
   id: string

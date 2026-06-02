@@ -1,6 +1,6 @@
 # SEO Suite
 
-Production-grade SEO tooling for the Page Builder CMS. Automatically injects per-page meta tags, Open Graph tags, Twitter card tags, and JSON-LD structured data into every published page. Generates a sitemap.xml and robots.txt that search engines can discover. Optionally generates OG images via a configurable provider endpoint.
+Production-grade SEO tooling for the Instatic. Automatically injects per-page meta tags, Open Graph tags, Twitter card tags, and JSON-LD structured data into every published page. Generates a sitemap.xml and robots.txt that search engines can discover. Optionally generates OG images via a configurable provider endpoint.
 
 ---
 
@@ -19,7 +19,7 @@ Production-grade SEO tooling for the Page Builder CMS. Automatically injects per
 
 1. Build the plugin from the repo root:
    ```sh
-   bun run pb-plugin build examples/plugins/seo-suite
+   bun run instatic-plugin build examples/plugins/seo-suite
    ```
    This produces `examples/plugins/seo-suite.plugin.zip`.
 
@@ -50,11 +50,11 @@ Production-grade SEO tooling for the Page Builder CMS. Automatically injects per
 
 | Route | Auth | Description |
 |-------|------|-------------|
-| `GET /admin/api/cms/plugins/pagebuilder.seo-suite/runtime/sitemap.xml` | none | XML sitemap |
-| `GET /admin/api/cms/plugins/pagebuilder.seo-suite/runtime/robots.txt` | none | robots.txt |
-| `GET /admin/api/cms/plugins/pagebuilder.seo-suite/runtime/seo-entries` | admin | List all SEO entries (used by admin dashboard) |
-| `POST /admin/api/cms/plugins/pagebuilder.seo-suite/runtime/seo-entries` | admin | Upsert a SEO entry (used by admin dashboard) |
-| `GET /admin/api/cms/plugins/pagebuilder.seo-suite/runtime/page-index` | admin | List the page index (used by admin dashboard) |
+| `GET /admin/api/cms/plugins/instatic.seo-suite/runtime/sitemap.xml` | none | XML sitemap |
+| `GET /admin/api/cms/plugins/instatic.seo-suite/runtime/robots.txt` | none | robots.txt |
+| `GET /admin/api/cms/plugins/instatic.seo-suite/runtime/seo-entries` | admin | List all SEO entries (used by admin dashboard) |
+| `POST /admin/api/cms/plugins/instatic.seo-suite/runtime/seo-entries` | admin | Upsert a SEO entry (used by admin dashboard) |
+| `GET /admin/api/cms/plugins/instatic.seo-suite/runtime/page-index` | admin | List the page index (used by admin dashboard) |
 
 ### Reverse-proxy to the site root
 
@@ -64,11 +64,11 @@ Search engines expect sitemap.xml and robots.txt at the site root. Proxy the plu
 ```caddyfile
 example.com {
   handle /sitemap.xml {
-    rewrite * /admin/api/cms/plugins/pagebuilder.seo-suite/runtime/sitemap.xml
+    rewrite * /admin/api/cms/plugins/instatic.seo-suite/runtime/sitemap.xml
     reverse_proxy localhost:5173
   }
   handle /robots.txt {
-    rewrite * /admin/api/cms/plugins/pagebuilder.seo-suite/runtime/robots.txt
+    rewrite * /admin/api/cms/plugins/instatic.seo-suite/runtime/robots.txt
     reverse_proxy localhost:5173
   }
   reverse_proxy localhost:5173
@@ -82,11 +82,11 @@ server {
   server_name example.com;
 
   location = /sitemap.xml {
-    proxy_pass http://localhost:5173/admin/api/cms/plugins/pagebuilder.seo-suite/runtime/sitemap.xml;
+    proxy_pass http://localhost:5173/admin/api/cms/plugins/instatic.seo-suite/runtime/sitemap.xml;
   }
 
   location = /robots.txt {
-    proxy_pass http://localhost:5173/admin/api/cms/plugins/pagebuilder.seo-suite/runtime/robots.txt;
+    proxy_pass http://localhost:5173/admin/api/cms/plugins/instatic.seo-suite/runtime/robots.txt;
   }
 
   location / {
@@ -134,13 +134,13 @@ The `network.outbound` permission is requested, but `networkAllowedHosts` is **e
 
 To enable OG image generation:
 
-1. Edit `pb-plugin.config.ts` and add your provider's hostname:
+1. Edit `instatic-plugin.config.ts` and add your provider's hostname:
    ```ts
    networkAllowedHosts: ['og.example.com'],
    ```
 2. Rebuild the plugin:
    ```sh
-   bun run pb-plugin build examples/plugins/seo-suite
+   bun run instatic-plugin build examples/plugins/seo-suite
    ```
 3. Re-upload the new zip from `/admin/plugins`.
 

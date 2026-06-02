@@ -1,6 +1,6 @@
 # Newsletter
 
-Email newsletter plugin for Page Builder, powered by [Resend](https://resend.com). Drop a subscribe form on any page, manage subscriber lists, compose and send broadcasts, and track opens and clicks via webhooks.
+Email newsletter plugin for Instatic, powered by [Resend](https://resend.com). Drop a subscribe form on any page, manage subscriber lists, compose and send broadcasts, and track opens and clicks via webhooks.
 
 ## What it does
 
@@ -17,7 +17,7 @@ Email newsletter plugin for Page Builder, powered by [Resend](https://resend.com
 ## Build
 
 ```bash
-bun run pb-plugin build examples/plugins/newsletter
+bun run instatic-plugin build examples/plugins/newsletter
 ```
 
 Produces `examples/plugins/newsletter.plugin.zip`.
@@ -47,7 +47,7 @@ Verify a domain or email at [resend.com/domains](https://resend.com/domains). Th
 
 Register a webhook in the [Resend dashboard](https://resend.com/webhooks):
 
-- **Endpoint URL:** `https://your-site.com/admin/api/cms/plugins/pagebuilder.newsletter/runtime/webhooks/resend`
+- **Endpoint URL:** `https://your-site.com/admin/api/cms/plugins/instatic.newsletter/runtime/webhooks/resend`
 - **Events:** `email.bounced`, `email.complained`, `email.opened`, `email.clicked`
 
 Copy the **Signing secret** (starts with `whsec_`) and paste it into the plugin's **Resend Webhook Secret** setting.
@@ -56,7 +56,7 @@ Copy the **Signing secret** (starts with `whsec_`) and paste it into the plugin'
 
 ### 1 — Drop a subscribe form
 
-In the page builder, find **Newsletter Subscribe Form** in the module library. Drop it onto any page. Configure props:
+In the visual editor, find **Newsletter Subscribe Form** in the module library. Drop it onto any page. Configure props:
 
 - **List IDs** — comma-separated list IDs to subscribe to (leave blank to use the default list)
 - **Success URL** — where to redirect after a successful subscription
@@ -88,13 +88,13 @@ Go to **Newsletter → Subscribers** and click **Export CSV** to download all su
 
 ## Canvas modules
 
-### `pagebuilder.newsletter.subscribe-form`
+### `instatic.newsletter.subscribe-form`
 
 A semantic HTML subscribe form. Works without JavaScript. Submits via GET to the plugin's public `/subscribe` endpoint.
 
 Props: `listIds`, `successUrl`, `consentLabel`, `submitLabel`, `emailPlaceholder`, `namePlaceholder`, `showNameField`.
 
-### `pagebuilder.newsletter.preferences-link`
+### `instatic.newsletter.preferences-link`
 
 Renders an anchor tag with the `{{preferences_url}}` placeholder. Place this inside a broadcast HTML body — the plugin substitutes the actual subscriber-specific URL at send time.
 
@@ -138,7 +138,7 @@ Webhook payloads are verified using HMAC-SHA256 (Svix format) with the `resendWe
 
 ```
 examples/plugins/newsletter/
-├── pb-plugin.config.ts          ← manifest: id, permissions, settings, resources, modules
+├── instatic-plugin.config.ts          ← manifest: id, permissions, settings, resources, modules
 ├── tsconfig.json
 ├── icon.svg
 ├── README.md (this file)
@@ -151,8 +151,8 @@ examples/plugins/newsletter/
 │   ├── templates.ts             ← email HTML templates + inline confirmation pages
 │   └── csv.ts                   ← RFC 4180 CSV export helper
 ├── modules/
-│   ├── subscribeForm.ts         ← pagebuilder.newsletter.subscribe-form canvas module
-│   └── preferencesLink.ts       ← pagebuilder.newsletter.preferences-link canvas module
+│   ├── subscribeForm.ts         ← instatic.newsletter.subscribe-form canvas module
+│   └── preferencesLink.ts       ← instatic.newsletter.preferences-link canvas module
 └── admin/
     ├── dashboard.tsx            ← admin entry point with tab navigation
     └── sections/

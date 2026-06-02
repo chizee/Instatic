@@ -65,7 +65,7 @@ export function renderVisualComponentRef(
   const componentId =
     typeof node.props.componentId === 'string' ? node.props.componentId.trim() : ''
   if (!componentId) {
-    return '<!-- pb: visual-component-ref missing componentId -->'
+    return '<!-- instatic: visual-component-ref missing componentId -->'
   }
 
   const propOverrides =
@@ -77,7 +77,7 @@ export function renderVisualComponentRef(
 
   const vc = selectVisualComponentById(ctx.site, componentId)
   if (!vc) {
-    return `<!-- pb: unknown component "${escapeHtml(componentId)}" -->`
+    return `<!-- instatic: unknown component "${escapeHtml(componentId)}" -->`
   }
 
   // Build slotInstancesByName from this VC ref node's base.slot-instance children

@@ -2,7 +2,7 @@
 
 System-level overview of Instatic — what runs, what depends on what, and where to look first.
 
-Instatic is a self-hosted CMS with a built-in visual page builder. One Bun process serves the public website, the admin editor, the CMS API, published pages, and uploaded media, backed by either Postgres or SQLite. The visual editor's output is plain semantic HTML and hand-clean CSS — no framework runtime is injected into published pages.
+Instatic is a self-hosted CMS with a built-in visual editor. One Bun process serves the public website, the admin editor, the CMS API, published pages, and uploaded media, backed by either Postgres or SQLite. The visual editor's output is plain semantic HTML and hand-clean CSS — no framework runtime is injected into published pages.
 
 ---
 
@@ -65,7 +65,7 @@ There is no message queue, no managed service surface. Scaling out is a horizont
 ```text
 server/         Bun server: router, handlers, repositories, plugin runtime, DB
 src/admin/      Admin app shell (auth, navigation, workspaces, plugin host UI)
-src/admin/pages/site/   Visual page builder (canvas, panels, toolbar, store)
+src/admin/pages/site/   Visual editor (canvas, panels, toolbar, store)
 src/core/       Engine: page tree, publisher, plugin SDK + runtime, persistence
 src/modules/    First-party block modules (container, text, image, button, …)
 src/ui/         Shared UI primitives (Button, Input, Tree, icons, cn helper)
@@ -283,7 +283,7 @@ See [docs/features/plugin-system.md](features/plugin-system.md) for the full fea
 The browser bundle is a single Vite-built React 19 SPA, mounted at `/admin`. Inside it:
 
 - `src/admin/` — the **admin shell**: routing, sessions, top-level navigation, the workspaces for content / media / plugins / users / dashboard, and the plugin host UI.
-- `src/admin/pages/site/` — the **visual editor**: the canvas, panels, toolbar, picker, property controls, and the editor store (Zustand + Immer). This is the page builder itself.
+- `src/admin/pages/site/` — the **visual editor**: the canvas, panels, toolbar, picker, property controls, and the editor store (Zustand + Immer). This is the visual editor itself.
 
 The split exists because the editor is a self-contained app with its own state and lifecycle, but it shares the admin's auth, routing, and theming.
 

@@ -1,11 +1,11 @@
 # Production Docker Image
 
-The production image is the portable Page Builder CMS artifact. It contains the built admin UI, the Bun server, the public renderer, CMS API routes, migrations, and runtime dependencies.
+The production image is the portable Instatic artifact. It contains the built admin UI, the Bun server, the public renderer, CMS API routes, migrations, and runtime dependencies.
 
 ## Build Locally
 
 ```sh
-docker build -t page-builder-cms:local .
+docker build -t instatic-cms:local .
 ```
 
 The image does not run Vite or install dependencies at container startup. Those happen at image build time.
@@ -32,12 +32,12 @@ Use this mode when you already operate Postgres separately (your own server, a m
 
 ```sh
 docker run -d \
-  --name page-builder-cms \
+  --name instatic-cms \
   -p 3001:3001 \
-  -e DATABASE_URL="postgres://user:password@host:5432/page_builder" \
+  -e DATABASE_URL="postgres://user:password@host:5432/instatic" \
   -e STATIC_DIR=/app/dist \
   -e UPLOADS_DIR=/app/uploads \
-  -v page-builder-uploads:/app/uploads \
+  -v instatic-uploads:/app/uploads \
   --restart unless-stopped \
   ghcr.io/GITHUB_OWNER/IMAGE_NAME:latest
 ```

@@ -95,7 +95,7 @@ vs. what's an island.
   output varies per request but is publish-time-deterministic given the
   URL (loops with pagination, etc.).
 - **Island / hole** — a node whose subtree renders at request time via a
-  `/_pb/hole/<…>` endpoint, fetched lazily by a small client runtime as
+  `/_instatic/hole/<…>` endpoint, fetched lazily by a small client runtime as
   the visitor scrolls near it (Layer C). The page around the hole is
   static (Layer A) or cached (Layer B).
 - **Dynamic node** — any node the auto-detector classifies as
@@ -120,7 +120,7 @@ vs. what's an island.
         ▼ (Layer A)               ▼ (Layer B)               ▼ (Layer C, lazily after paint)
    static artefact?          render cache hit?         IntersectionObserver
    uploads/published/        in-memory LRU keyed by    fires near viewport →
-   current/<route>/          (urlPath, queryString)    GET /_pb/hole/<nodeId>
+   current/<route>/          (urlPath, queryString)    GET /_instatic/hole/<nodeId>
    index.html                + publishVersion          renders 1 node, returns HTML
         │                         │                         (with single-flight cache)
         │ hit → stream            │ hit → return string
@@ -199,19 +199,19 @@ publishDraftSite / publishDataRow (server/repositories/...)
       `server/publish/publicRouter.ts` or any file in the request hot
       path
 - [x] **Complete static publishing**: `publishDraftSite` bakes the CSS
-      bundles (`/_pb/css/<bundle>-<hash>.css`) and runtime JS
-      (`/_pb/assets/<versionId>/…`) into the slot via `writeStaticAsset`.
+      bundles (`/_instatic/css/<bundle>-<hash>.css`) and runtime JS
+      (`/_instatic/assets/<versionId>/…`) into the slot via `writeStaticAsset`.
       `serveSiteCss` and `tryServeRuntimeAsset` read disk-first
       (`readStaticAsset`), so a published page never hits the server to
       (re)generate CSS/JS. CSS/JS are written for **every** page, deduped by
       content-hashed filename.
 - [x] **Hole shells baked too**: `publishDraftSite` and `publishDataRow` bake
       **every** page's HTML — fully-static pages as a complete document, pages
-      with dynamic nodes as a static **shell** with `<pb-hole>` placeholders.
+      with dynamic nodes as a static **shell** with `<instatic-hole>` placeholders.
       The shell + CSS + JS serve from disk with zero DB; only the
-      `/_pb/hole/<id>` fragment fetch (Layer C) reads the DB. Shells are
+      `/_instatic/hole/<id>` fragment fetch (Layer C) reads the DB. Shells are
       stamped with the *next* publish version (bump runs synchronously right
-      after the swap) so their `data-pb-version` is never stale. A page that
+      after the swap) so their `data-instatic-version` is never stale. A page that
       throws while rendering is skipped (per-page try/catch) and falls through
       to the live renderer.
 
@@ -220,9 +220,9 @@ publishDraftSite / publishDataRow (server/repositories/...)
 Write the final HTML (post `applyPublishedHtmlPipeline`) to disk at publish
 time for **every** page. Pages whose output cannot vary by request bake a
 complete document; pages with request-dependent nodes bake a static **shell**
-in which those nodes are `<pb-hole>` placeholders (Layer C). The visitor router
+in which those nodes are `<instatic-hole>` placeholders (Layer C). The visitor router
 streams the file with `content-type: text/html`; the only request that varies
-per visitor is the `/_pb/hole/` fragment fetch.
+per visitor is the `/_instatic/hole/` fragment fetch.
 
 ### Atomic publish protocol — the two-slot symlink swap
 
@@ -465,9 +465,9 @@ Warm cache hit on a dynamic route: ≤ 5 ms TTFB. Benched per-route via
 - [x] Publisher emits placeholder + hole metadata for dynamic nodes
 - [x] Modules can opt-in to a `staticPlaceholder` render that produces
       the skeleton/fallback HTML baked into the page at publish
-- [x] `pb-hole-runtime.js` (~1 KB) included only on pages that contain
+- [x] `instatic-hole-runtime.js` (~1 KB) included only on pages that contain
       holes; uses `IntersectionObserver` for lazy load
-- [x] `/_pb/hole/<nodeId>` endpoint renders a single node subtree
+- [x] `/_instatic/hole/<nodeId>` endpoint renders a single node subtree
 - [x] Hole responses are single-flighted + cached by Layer B with
       version-aware keys
 - [x] Auto-detected dynamism cascades: a node containing a dynamic
@@ -483,7 +483,7 @@ When a node's content depends on per-request data — either because the
 module declared itself dynamic, OR because the auto-detector found a
 request-dependent binding — the publisher does NOT bake that node into
 the static HTML. Instead it emits a placeholder, and a tiny client
-script fetches the rendered fragment from `/_pb/hole/<nodeId>` when the
+script fetches the rendered fragment from `/_instatic/hole/<nodeId>` when the
 visitor scrolls near it.
 
 The author writes no code, sets no flag, picks no toggle. The system
@@ -524,40 +524,40 @@ to placeholder.
 When the publisher hits a dynamic node, it emits:
 
 ```html
-<pb-hole id="hole-<nodeId>"
-         data-pb-hole="<nodeId>"
-         data-pb-version="<publishVersion>"
+<instatic-hole id="hole-<nodeId>"
+         data-instatic-hole="<nodeId>"
+         data-instatic-version="<publishVersion>"
          style="display: contents">
   <!-- optional staticPlaceholder rendered here at publish time -->
-  <div class="pb-hole-skeleton">…</div>
-</pb-hole>
+  <div class="instatic-hole-skeleton">…</div>
+</instatic-hole>
 ```
 
 The page's `<head>` gets, once (only on pages with at least one hole):
 
 ```html
-<script type="module" src="/_pb/hole-runtime.js" defer></script>
+<script type="module" src="/_instatic/hole-runtime.js" defer></script>
 ```
 
 The runtime fetches each hole **lazily**, using `IntersectionObserver`:
 
 ```js
-// /_pb/hole-runtime.js — ~1 KB, hand-written, no deps
+// /_instatic/hole-runtime.js — ~1 KB, hand-written, no deps
 const io = new IntersectionObserver((entries) => {
   for (const e of entries) {
     if (!e.isIntersecting) continue
     const el = e.target as HTMLElement
     io.unobserve(el)
-    const id = el.dataset.pbHole
-    const version = el.dataset.pbVersion ?? ''
-    fetch(`/_pb/hole/${encodeURIComponent(id)}?v=${encodeURIComponent(version)}`)
+    const id = el.dataset.instaticHole
+    const version = el.dataset.instaticVersion ?? ''
+    fetch(`/_instatic/hole/${encodeURIComponent(id)}?v=${encodeURIComponent(version)}`)
       .then(r => r.text())
       .then(html => { el.outerHTML = html })
       .catch(() => { /* leave placeholder showing; author's skeleton is fine */ })
   }
 }, { rootMargin: '200px 0px' }) // begin fetching when 200px from viewport
 
-for (const el of document.querySelectorAll('pb-hole[data-pb-hole]')) {
+for (const el of document.querySelectorAll('instatic-hole[data-instatic-hole]')) {
   io.observe(el)
 }
 ```
@@ -576,7 +576,7 @@ Modules can provide a `staticPlaceholder(props): string` alongside
   inside the hole endpoint.
 - `staticPlaceholder` is optional, called at publish time to produce the
   skeleton / loading state baked into the page. If omitted, the
-  placeholder is empty (`<pb-hole>` becomes a zero-content element).
+  placeholder is empty (`<instatic-hole>` becomes a zero-content element).
 
 This gives module authors a clean way to ship a non-empty loading state
 (blur image, skeleton bars, fallback text like "Loading latest…") that
@@ -598,16 +598,16 @@ ALSO works for non-JS visitors as a meaningful default.
     over a page tree, returns the set of node ids that are dynamic.
 - **Modified:** `src/core/publisher/renderNode.ts`
   - When rendering a node whose id is in the dynamic set, emit the
-    `<pb-hole>` placeholder, optionally containing the
+    `<instatic-hole>` placeholder, optionally containing the
     `staticPlaceholder(props)` output. DO NOT recurse into the subtree
     (its rendering happens server-side per request).
 - **Modified:** `src/core/publisher/render.ts`
   - When the page has at least one hole, inject `<script type="module"
-    src="/_pb/hole-runtime.js" defer></script>` into the head, once.
+    src="/_instatic/hole-runtime.js" defer></script>` into the head, once.
 - **New:** `server/publish/holeRuntime.ts`
   - Exports the `HOLE_RUNTIME_JS` source string. Served by the router.
 - **New:** `server/handlers/cms/hole.ts`
-  - `GET /_pb/hole/<nodeId>?v=<publishVersion>` → finds the node in the
+  - `GET /_instatic/hole/<nodeId>?v=<publishVersion>` → finds the node in the
     snapshot, renders it through `renderNode` against a minimal
     `RenderContext`, returns HTML.
   - The response goes through Layer B's render cache with key
@@ -647,7 +647,7 @@ filter behaviour need to migrate to a dynamic module.
 - The hole endpoint runs the same plugin hooks (`publish.before` /
   `publish.html` for the fragment) the page renderer does, but those
   fire ONCE per cache lifetime (B handles single-flight + cache).
-- Placeholder HTML written into `<pb-hole>` is escaped + DOMPurified
+- Placeholder HTML written into `<instatic-hole>` is escaped + DOMPurified
   through the existing `src/core/sanitize.ts` boundary — module authors
   can't escape the hole element with malformed HTML.
 
@@ -661,7 +661,7 @@ filter behaviour need to migrate to a dynamic module.
   placeholder + script tag.
 - `holePlaceholder.test.ts` — module's `staticPlaceholder` output is
   injected into the placeholder element, sanitized.
-- `holeRouteHandler.test.ts` — `/_pb/hole/<nodeId>?v=...` returns the
+- `holeRouteHandler.test.ts` — `/_instatic/hole/<nodeId>?v=...` returns the
   rendered fragment; mismatched `v` returns stale response without
   caching.
 - `holeRuntime.smoke.test.ts` — DOM test: fixture HTML with two

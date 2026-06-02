@@ -1,6 +1,6 @@
-# Page Builder Docs
+# Instatic Docs
 
-The documentation tree for Page Builder CMS. This index tells you what to read, in what order, and where to look for what.
+The documentation tree for Instatic. This index tells you what to read, in what order, and where to look for what.
 
 If you're an agent: start at `CLAUDE.md` (repo root) for the rules, then come here for the explanations.
 If you're a human contributor: start with [`architecture.md`](architecture.md), then read whichever feature or reference page is closest to what you're changing.

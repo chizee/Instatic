@@ -1,13 +1,13 @@
-# Search Plugin for Page Builder
+# Search Plugin for Instatic
 
-Full-text search for your Page Builder site. Indexes published pages via **MeiliSearch** or **Typesense** and exposes a fast, rate-limited public search API.
+Full-text search for your Instatic site. Indexes published pages via **MeiliSearch** or **Typesense** and exposes a fast, rate-limited public search API.
 
 ---
 
 ## What it does
 
 - **Indexes pages on publish** — when you publish a page, the Search plugin extracts its title, headings, and plain-text content and upserts a document into the configured search engine.
-- **Public search API** — a public, rate-limited route (`/admin/api/cms/plugins/pagebuilder.search/runtime/search`) accepts `?q=`, `?page=`, and `?per-page=` parameters and returns JSON results.
+- **Public search API** — a public, rate-limited route (`/admin/api/cms/plugins/instatic.search/runtime/search`) accepts `?q=`, `?page=`, and `?per-page=` parameters and returns JSON results.
 - **Canvas modules** — two drag-and-drop blocks you can place on any page:
   - **Search Box** — a labelled `<input type="search">` with an instant-results dropdown.
   - **Search Results** — a full-page results list with pagination (place this on your `/search` page).
@@ -28,7 +28,7 @@ Full-text search for your Page Builder site. Indexes published pages via **Meili
 
 ## Install
 
-1. Build the plugin zip: `bun run pb-plugin build examples/plugins/search`
+1. Build the plugin zip: `bun run instatic-plugin build examples/plugins/search`
 2. Upload `examples/plugins/search.plugin.zip` from `/admin/plugins`.
 3. Grant the requested permissions (the install dialog will list them).
 4. Open the plugin's **Settings** and configure:
@@ -81,7 +81,7 @@ This list is the **audit boundary** for outbound network access from the plugin'
 
 ### Search Box
 
-1. In the Page Builder editor, open the module library.
+1. In the Instatic editor, open the module library.
 2. Find **Search Box** under the **Search** category.
 3. Drop it where you want the search input to appear.
 4. Configure in the Properties Panel:
@@ -105,7 +105,7 @@ The Search Box fetches from the plugin's public route and renders up to 5 result
 ## Public search API
 
 ```
-GET /admin/api/cms/plugins/pagebuilder.search/runtime/search
+GET /admin/api/cms/plugins/instatic.search/runtime/search
 ```
 
 No authentication required.

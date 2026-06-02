@@ -49,7 +49,7 @@ export function ProgressBar({
     >
       <div
         className={styles.fill}
-        style={indeterminate ? undefined : ({ '--pb-fill': `${pct}%` } as CSSProperties)}
+        style={indeterminate ? undefined : ({ '--instatic-fill': `${pct}%` } as CSSProperties)}
       />
     </div>
   )

@@ -1,12 +1,12 @@
 /**
- * Forms Builder — `pagebuilder.forms.checkbox`
+ * Forms Builder — `instatic.forms.checkbox`
  *
  * Single checkbox with a visible label and optional helper text.
  */
-import { control, defineModule, html, raw } from '@pagebuilder/plugin-sdk'
+import { control, defineModule, html, raw } from '@instatic/plugin-sdk'
 
 export default defineModule({
-  id: 'pagebuilder.forms.checkbox',
+  id: 'instatic.forms.checkbox',
   name: 'Checkbox',
   description: 'A single checkbox field.',
   category: 'Forms',
@@ -30,16 +30,16 @@ export default defineModule({
   render: ({ props }) => {
     const requiredAttr = props.required ? ' required' : ''
     const asterisk = props.required
-      ? raw('<span class="pb-forms-required" aria-hidden="true">*</span>')
+      ? raw('<span class="instatic-forms-required" aria-hidden="true">*</span>')
       : raw('')
     const helper = props.helperText
-      ? html`<small class="pb-forms-help">${props.helperText}</small>`
+      ? html`<small class="instatic-forms-help">${props.helperText}</small>`
       : ''
     return {
-      html: html`<div class="pb-forms-field pb-forms-field--checkbox">
-  <label class="pb-forms-label pb-forms-label--checkbox">
+      html: html`<div class="instatic-forms-field instatic-forms-field--checkbox">
+  <label class="instatic-forms-label instatic-forms-label--checkbox">
     <input
-      class="pb-forms-checkbox"
+      class="instatic-forms-checkbox"
       type="checkbox"
       name="${props.name}"
       value="1"${raw(requiredAttr)}
@@ -49,8 +49,8 @@ export default defineModule({
   ${raw(helper)}
 </div>`,
       css: `
-.pb-forms-field--checkbox .pb-forms-label--checkbox{display:flex;align-items:flex-start;gap:8px;font-size:0.9375rem;cursor:pointer;}
-.pb-forms-checkbox{flex-shrink:0;margin-top:3px;width:15px;height:15px;}
+.instatic-forms-field--checkbox .instatic-forms-label--checkbox{display:flex;align-items:flex-start;gap:8px;font-size:0.9375rem;cursor:pointer;}
+.instatic-forms-checkbox{flex-shrink:0;margin-top:3px;width:15px;height:15px;}
 `,
     }
   },

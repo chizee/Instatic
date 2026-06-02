@@ -43,7 +43,7 @@ function useInstalledFontFaces(fonts: FontEntry[]) {
   useEffect(() => {
     if (!css) return
     const styleEl = document.createElement('style')
-    styleEl.setAttribute('data-source', 'pb-admin-installed-fonts')
+    styleEl.setAttribute('data-source', 'instatic-admin-installed-fonts')
     styleEl.textContent = css
     document.head.appendChild(styleEl)
     return () => {

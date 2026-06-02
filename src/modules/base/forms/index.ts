@@ -193,16 +193,16 @@ export const FormModule: ModuleDefinition<FormProps> = {
   render: (props, renderedChildren) => {
     const formId = normalizeIdentifierValue(props.formId, 'form')
     const attrs = [
-      `data-pb-form-id="${formId}"`,
-      `data-pb-form-mode="${props.mode}"`,
-      props.mode === 'cms' ? `data-pb-target-table="${props.targetTableId}"` : '',
+      `data-instatic-form-id="${formId}"`,
+      `data-instatic-form-mode="${props.mode}"`,
+      props.mode === 'cms' ? `data-instatic-target-table="${props.targetTableId}"` : '',
       props.mode === 'custom' ? `action="${safeUrl(props.action)}"` : '',
       props.mode === 'custom' ? `method="${props.method}"` : '',
-      props.successBehavior === 'message' ? `data-pb-success-message="${props.successMessage}"` : '',
-      props.successBehavior === 'redirect' ? `data-pb-success-redirect="${safeUrl(props.redirectUrl)}"` : '',
+      props.successBehavior === 'message' ? `data-instatic-success-message="${props.successMessage}"` : '',
+      props.successBehavior === 'redirect' ? `data-instatic-success-redirect="${safeUrl(props.redirectUrl)}"` : '',
     ].filter(Boolean).join(' ')
     const honeypot = props.mode === 'cms'
-      ? `<input type="text" name="${props.honeypotName}" autocomplete="off" tabindex="-1" data-pb-honeypot hidden>`
+      ? `<input type="text" name="${props.honeypotName}" autocomplete="off" tabindex="-1" data-instatic-honeypot hidden>`
       : ''
     return { html: `<form ${attrs}>${honeypot}${renderedChildren.join('')}</form>` }
   },
@@ -233,7 +233,7 @@ export const LabelModule: ModuleDefinition<LabelProps> = {
     if (props.targetMode === 'explicit' && props.targetId) {
       return { html: `<label for="${props.targetId}">${props.text}</label>` }
     }
-    return { html: `<label data-pb-label-target="auto">${props.text}</label>` }
+    return { html: `<label data-instatic-label-target="auto">${props.text}</label>` }
   },
 }
 
@@ -252,8 +252,8 @@ export const InputModule: ModuleDefinition<InputProps> = {
   component: InputEditor,
   htmlTag: 'input',
   render: (props) => ({ html: `<input${attrs([
-    ['data-pb-form-control', 'input'],
-    ['data-pb-field-id', props.fieldId],
+    ['data-instatic-form-control', 'input'],
+    ['data-instatic-field-id', props.fieldId],
     ['type', props.inputType],
     ['name', props.name],
     ['id', props.id],
@@ -295,8 +295,8 @@ export const TextareaModule: ModuleDefinition<TextareaProps> = {
   component: TextareaEditor,
   htmlTag: 'textarea',
   render: (props) => ({ html: `<textarea${attrs([
-    ['data-pb-form-control', 'textarea'],
-    ['data-pb-field-id', props.fieldId],
+    ['data-instatic-form-control', 'textarea'],
+    ['data-instatic-field-id', props.fieldId],
     ['name', props.name],
     ['id', props.id],
     ['placeholder', props.placeholder],
@@ -329,8 +329,8 @@ export const SelectModule: ModuleDefinition<SelectProps> = {
   htmlTag: 'select',
   render: (props, renderedChildren) => ({
     html: `<select${attrs([
-      ['data-pb-form-control', 'select'],
-      ['data-pb-field-id', props.fieldId],
+      ['data-instatic-form-control', 'select'],
+      ['data-instatic-field-id', props.fieldId],
       ['name', props.name],
       ['id', props.id],
     ])}${booleanAttrs(props, ['required', 'disabled', 'multiple'])}>${renderedChildren.join('')}</select>`,
@@ -441,7 +441,7 @@ export const FormMessageModule: ModuleDefinition<FormMessageProps> = {
   component: FormMessageEditor,
   htmlTag: 'div',
   render: (props) => ({
-    html: `<div data-pb-form-message="${props.kind}" data-pb-form-id="${normalizeIdentifierValue(props.formId)}" role="${props.kind === 'error' ? 'alert' : 'status'}">${props.text}</div>`,
+    html: `<div data-instatic-form-message="${props.kind}" data-instatic-form-id="${normalizeIdentifierValue(props.formId)}" role="${props.kind === 'error' ? 'alert' : 'status'}">${props.text}</div>`,
   }),
 }
 
@@ -508,8 +508,8 @@ function choiceModule(args: {
     htmlTag: 'input',
     render: (props) => ({
       html: `<input type="${args.inputType}"${attrs([
-        ['data-pb-form-control', args.inputType],
-        ['data-pb-field-id', props.fieldId],
+        ['data-instatic-form-control', args.inputType],
+        ['data-instatic-field-id', props.fieldId],
         ['name', props.name],
         ['id', props.id],
         ['value', props.value],

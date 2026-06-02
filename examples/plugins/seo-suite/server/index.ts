@@ -8,7 +8,7 @@
  * Runs inside the QuickJS-WASM sandbox — no Node/Bun ambient access.
  * Everything goes through the SDK (`api.*`).
  */
-import type { ServerPluginApi, ServerPluginModule } from '@pagebuilder/plugin-sdk'
+import type { ServerPluginApi, ServerPluginModule } from '@instatic/plugin-sdk'
 import { registerSitemapRoutes } from './sitemap'
 import { registerHeadInjection } from './headInjection'
 import { registerOgImageJob } from './ogImage'

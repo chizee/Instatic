@@ -1,5 +1,5 @@
 /**
- * Amazon S3 storage adapter — official Page Builder plugin.
+ * Amazon S3 storage adapter — official Instatic plugin.
  *
  * Routes every media write through Amazon S3 (or any S3-compatible
  * backend — Cloudflare R2 with `https://*.r2.cloudflarestorage.com`,
@@ -10,7 +10,7 @@
  * actual byte payload to the signed URLs directly — bytes NEVER cross
  * the QuickJS boundary.
  *
- * Build:   bun pb-plugin build examples/plugins/s3-storage
+ * Build:   bun instatic-plugin build examples/plugins/s3-storage
  * Install: upload `examples/plugins/s3-storage.plugin.zip` from /admin/plugins
  *
  * After install + permission grants + filling in Settings, open the
@@ -19,15 +19,15 @@
  * on S3 too). Hit "Test connection" to verify your credentials before
  * uploading.
  */
-import { definePlugin, permissions } from '@pagebuilder/plugin-sdk'
+import { definePlugin, permissions } from '@instatic/plugin-sdk'
 
 export default definePlugin({
-  id: 'pagebuilder.s3-storage',
+  id: 'instatic.s3-storage',
   name: 'Amazon S3 Storage',
   version: '1.0.0',
   description:
     'Stores uploaded media on Amazon S3 (or any S3-compatible backend: R2, B2, DO Spaces, MinIO). Pre-signed PUTs upload directly from the host; pre-signed GETs serve private buckets via a host redirect.',
-  author: { name: 'Page Builder', email: 'plugins@pagebuilder.dev' },
+  author: { name: 'Instatic', email: 'plugins@instatic.dev' },
   license: 'MIT',
   keywords: ['storage', 's3', 'media', 'adapter'],
   icon: 'icon.svg',

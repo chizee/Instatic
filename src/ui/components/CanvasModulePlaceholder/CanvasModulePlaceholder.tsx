@@ -80,15 +80,15 @@ export function CanvasModulePlaceholder({
       {icon ? (
         <span
           className={styles.icon}
-          data-pb-placeholder-icon=""
+          data-instatic-placeholder-icon=""
           aria-hidden="true"
         >
           {icon}
         </span>
       ) : null}
-      <span className={styles.label} data-pb-placeholder-label="">{label}</span>
+      <span className={styles.label} data-instatic-placeholder-label="">{label}</span>
       {variant === 'block' && description ? (
-        <span className={styles.description} data-pb-placeholder-description="">{description}</span>
+        <span className={styles.description} data-instatic-placeholder-description="">{description}</span>
       ) : null}
       {variant === 'block' && actions ? (
         // `data-canvas-interactive` opts the action row out of the canvas
@@ -97,7 +97,7 @@ export function CanvasModulePlaceholder({
         // node and stopping propagation.
         <div
           className={styles.actions}
-          data-pb-placeholder-actions=""
+          data-instatic-placeholder-actions=""
           data-canvas-interactive="true"
         >
           {actions}

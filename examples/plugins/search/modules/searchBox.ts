@@ -1,11 +1,11 @@
 /**
- * pagebuilder.search.search-box module
+ * instatic.search.search-box module
  *
  * Renders a search input with an inline dropdown for instant search results.
  * A small IIFE script handles the debounced fetch + DOM rendering.
  *
  * The script calls the plugin's public route:
- *   GET /admin/api/cms/plugins/pagebuilder.search/runtime/search?q=…&per-page=5
+ *   GET /admin/api/cms/plugins/instatic.search/runtime/search?q=…&per-page=5
  *
  * No React — runs in the publisher and editor canvas (no document/window API).
  * The script tag is injected in the render output so it executes on the
@@ -14,7 +14,7 @@
 import { control, defineModule, html } from '@core/plugin-sdk'
 
 export default defineModule({
-  id: 'pagebuilder.search.search-box',
+  id: 'instatic.search.search-box',
   name: 'Search Box',
   description: 'Instant-search input with dropdown results. Fetches from the Search plugin endpoint.',
   category: 'Search',
@@ -46,35 +46,35 @@ export default defineModule({
     const inputLabel = String(props.inputLabel ?? 'Search')
 
     const css = `
-      .pb-search-box{position:relative;font-family:inherit;}
-      .pb-search-box__label{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;}
-      .pb-search-box__input{display:block;width:100%;padding:10px 14px;border:1px solid var(--pb-search-border,#d1d5db);border-radius:6px;font-size:1rem;font-family:inherit;background:var(--pb-search-bg,#fff);color:var(--pb-search-text,inherit);outline:none;box-sizing:border-box;}
-      .pb-search-box__input:focus{border-color:var(--pb-search-focus,#2563eb);box-shadow:0 0 0 3px var(--pb-search-focus-ring,rgba(37,99,235,0.2));}
-      .pb-search-box__dropdown{display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--pb-search-bg,#fff);border:1px solid var(--pb-search-border,#d1d5db);border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,0.12);z-index:200;overflow:hidden;}
-      .pb-search-box__dropdown.is-open{display:block;}
-      .pb-search-box__results{list-style:none;margin:0;padding:4px;}
-      .pb-search-box__result a{display:block;padding:8px 12px;border-radius:4px;text-decoration:none;color:inherit;}
-      .pb-search-box__result a:hover{background:var(--pb-search-hover,#f3f4f6);}
-      .pb-search-box__result-title{display:block;font-size:0.925rem;font-weight:500;}
-      .pb-search-box__result-excerpt{display:block;font-size:0.8rem;color:var(--pb-search-muted,#6b7280);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-      .pb-search-box__viewall{display:block;padding:8px 12px;border-top:1px solid var(--pb-search-border,#d1d5db);font-size:0.875rem;color:var(--pb-search-accent,#2563eb);text-decoration:none;text-align:center;}
-      .pb-search-box__viewall:hover{background:var(--pb-search-hover,#f3f4f6);}
-      .pb-search-box__empty{padding:12px;text-align:center;font-size:0.875rem;color:var(--pb-search-muted,#6b7280);}
+      .instatic-search-box{position:relative;font-family:inherit;}
+      .instatic-search-box__label{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;}
+      .instatic-search-box__input{display:block;width:100%;padding:10px 14px;border:1px solid var(--instatic-search-border,#d1d5db);border-radius:6px;font-size:1rem;font-family:inherit;background:var(--instatic-search-bg,#fff);color:var(--instatic-search-text,inherit);outline:none;box-sizing:border-box;}
+      .instatic-search-box__input:focus{border-color:var(--instatic-search-focus,#2563eb);box-shadow:0 0 0 3px var(--instatic-search-focus-ring,rgba(37,99,235,0.2));}
+      .instatic-search-box__dropdown{display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--instatic-search-bg,#fff);border:1px solid var(--instatic-search-border,#d1d5db);border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,0.12);z-index:200;overflow:hidden;}
+      .instatic-search-box__dropdown.is-open{display:block;}
+      .instatic-search-box__results{list-style:none;margin:0;padding:4px;}
+      .instatic-search-box__result a{display:block;padding:8px 12px;border-radius:4px;text-decoration:none;color:inherit;}
+      .instatic-search-box__result a:hover{background:var(--instatic-search-hover,#f3f4f6);}
+      .instatic-search-box__result-title{display:block;font-size:0.925rem;font-weight:500;}
+      .instatic-search-box__result-excerpt{display:block;font-size:0.8rem;color:var(--instatic-search-muted,#6b7280);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+      .instatic-search-box__viewall{display:block;padding:8px 12px;border-top:1px solid var(--instatic-search-border,#d1d5db);font-size:0.875rem;color:var(--instatic-search-accent,#2563eb);text-decoration:none;text-align:center;}
+      .instatic-search-box__viewall:hover{background:var(--instatic-search-hover,#f3f4f6);}
+      .instatic-search-box__empty{padding:12px;text-align:center;font-size:0.875rem;color:var(--instatic-search-muted,#6b7280);}
     `
 
     // Inline IIFE — debounced fetch, renders results into the dropdown.
     // Written without any ES2015+ features that wouldn't be in a tiny IIFE.
     const script = `
 (function(){
-  var ENDPOINT='/admin/api/cms/plugins/pagebuilder.search/runtime/search';
+  var ENDPOINT='/admin/api/cms/plugins/instatic.search/runtime/search';
   var RESULTS_PAGE='${resultsPagePath}';
   var PER_PAGE=5;
-  var boxes=document.querySelectorAll('.pb-search-box');
+  var boxes=document.querySelectorAll('.instatic-search-box');
   boxes.forEach(function(box){
-    var input=box.querySelector('.pb-search-box__input');
-    var dropdown=box.querySelector('.pb-search-box__dropdown');
-    var resultsList=box.querySelector('.pb-search-box__results');
-    var viewAll=box.querySelector('.pb-search-box__viewall');
+    var input=box.querySelector('.instatic-search-box__input');
+    var dropdown=box.querySelector('.instatic-search-box__dropdown');
+    var resultsList=box.querySelector('.instatic-search-box__results');
+    var viewAll=box.querySelector('.instatic-search-box__viewall');
     if(!input||!dropdown||!resultsList||!viewAll)return;
     var timer=null;
     var lastQ='';
@@ -84,17 +84,17 @@ export default defineModule({
       resultsList.innerHTML='';
       if(!hits||hits.length===0){
         var empty=document.createElement('div');
-        empty.className='pb-search-box__empty';
+        empty.className='instatic-search-box__empty';
         empty.textContent='No results for "'+q+'"';
         resultsList.appendChild(empty);
       }else{
         hits.forEach(function(h){
           var li=document.createElement('li');
-          li.className='pb-search-box__result';
+          li.className='instatic-search-box__result';
           var a=document.createElement('a');
           a.href=safeHref(h.slug||'#');
-          a.innerHTML='<span class="pb-search-box__result-title">'+escHtml(h.title||h.slug)+'</span>'
-            +(h.excerpt?'<span class="pb-search-box__result-excerpt">'+escHtml(h.excerpt)+'</span>':'');
+          a.innerHTML='<span class="instatic-search-box__result-title">'+escHtml(h.title||h.slug)+'</span>'
+            +(h.excerpt?'<span class="instatic-search-box__result-excerpt">'+escHtml(h.excerpt)+'</span>':'');
           li.appendChild(a);
           resultsList.appendChild(li);
         });
@@ -134,19 +134,19 @@ export default defineModule({
 
     return {
       html: html`
-        <div class="pb-search-box">
-          <label class="pb-search-box__label" for="pb-search-input">${inputLabel}</label>
+        <div class="instatic-search-box">
+          <label class="instatic-search-box__label" for="instatic-search-input">${inputLabel}</label>
           <input
-            class="pb-search-box__input"
-            id="pb-search-input"
+            class="instatic-search-box__input"
+            id="instatic-search-input"
             type="search"
             placeholder="${placeholder}"
             aria-label="${inputLabel}"
             autocomplete="off"
           />
-          <div class="pb-search-box__dropdown" role="listbox" aria-label="Search results">
-            <ul class="pb-search-box__results" role="list"></ul>
-            <a class="pb-search-box__viewall" href="${resultsPagePath}?q=">View all results &rarr;</a>
+          <div class="instatic-search-box__dropdown" role="listbox" aria-label="Search results">
+            <ul class="instatic-search-box__results" role="list"></ul>
+            <a class="instatic-search-box__viewall" href="${resultsPagePath}?q=">View all results &rarr;</a>
           </div>
           <script>${script}</script>
         </div>

@@ -8,7 +8,7 @@
  * caller (server/searchRoute.ts checks the `enableQueryLogging` setting).
  */
 
-import type { ServerPluginApi } from '@pagebuilder/plugin-sdk'
+import type { ServerPluginApi } from '@instatic/plugin-sdk'
 
 // ---------------------------------------------------------------------------
 // Types

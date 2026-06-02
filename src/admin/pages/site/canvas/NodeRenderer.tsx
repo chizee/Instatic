@@ -134,7 +134,7 @@ export const NodeRenderer = memo(function NodeRenderer({ nodeId }: NodeRendererP
     return (
       <div
         className={styles.unknownModule}
-        data-pb-unknown-module=""
+        data-instatic-unknown-module=""
         title={`Unknown module: ${node.moduleId}`}
       >
         <WarningDiamondSolidIcon size={14} /> Unknown module: {node.moduleId}

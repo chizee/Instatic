@@ -496,7 +496,7 @@ describe('SettingsModal — PreferencesSection toggles', () => {
     fireEvent.click(previewToggle)
 
     expect(previewToggle.getAttribute('aria-checked')).toBe('false')
-    expect(JSON.parse(localStorage.getItem('pb-editor-prefs') ?? '{}').hoverPreview).toBe(false)
+    expect(JSON.parse(localStorage.getItem('instatic-editor-prefs') ?? '{}').hoverPreview).toBe(false)
   })
 
   it('toggle labels are linked via htmlFor / id (label accessibility)', () => {

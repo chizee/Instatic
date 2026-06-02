@@ -236,7 +236,7 @@ The dashboard fans out into **per-domain** endpoints under `/admin/api/cms/dashb
 - **`databaseBytes`** — SQLite stats the `.db` file plus its `-wal` / `-shm` sidecars when present; Postgres runs `select pg_database_size(current_database())`.
 - **`dialect`** — `db.dialect`, surfaced verbatim so the widget caption can show "SQLite" / "Postgres".
 
-There is **no quota** — self-hosted Page Builder never imposes an artificial disk cap, so the widget shows real usage and stretches its breakdown bar to fill the full width.
+There is **no quota** — self-hosted Instatic never imposes an artificial disk cap, so the widget shows real usage and stretches its breakdown bar to fill the full width.
 
 `useDashboardStats(...)` fetches once on mount and refreshes when the user toggles between 24h / 7d / 30d ranges (for visitors).
 
@@ -254,7 +254,7 @@ There is **no quota** — self-hosted Page Builder never imposes an artificial d
 
 State lives in `useOnboardingState(...)`. Items are marked complete based on live CMS state (e.g. "Add your first page" toggles complete when `pages.count > 0`).
 
-The panel is dismissible — per-user, persisted to localStorage as `pb-onboarding-dismissed`. Once dismissed, it doesn't return unless the user explicitly resets onboarding.
+The panel is dismissible — per-user, persisted to localStorage as `instatic-onboarding-dismissed`. Once dismissed, it doesn't return unless the user explicitly resets onboarding.
 
 ---
 

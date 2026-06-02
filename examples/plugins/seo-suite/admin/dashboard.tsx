@@ -12,8 +12,8 @@
  * Settings (siteUrl, siteName, etc.) are rendered by the host automatically
  * from the manifest's `settings` array — we don't re-implement that UI here.
  *
- * Bundle externalizes `react`, `@pagebuilder/host-ui`, `@pagebuilder/host-hooks`,
- * and `@pagebuilder/plugin-sdk` — the host's import map resolves them at runtime
+ * Bundle externalizes `react`, `@instatic/host-ui`, `@instatic/host-hooks`,
+ * and `@instatic/plugin-sdk` — the host's import map resolves them at runtime
  * so this code shares the editor's React instance and design system.
  */
 import { useCallback, useEffect, useState } from 'react'
@@ -29,9 +29,9 @@ import {
   Switch,
   Text,
   Textarea,
-} from '@pagebuilder/host-ui'
-import { usePluginRoutes } from '@pagebuilder/host-hooks'
-import { definePluginAdminApp } from '@pagebuilder/plugin-sdk'
+} from '@instatic/host-ui'
+import { usePluginRoutes } from '@instatic/host-hooks'
+import { definePluginAdminApp } from '@instatic/plugin-sdk'
 
 // ---------------------------------------------------------------------------
 // Types

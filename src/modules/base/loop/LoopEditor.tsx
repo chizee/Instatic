@@ -39,10 +39,10 @@ export const LoopEditor: React.FC<ModuleComponentProps> = ({ props, children, mc
     )
   }
 
-  // Emit the same `data-pb-loop` / `data-pb-loop-page` attributes the
+  // Emit the same `data-instatic-loop` / `data-instatic-loop-page` attributes the
   // publisher writes in `renderLoop()`. Without these the canvas DOM
   // diverges from the published DOM and user CSS targeting
-  // `[data-pb-loop] > article` (a common grid-of-cards pattern) doesn't
+  // `[data-instatic-loop] > article` (a common grid-of-cards pattern) doesn't
   // match in the editor preview.
   const Tag = resolveHtmlTag(props.tag, props.customTag)
   return React.createElement(
@@ -50,8 +50,8 @@ export const LoopEditor: React.FC<ModuleComponentProps> = ({ props, children, mc
     {
       ...nodeWrapperProps,
       className: mcClassName,
-      'data-pb-loop': nodeId,
-      'data-pb-loop-page': '1',
+      'data-instatic-loop': nodeId,
+      'data-instatic-loop-page': '1',
     },
     children,
   )

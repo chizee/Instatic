@@ -14,7 +14,7 @@ import '@modules/base'
 import '@core/loops/sources'
 
 /**
- * SitePage — the visual page-builder workspace.
+ * SitePage — the visual instatic workspace.
  *
  * Mounts the editor (canvas + toolbar + sidebars + panels) inside the admin
  * shell. Everything inside this folder (`@site/*`) is editor-only:

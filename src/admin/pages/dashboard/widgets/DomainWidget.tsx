@@ -16,7 +16,7 @@ export function DomainWidget({ span, editing }: DashboardWidgetRendererProps) {
       span={span}
       editing={editing}
     >
-      <div className={styles.domainName}>pagebuilder.dev</div>
+      <div className={styles.domainName}>instatic.dev</div>
       <div>
         <span className={styles.wlistMeta}>SSL · auto-renew</span>
       </div>

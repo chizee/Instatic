@@ -4,7 +4,7 @@
  * `runRollup` aggregates yesterday's raw events into a `daily-stats` record.
  * `runPrune` deletes raw events older than the configured retention window.
  */
-import type { ServerPluginApi } from '@pagebuilder/plugin-sdk'
+import type { ServerPluginApi } from '@instatic/plugin-sdk'
 
 interface TopEntry {
   label: string

@@ -7,7 +7,7 @@
  * shape is owned entirely by this plugin — there is no host-defined
  * envelope.
  */
-import type { ServerPluginApi } from '@pagebuilder/plugin-sdk'
+import type { ServerPluginApi } from '@instatic/plugin-sdk'
 
 export interface TrackerEvent {
   eventName: string

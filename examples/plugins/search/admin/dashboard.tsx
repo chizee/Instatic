@@ -7,13 +7,13 @@
  *   Analytics  — top queries + top no-result queries
  *   Sync       — reindex all / clear index
  *
- * Uses @pagebuilder/host-ui primitives including the Tabs compound component
+ * Uses @instatic/host-ui primitives including the Tabs compound component
  * for full ARIA + keyboard navigation. Plugin routes via usePluginRoutes().
  */
 import { useCallback, useEffect, useState } from 'react'
-import { Alert, Button, Heading, Stack, Tabs, TabList, Tab, TabPanel } from '@pagebuilder/host-ui'
-import { usePluginRoutes } from '@pagebuilder/host-hooks'
-import { definePluginAdminApp } from '@pagebuilder/plugin-sdk'
+import { Alert, Button, Heading, Stack, Tabs, TabList, Tab, TabPanel } from '@instatic/host-ui'
+import { usePluginRoutes } from '@instatic/host-hooks'
+import { definePluginAdminApp } from '@instatic/plugin-sdk'
 
 import { StatsCard } from './sections/StatsCard'
 import { DocumentsList } from './sections/DocumentsList'

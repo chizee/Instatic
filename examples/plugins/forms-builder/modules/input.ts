@@ -1,15 +1,15 @@
 /**
- * Forms Builder — `pagebuilder.forms.input`
+ * Forms Builder — `instatic.forms.input`
  *
  * Single-line text/email/url/tel/number input with accessible label,
  * helper text, and required-asterisk.
  */
-import { control, defineModule, html, raw } from '@pagebuilder/plugin-sdk'
+import { control, defineModule, html, raw } from '@instatic/plugin-sdk'
 
 type InputType = 'text' | 'email' | 'url' | 'tel' | 'number'
 
 export default defineModule({
-  id: 'pagebuilder.forms.input',
+  id: 'instatic.forms.input',
   name: 'Text Input',
   description: 'Single-line input field (text, email, URL, tel, number).',
   category: 'Forms',
@@ -44,17 +44,17 @@ export default defineModule({
     const requiredAttr = props.required ? ' required' : ''
     const placeholderAttr = props.placeholder ? ` placeholder="${props.placeholder}"` : ''
     const asterisk = props.required
-      ? raw('<span class="pb-forms-required" aria-hidden="true">*</span>')
+      ? raw('<span class="instatic-forms-required" aria-hidden="true">*</span>')
       : raw('')
     const helper = props.helperText
-      ? html`<small class="pb-forms-help">${props.helperText}</small>`
+      ? html`<small class="instatic-forms-help">${props.helperText}</small>`
       : ''
     return {
-      html: html`<div class="pb-forms-field">
-  <label class="pb-forms-label" for="pb-${props.name}">${props.label}${asterisk}</label>
+      html: html`<div class="instatic-forms-field">
+  <label class="instatic-forms-label" for="instatic-${props.name}">${props.label}${asterisk}</label>
   <input
-    class="pb-forms-control"
-    id="pb-${props.name}"
+    class="instatic-forms-control"
+    id="instatic-${props.name}"
     type="${props.inputType}"
     name="${props.name}"${raw(placeholderAttr)}${raw(requiredAttr)}
   >

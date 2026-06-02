@@ -10,8 +10,8 @@
  * and rebuilding the search index from scratch.
  */
 import { useCallback, useState } from 'react'
-import { Alert, Button, Card, Heading, Stack, Text } from '@pagebuilder/host-ui'
-import { usePluginRoutes } from '@pagebuilder/host-hooks'
+import { Alert, Button, Card, Heading, Stack, Text } from '@instatic/host-ui'
+import { usePluginRoutes } from '@instatic/host-hooks'
 import { OkResponseSchema, ReindexResponseSchema } from '../apiSchemas'
 import styles from './ReindexPanel.module.css'
 

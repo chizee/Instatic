@@ -63,7 +63,7 @@ cp .env.production.example .env
 Then they edit `.env`:
 
 ```txt
-PAGE_BUILDER_IMAGE=ghcr.io/GITHUB_OWNER/IMAGE_NAME:latest
+INSTATIC_IMAGE=ghcr.io/GITHUB_OWNER/IMAGE_NAME:latest
 POSTGRES_PASSWORD=<random hex password>
 ```
 
@@ -85,7 +85,7 @@ Or build and tag an image manually:
 
 ```sh
 docker build -t ghcr.io/GITHUB_OWNER/IMAGE_NAME:dev .
-PAGE_BUILDER_IMAGE=ghcr.io/GITHUB_OWNER/IMAGE_NAME:dev docker compose -f compose.prod.yml up -d
+INSTATIC_IMAGE=ghcr.io/GITHUB_OWNER/IMAGE_NAME:dev docker compose -f compose.prod.yml up -d
 ```
 
 ## GitHub Actions Shape

@@ -203,7 +203,7 @@ export interface ModuleDefinition<
    * cannot be pre-rendered into a static disk artefact at publish time.
    *
    * Layer A's `isFullyStaticPage` checks this flag to classify pages as
-   * dynamic. Layer C uses it to emit `<pb-hole>` placeholders around the
+   * dynamic. Layer C uses it to emit `<instatic-hole>` placeholders around the
    * node at publish time, with the actual render deferred to request time.
    *
    * No first-party module sets this to `true` yet — the flag is
@@ -214,7 +214,7 @@ export interface ModuleDefinition<
   dynamic?: boolean
 
   /**
-   * Optional loading state rendered at publish time into the `<pb-hole>`
+   * Optional loading state rendered at publish time into the `<instatic-hole>`
    * placeholder element. Called once at publish time (not per-request).
    *
    * When present, its output is sanitised via `sanitizeRichtext` before
@@ -222,7 +222,7 @@ export interface ModuleDefinition<
    * as a meaningful fallback; JS visitors see it briefly until the hole
    * runtime swaps in the server-rendered fragment.
    *
-   * If omitted, the `<pb-hole>` element is empty (zero visible content
+   * If omitted, the `<instatic-hole>` element is empty (zero visible content
    * until the runtime fires). Only applies when `dynamic: true` OR when
    * the node is otherwise classified as dynamic by auto-detection.
    */

@@ -39,7 +39,7 @@ export interface EnsureRuntimeDependencyCacheOptions {
  * (interrupted child process, watcher reload, pipe deadlock) can leave the
  * directory created but only sparsely populated.
  */
-const INSTALL_SENTINEL_FILE = '.pb-install-complete'
+const INSTALL_SENTINEL_FILE = '.instatic-install-complete'
 
 /**
  * Hard upper bound on packages declared in a single dependency lock. A site
@@ -71,7 +71,7 @@ export function runtimeDependencyLockHash(lock: SiteDependencyLock): string {
 }
 
 function defaultCacheRoot(): string {
-  return process.env.RUNTIME_CACHE_DIR || join(tmpdir(), 'page-builder-runtime-cache')
+  return process.env.RUNTIME_CACHE_DIR || join(tmpdir(), 'instatic-runtime-cache')
 }
 
 async function defaultRunInstall(command: string[], options: RuntimeInstallOptions): Promise<void> {
@@ -173,7 +173,7 @@ async function performInstall(
   try {
     await writeFile(join(tempDir, 'package.json'), JSON.stringify({
       private: true,
-      name: `page-builder-runtime-${hash}`,
+      name: `instatic-runtime-${hash}`,
       version: '0.0.0',
       type: 'module',
       dependencies: exactDependencies,

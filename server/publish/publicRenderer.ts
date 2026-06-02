@@ -14,13 +14,13 @@ import type { PublishedPageSnapshot } from '../repositories/publish'
 
 /**
  * URL prefix where the Bun server exposes the per-site CSS bundle. Mirrors
- * `/_pb/assets/` for runtime scripts. The matching route is registered in
+ * `/_instatic/assets/` for runtime scripts. The matching route is registered in
  * `server/router.ts` and serves files with `Cache-Control: immutable`.
  */
-const CSS_ASSET_BASE_URL = '/_pb/css/'
+const CSS_ASSET_BASE_URL = '/_instatic/css/'
 
 /** URL prefix for the loop data endpoint serving infinite-load fragments. */
-const LOOP_ENDPOINT_BASE_URL = '/_pb/loop/'
+const LOOP_ENDPOINT_BASE_URL = '/_instatic/loop/'
 
 /**
  * Renderer output — raw HTML body without plugin asset injection or the
@@ -44,7 +44,7 @@ export interface RenderPublishedSnapshotContext {
   /** Optional request URL — when present, drives per-loop pagination. */
   url?: URL
   /**
-   * Publish version to stamp into `<pb-hole data-pb-version>` placeholders.
+   * Publish version to stamp into `<instatic-hole data-instatic-version>` placeholders.
    * Defaults to the live `getPublishVersion()`. The full/incremental publish
    * bakes shells BEFORE bumping the version, so it passes the next version
    * (`getPublishVersion() + 1`) here — otherwise every baked hole would carry

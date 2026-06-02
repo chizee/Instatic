@@ -299,7 +299,7 @@ dependencies: {
 } as ModuleDependencies
 ```
 
-When a page uses such a module, the publisher emits a `<script type="importmap">` mapping `three` to the per-site runtime cache URL (`/_pb/runtime/cache/<hash>/three/build/three.module.js`).
+When a page uses such a module, the publisher emits a `<script type="importmap">` mapping `three` to the per-site runtime cache URL (`/_instatic/runtime/cache/<hash>/three/build/three.module.js`).
 
 `getMissingModuleDependencies(...)` in `dependencies.ts` returns the dependencies a module needs that the site doesn't declare in its `packageJson` — the Site → Dependencies panel surfaces these so the user can add them.
 

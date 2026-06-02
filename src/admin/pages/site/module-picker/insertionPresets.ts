@@ -162,7 +162,7 @@ const SEEDED_LAYOUT_PRESETS: readonly InsertionPreset[] = [
           moduleId: 'base.container',
           defaults: { tag: 'div' },
           children: [
-            { moduleId: 'base.text', defaults: { tag: 'h1', text: 'Build faster with Page Builder' } },
+            { moduleId: 'base.text', defaults: { tag: 'h1', text: 'Build faster with Instatic' } },
             { moduleId: 'base.text', defaults: { tag: 'p', text: 'A clean section with space for supporting copy.' } },
             { moduleId: 'base.button', defaults: { label: 'Get started' } },
           ],
@@ -278,7 +278,7 @@ const SEEDED_LAYOUT_PRESETS: readonly InsertionPreset[] = [
       moduleId: 'base.container',
       defaults: { tag: 'footer' },
       children: [
-        { moduleId: 'base.text', defaults: { tag: 'p', text: 'Page Builder' } },
+        { moduleId: 'base.text', defaults: { tag: 'p', text: 'Instatic' } },
         { moduleId: 'base.link', defaults: { text: 'Docs', href: '#' } },
         { moduleId: 'base.link', defaults: { text: 'Support', href: '#' } },
       ],

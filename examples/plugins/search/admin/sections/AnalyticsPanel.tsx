@@ -2,8 +2,8 @@
  * AnalyticsPanel — top queries and top no-result queries from the query log.
  */
 import { useCallback, useEffect, useState } from 'react'
-import { Alert, Card, Heading, Stack, Text } from '@pagebuilder/host-ui'
-import { usePluginRoutes } from '@pagebuilder/host-hooks'
+import { Alert, Card, Heading, Stack, Text } from '@instatic/host-ui'
+import { usePluginRoutes } from '@instatic/host-hooks'
 import { AnalyticsResponseSchema, type TopQuery } from '../apiSchemas'
 import styles from './AnalyticsPanel.module.css'
 

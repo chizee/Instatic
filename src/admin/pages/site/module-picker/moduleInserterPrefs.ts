@@ -6,7 +6,7 @@ import {
   type ModuleInserterRecentRef,
 } from './moduleInserterModel'
 
-export const MODULE_INSERTER_STORAGE_KEY = 'pb-module-inserter-v1'
+export const MODULE_INSERTER_STORAGE_KEY = 'instatic-module-inserter-v1'
 
 const MAX_RECENT_INSERTIONS = 8
 

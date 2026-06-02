@@ -74,12 +74,12 @@ function numberAttr(el: Element, name: string, fallback: number = 0): number {
 }
 
 function formControlFieldId(el: Element): string {
-  return attr(el, 'data-pb-field-id') || attr(el, 'name') || attr(el, 'id')
+  return attr(el, 'data-instatic-field-id') || attr(el, 'name') || attr(el, 'id')
 }
 
 function formIdentifier(el: Element): string {
   return normalizeIdentifierValue(
-    attr(el, 'data-pb-form-id') || attr(el, 'id') || attr(el, 'name'),
+    attr(el, 'data-instatic-form-id') || attr(el, 'id') || attr(el, 'name'),
     'form',
   )
 }
@@ -133,15 +133,15 @@ export const HTML_TO_MODULE_RULES: ImportRule[] = [
   {
     match: 'form',
     map: (el) => {
-      const mode = normalizedAttr(el, 'data-pb-form-mode') === 'cms' ? 'cms' : 'custom'
-      const redirectUrl = attr(el, 'data-pb-success-redirect')
-      const successMessage = attr(el, 'data-pb-success-message')
+      const mode = normalizedAttr(el, 'data-instatic-form-mode') === 'cms' ? 'cms' : 'custom'
+      const redirectUrl = attr(el, 'data-instatic-success-redirect')
+      const successMessage = attr(el, 'data-instatic-success-message')
       return {
         moduleId: 'base.form',
         props: {
           mode,
           formId: formIdentifier(el),
-          targetTableId: mode === 'cms' ? attr(el, 'data-pb-target-table') : '',
+          targetTableId: mode === 'cms' ? attr(el, 'data-instatic-target-table') : '',
           action: attr(el, 'action'),
           method: normalizeFormMethod(el),
           successBehavior: redirectUrl ? 'redirect' : 'message',

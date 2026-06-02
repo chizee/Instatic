@@ -18,11 +18,11 @@
  *        `servingMode: 'public-url'` we build it ourselves (typically
  *        `https://<bucket>.s3.<region>.amazonaws.com/<key>` or a
  *        CloudFront-fronted URL). For `signed-redirect` the host
- *        substitutes its own `/_pb/media/...` URL — we just return any
+ *        substitutes its own `/_instatic/media/...` URL — we just return any
  *        placeholder.
  *
  * Reads (`getReadUrl`) mint a 1-hour presigned GET URL. The host's
- * router calls this from `/_pb/media/.../...` for signed-redirect mode.
+ * router calls this from `/_instatic/media/.../...` for signed-redirect mode.
  *
  * Failures (`abortWrite`, `delete`) issue presigned DELETEs. We don't
  * retry — the host logs and continues; orphaned bytes can be swept by
@@ -36,7 +36,7 @@ import type {
   MediaStorageVerifyResult,
   MediaStorageWriteResult,
   ServerPluginApi,
-} from '@pagebuilder/plugin-sdk'
+} from '@instatic/plugin-sdk'
 import { presignS3Url } from './sigv4'
 
 /** Required setting keys — the build-time validator rejects a registration
@@ -265,7 +265,7 @@ export function buildS3Adapter(api: ServerPluginApi): MediaStorageAdapter {
       const settings = readSettings(api)
       const publicUrl = settings.servingMode === 'public-url'
         ? publicReadUrl(settings, input.storagePath)
-        // For signed-redirect, the host substitutes its own `/_pb/media/`
+        // For signed-redirect, the host substitutes its own `/_instatic/media/`
         // URL — anything we return here is replaced by the dispatcher
         // (see `server/handlers/cms/mediaUploadDispatch.ts`). We still
         // return a fallback for debug visibility.
@@ -296,7 +296,7 @@ export function buildS3Adapter(api: ServerPluginApi): MediaStorageAdapter {
     },
 
     /**
-     * Mint a signed GET URL for the host's `/_pb/media/<id>/<path>`
+     * Mint a signed GET URL for the host's `/_instatic/media/<id>/<path>`
      * route. The TTL must be long enough that a slow CDN warm-up
      * completes, short enough that a leaked URL becomes useless
      * quickly. 1 hour is the standard "long enough but not forever".

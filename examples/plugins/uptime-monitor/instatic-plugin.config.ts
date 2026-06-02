@@ -1,6 +1,6 @@
 /**
  * Uptime Monitor — demo plugin built to exercise every piece of the
- * Page Builder plugin SDK as a useful, real-world tool:
+ * Instatic plugin SDK as a useful, real-world tool:
  *
  *   • `cms.schedule`      — periodic checks (every 5 min by default) +
  *                            a daily summary roll-up
@@ -15,7 +15,7 @@
  *   • `admin.navigation`  — Dashboard page in the admin UI
  *   • `settings`          — operator-editable URL list + thresholds
  *
- * Build:   bun run pb-plugin build examples/plugins/uptime-monitor
+ * Build:   bun run instatic-plugin build examples/plugins/uptime-monitor
  * Install: upload examples/plugins/uptime-monitor.plugin.zip from /admin/plugins
  *
  * After install, grant all the requested permissions, then open the

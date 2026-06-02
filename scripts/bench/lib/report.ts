@@ -2,7 +2,7 @@
  * Renders an array of BenchResult into a single markdown report.
  *
  * Layout:
- *   # Page Builder — Benchmark Report
+ *   # Instatic — Benchmark Report
  *   ## Headline numbers (one-line summary of every bench)
  *   ## <bench title>            (one section per bench)
  *      <highlights bullets>
@@ -19,7 +19,7 @@ export function renderReport(
   meta: { runAt: Date; durationMs: number; host: string; bun: string },
 ): string {
   const lines: string[] = []
-  lines.push('# Page Builder — Benchmark Report')
+  lines.push('# Instatic — Benchmark Report')
   lines.push('')
   lines.push(`Run at: ${meta.runAt.toISOString()}`)
   lines.push(`Host: ${meta.host}`)

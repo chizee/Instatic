@@ -1,7 +1,7 @@
 /**
  * Analytics plugin — frontend tracker bundle.
  *
- * Self-contained IIFE. Installs `window.__pb_analytics.send(event, payload)`
+ * Self-contained IIFE. Installs `window.__instatic_analytics.send(event, payload)`
  * for any in-page code that wants to fire custom events, and wires DOM
  * listeners (page-view, link-click, scroll-depth, web vitals, bounce) that
  * POST to this plugin's OWN ingest route. The host provides no shared
@@ -16,11 +16,11 @@
  * Route base — every fetch lives under this plugin's `/runtime` namespace
  * so the host's permission gate covers it without any special-cased path.
  */
-import type { } from '@pagebuilder/plugin-sdk' // type-only; compiles away
+import type { } from '@instatic/plugin-sdk' // type-only; compiles away
 
 declare global {
   interface Window {
-    __pb_analytics?: {
+    __instatic_analytics?: {
       visitorId: string
       sessionId: string
       send(event: string, payload?: Record<string, unknown>): void
@@ -28,13 +28,13 @@ declare global {
   }
 }
 
-const PLUGIN_ID       = 'pagebuilder.analytics'
+const PLUGIN_ID       = 'instatic.analytics'
 const ROUTE_BASE      = `/admin/api/cms/plugins/${PLUGIN_ID}/runtime`
-const VISITOR_KEY     = '__pb_analytics_v'
-const SESSION_KEY     = '__pb_analytics_s'
-const GEO_CACHE_KEY   = '__pb_analytics_geo'
-const ADMIN_CACHE_KEY = '__pb_analytics_admin'
-const OPT_OUT_KEY     = '__pb_analytics_optout'
+const VISITOR_KEY     = '__instatic_analytics_v'
+const SESSION_KEY     = '__instatic_analytics_s'
+const GEO_CACHE_KEY   = '__instatic_analytics_geo'
+const ADMIN_CACHE_KEY = '__instatic_analytics_admin'
+const OPT_OUT_KEY     = '__instatic_analytics_optout'
 
 ;(function init() {
   // ── Privacy gates ─────────────────────────────────────────────────────
@@ -138,7 +138,7 @@ const OPT_OUT_KEY     = '__pb_analytics_optout'
 
   // Expose a small surface for in-page code that wants to fire custom
   // events (e.g. a CTA-click handler in a custom module).
-  window.__pb_analytics = {
+  window.__instatic_analytics = {
     visitorId: _visitorId,
     sessionId: _sessionId,
     send,

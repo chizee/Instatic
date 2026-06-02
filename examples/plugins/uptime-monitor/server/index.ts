@@ -20,7 +20,7 @@
  * module (Node or Bun built-ins) would fail the sandbox literal scan at
  * build time. Anything beyond pure JS goes through the SDK.
  */
-import type { ServerPluginApi, ServerPluginModule } from '@pagebuilder/plugin-sdk'
+import type { ServerPluginApi, ServerPluginModule } from '@instatic/plugin-sdk'
 
 // ---------------------------------------------------------------------------
 // Per-URL failure counter — lives in plugin VM memory. Reset on each
@@ -30,7 +30,7 @@ import type { ServerPluginApi, ServerPluginModule } from '@pagebuilder/plugin-sd
 const failureCounters = new Map<string, number>()
 
 /**
- * Shape of a single check row. Field IDs come from `pb-plugin.config.ts`
+ * Shape of a single check row. Field IDs come from `instatic-plugin.config.ts`
  * → resources[0].fields. The manifest schema restricts ids to lowercase
  * + digits + hyphens, so multi-word fields use kebab-case here (and in
  * the `create({...})` payload below).

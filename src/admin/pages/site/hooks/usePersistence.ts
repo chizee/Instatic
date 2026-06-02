@@ -174,7 +174,7 @@ export function usePersistence(
       }
 
       // Bootstrap a fresh draft once for new installs that have an admin/site row
-      // but no page-builder document yet.
+      // but no instatic document yet.
       if (!cancelled) {
         const created = createSite('My Site')
         applyDefaultBreakpointPreference(created.breakpoints)

@@ -2,7 +2,7 @@
  * Typed permission constants — gives plugin authors autocomplete instead of
  * having to remember the exact string literal.
  *
- *   import { permissions } from '@pagebuilder/plugin-sdk'
+ *   import { permissions } from '@instatic/plugin-sdk'
  *   permissions: [permissions.modulesRegister, permissions.cmsHooks]
  *
  * Keys are camelCased; values are the canonical permission identifiers used

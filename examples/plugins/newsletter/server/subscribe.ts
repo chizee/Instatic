@@ -8,9 +8,9 @@
  * with a core capability (e.g. `plugins.configure`).
  *
  * Route URL prefix (all routes):
- *   /admin/api/cms/plugins/pagebuilder.newsletter/runtime
+ *   /admin/api/cms/plugins/instatic.newsletter/runtime
  */
-import type { ServerPluginApi, StorageFilterValue } from '@pagebuilder/plugin-sdk'
+import type { ServerPluginApi, StorageFilterValue } from '@instatic/plugin-sdk'
 import { generateToken, sendEmail } from './resend'
 import {
   renderConfirmPage,
@@ -48,7 +48,7 @@ export interface SubscriberData {
  * Extract path segments relative to the plugin's runtime root.
  *
  * For a request to:
- *   /admin/api/cms/plugins/pagebuilder.newsletter/runtime/preferences/abc123/save
+ *   /admin/api/cms/plugins/instatic.newsletter/runtime/preferences/abc123/save
  * Returns: ['preferences', 'abc123', 'save']
  */
 function getSegments(req: Request): string[] {

@@ -390,7 +390,7 @@ describe('VC inlining — unknown componentId', () => {
     const site = makeSite({ visualComponents: [], pages: [page] })
     const cssMap = new Map<string, string>()
     const html = renderNode('root', { page, site, registry, breakpointId: undefined, cssMap })
-    expect(html).toContain('<!-- pb: unknown component')
+    expect(html).toContain('<!-- instatic: unknown component')
     expect(html).toContain('nonexistent-vc')
     expect(html).not.toContain('<div>')
   })
@@ -405,7 +405,7 @@ describe('VC inlining — unknown componentId', () => {
     const site = makeSite({ visualComponents: [], pages: [page] })
     const cssMap = new Map<string, string>()
     const html = renderNode('root', { page, site, registry, breakpointId: undefined, cssMap })
-    expect(html).toContain('<!-- pb: visual-component-ref missing componentId -->')
+    expect(html).toContain('<!-- instatic: visual-component-ref missing componentId -->')
   })
 
   it('HTML-escapes the componentId in the error comment to prevent XSS', () => {
@@ -479,9 +479,9 @@ describe('VC inlining — richtext prop sanitization', () => {
     const site = makeSite({ visualComponents: [vcContent], pages: [page] })
     const { html } = publishPage(page, site, registry)
     // The <article> wrapper from base.content must be intact (the
-    // `data-pb-content-region` attribute is the marker the content
+    // `data-instatic-content-region` attribute is the marker the content
     // editor's Live mode uses to mount its inline Tiptap instance).
-    expect(html).toContain('<article data-pb-content-region>')
+    expect(html).toContain('<article data-instatic-content-region>')
     expect(html).not.toContain('<script>')
   })
 })

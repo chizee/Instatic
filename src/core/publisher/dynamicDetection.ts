@@ -4,7 +4,7 @@
  *
  * `findDynamicNodeIds(page, site, registry)` classifies every node in a
  * page tree as either static (can be pre-rendered at publish time) or
- * dynamic (must be deferred to request time via a `<pb-hole>` placeholder).
+ * dynamic (must be deferred to request time via a `<instatic-hole>` placeholder).
  * It returns the SET of node IDs that are dynamic; an empty set means the
  * page is fully static.
  *
@@ -275,7 +275,7 @@ function walk(
 
 /**
  * Single pass over `page.nodes` that returns BOTH the set of page-level
- * node ids needing `<pb-hole>` placeholders AND the human-readable reason
+ * node ids needing `<instatic-hole>` placeholders AND the human-readable reason
  * strings. Layer A's `isFullyStaticPage`, Layer A's `staticReasons`, and
  * Layer C's `renderNode` placeholder emission all derive from this one
  * walker — the rules cannot drift between layers.
@@ -299,7 +299,7 @@ export function findDynamicNodesWithReasons(
 
 /**
  * Returns the set of PAGE node ids whose subtree must be deferred to a
- * `<pb-hole>` placeholder. Empty set means the page is fully static.
+ * `<instatic-hole>` placeholder. Empty set means the page is fully static.
  *
  * Convenience wrapper for callers that only need the ids; see
  * `findDynamicNodesWithReasons` for the diagnostic-reason variant.

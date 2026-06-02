@@ -275,7 +275,7 @@ const baseManifest = {
 
 describe('server plugin runtime SDK', () => {
   it('lets plugins explicitly register public GET routes (no auth required)', async () => {
-    const uploadsDir = await mkdtemp(join(tmpdir(), 'page-builder-public-routes-'))
+    const uploadsDir = await mkdtemp(join(tmpdir(), 'instatic-public-routes-'))
     const db = makeFakeDb()
     const cookie = await createCookie(db)
     try {
@@ -309,7 +309,7 @@ describe('server plugin runtime SDK', () => {
   })
 
   it('blocks backend route registration without the cms.routes permission grant', async () => {
-    const uploadsDir = await mkdtemp(join(tmpdir(), 'page-builder-perm-gate-'))
+    const uploadsDir = await mkdtemp(join(tmpdir(), 'instatic-perm-gate-'))
     const db = makeFakeDb()
     const cookie = await createCookie(db)
     try {
@@ -339,7 +339,7 @@ describe('server plugin runtime SDK', () => {
   })
 
   it('registers loop sources with the loops.register permission grant', async () => {
-    const uploadsDir = await mkdtemp(join(tmpdir(), 'page-builder-loop-source-'))
+    const uploadsDir = await mkdtemp(join(tmpdir(), 'instatic-loop-source-'))
     const sourceId = 'acme.workflow.products'
     const db = makeFakeDb()
     const cookie = await createCookie(db)
@@ -377,7 +377,7 @@ describe('server plugin runtime SDK', () => {
   })
 
   it('exposes plugin metadata (id, version, permissions) inside lifecycle hooks', async () => {
-    const uploadsDir = await mkdtemp(join(tmpdir(), 'page-builder-metadata-'))
+    const uploadsDir = await mkdtemp(join(tmpdir(), 'instatic-metadata-'))
     const db = makeFakeDb()
     const cookie = await createCookie(db)
 

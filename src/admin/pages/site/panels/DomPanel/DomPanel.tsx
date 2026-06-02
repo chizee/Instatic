@@ -69,7 +69,7 @@ import { FileTextSolidIcon } from 'pixel-art-icons/icons/file-text-solid'
 import { VideoSolidIcon } from 'pixel-art-icons/icons/video-solid'
 import styles from './DomPanel.module.css'
 
-const PANEL_STORAGE_KEY = 'pb-dom-panel'
+const PANEL_STORAGE_KEY = 'instatic-dom-panel'
 const DEFAULT_WIDTH = 280
 type PanelVariant = 'floating' | 'docked'
 

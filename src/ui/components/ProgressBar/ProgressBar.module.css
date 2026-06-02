@@ -26,9 +26,9 @@
 
 /* ── Fill ─────────────────────────────────────────────────────────────────── */
 .fill {
-    --pb-fill: 0%;
+    --instatic-fill: 0%;
     height: 100%;
-    width: var(--pb-fill);
+    width: var(--instatic-fill);
     border-radius: var(--editor-radius-sm);
     background: var(--editor-surface-4);
     transition: width 80ms ease-out;
@@ -48,7 +48,7 @@
 }
 
 /* ── Indeterminate ────────────────────────────────────────────────────────── */
-@keyframes pbIndeterminate {
+@keyframes instaticIndeterminate {
     0% {
         transform: translateX(-100%);
     }
@@ -60,7 +60,7 @@
 .rail[data-indeterminate='true'] .fill {
     width: 25%;
     transition: none;
-    animation: pbIndeterminate 1.4s ease-in-out infinite;
+    animation: instaticIndeterminate 1.4s ease-in-out infinite;
 }
 
 /* Tone variants for indeterminate fill */

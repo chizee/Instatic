@@ -9,19 +9,19 @@
  *
  * NOTE: this file runs in the host's Bun process (not bundled), so it imports
  * from `@core/plugin-sdk` via the host's tsconfig paths. Plugin source files
- * (admin/, server/, frontend/) import from `@pagebuilder/plugin-sdk` so they
+ * (admin/, server/, frontend/) import from `@instatic/plugin-sdk` so they
  * are externalized at build time and resolved by the host's import map at
  * runtime.
  */
 import { definePlugin, permissions } from '@core/plugin-sdk'
 
 export default definePlugin({
-  id: 'pagebuilder.analytics',
+  id: 'instatic.analytics',
   name: 'Analytics',
   version: '1.0.0',
   apiVersion: 1,
   description: 'Self-hosted, privacy-preserving page-view and event analytics.',
-  author: { name: 'Page Builder' },
+  author: { name: 'Instatic' },
   license: 'MIT',
   icon: 'icon.svg',
 
@@ -46,7 +46,7 @@ export default definePlugin({
   // preserved: the deferred external tracker bundle lands at the end of
   // `<body>` so it doesn't block page rendering. The plugin owns the IIFE
   // entirely — the host ships no shared runtime; analytics uses its own
-  // `window.__pb_analytics` namespace.
+  // `window.__instatic_analytics` namespace.
   frontend: {
     assets: [
       {

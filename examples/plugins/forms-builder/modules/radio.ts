@@ -1,10 +1,10 @@
 /**
- * Forms Builder — `pagebuilder.forms.radio-group`
+ * Forms Builder — `instatic.forms.radio-group`
  *
  * A group of radio buttons. Options are configured as a newline-separated
  * "label:value" or just "value" list.
  */
-import { control, defineModule, html, raw } from '@pagebuilder/plugin-sdk'
+import { control, defineModule, html, raw } from '@instatic/plugin-sdk'
 
 function parseOptions(rawStr: string): Array<{ label: string; value: string }> {
   return rawStr
@@ -19,7 +19,7 @@ function parseOptions(rawStr: string): Array<{ label: string; value: string }> {
 }
 
 export default defineModule({
-  id: 'pagebuilder.forms.radio-group',
+  id: 'instatic.forms.radio-group',
   name: 'Radio Group',
   description: 'A group of mutually exclusive radio buttons.',
   category: 'Forms',
@@ -48,32 +48,32 @@ export default defineModule({
   },
   render: ({ props }) => {
     const asterisk = props.required
-      ? raw('<span class="pb-forms-required" aria-hidden="true">*</span>')
+      ? raw('<span class="instatic-forms-required" aria-hidden="true">*</span>')
       : raw('')
     const helper = props.helperText
-      ? html`<small class="pb-forms-help">${props.helperText}</small>`
+      ? html`<small class="instatic-forms-help">${props.helperText}</small>`
       : ''
     const opts = parseOptions(String(props.options))
     const radioInputs = opts
       .map(
         (o) =>
-          html`<label class="pb-forms-radio-label">
-    <input class="pb-forms-radio" type="radio" name="${props.name}" value="${o.value}"${raw(props.required ? ' required' : '')}>
+          html`<label class="instatic-forms-radio-label">
+    <input class="instatic-forms-radio" type="radio" name="${props.name}" value="${o.value}"${raw(props.required ? ' required' : '')}>
     ${o.label}
   </label>`,
       )
       .join('\n  ')
     return {
-      html: html`<fieldset class="pb-forms-field pb-forms-fieldset">
-  <legend class="pb-forms-label">${props.label}${asterisk}</legend>
+      html: html`<fieldset class="instatic-forms-field instatic-forms-fieldset">
+  <legend class="instatic-forms-label">${props.label}${asterisk}</legend>
   ${raw(radioInputs)}
   ${raw(helper)}
 </fieldset>`,
       css: `
-.pb-forms-fieldset{border:none;padding:0;margin:0;}
-.pb-forms-fieldset legend.pb-forms-label{padding:0;margin-bottom:6px;}
-.pb-forms-radio-label{display:flex;align-items:center;gap:8px;font-size:0.9375rem;cursor:pointer;margin-bottom:6px;}
-.pb-forms-radio{width:15px;height:15px;flex-shrink:0;}
+.instatic-forms-fieldset{border:none;padding:0;margin:0;}
+.instatic-forms-fieldset legend.instatic-forms-label{padding:0;margin-bottom:6px;}
+.instatic-forms-radio-label{display:flex;align-items:center;gap:8px;font-size:0.9375rem;cursor:pointer;margin-bottom:6px;}
+.instatic-forms-radio{width:15px;height:15px;flex-shrink:0;}
 `,
     }
   },

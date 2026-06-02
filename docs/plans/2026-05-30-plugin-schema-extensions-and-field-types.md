@@ -57,7 +57,7 @@ Plugins should NOT add new BUILT-IN types — that would break the exhaustivity 
 | `system: true` flag on system tables | `data_tables.system` column + `softDeleteDataTable` refusal | Plugins inherit the rename / delete protection automatically |
 | `builtIn: true` flag on built-in fields | `FieldCommonProps.builtIn` in `schemas.ts:88` + `isPostTypeBuiltInFieldId` in `fields.ts:49-51` | Pattern to mirror: a `pluginId` flag distinguishes plugin-owned from user / built-in |
 | Cell editor switch | `CellEditorRenderer` at `src/admin/pages/data/components/DataGrid/cells/CellEditorRenderer.tsx:51-100` | Single dispatch point; adding one `custom` branch is all the UI surgery needed |
-| Plugin editor entrypoint + bundle externals pattern | `src/core/plugin-sdk/cli/build.ts:69-77` (`HOST_RUNTIME_EXTERNALS`) | The exact mechanism used today for `editor.panels.register` and `editor.canvas.registerOverlay` — `react` + `@pagebuilder/host-ui` externalized at build time, resolved at runtime via the host's import map |
+| Plugin editor entrypoint + bundle externals pattern | `src/core/plugin-sdk/cli/build.ts:69-77` (`HOST_RUNTIME_EXTERNALS`) | The exact mechanism used today for `editor.panels.register` and `editor.canvas.registerOverlay` — `react` + `@instatic/host-ui` externalized at build time, resolved at runtime via the host's import map |
 | Plugin host UI primitives + hooks | `src/admin/plugin-host-ui/` + `src/admin/plugin-host-hooks/` | Plugins get `Button`, `Stack`, `Card`, `Input`, `useEditorStore`, `usePluginSettings` — the cell components compile against this stable surface |
 | Activate-time host upsert pattern | `pluginScheduleRegistration.ts:registerPluginSchedule` + the boot hook in `server/plugins/runtime.ts:activateInstalledServerPlugins` | The exact pattern for "plugin's `activate` causes the host to upsert a DB row" — schema extensions reuse it directly |
 | Plugin manifest validation pipeline | `src/core/plugins/manifest.ts` | TypeBox-validated + dialect-naive — new manifest fields slot in cleanly |
@@ -73,7 +73,7 @@ The data model, the field validator, the cell-editor dispatch, the manifest pipe
 
 - Plugins declare schema extensions in their manifest, the host applies them on activation, and they appear in both the Data workspace's grid and the Content workspace's edit form.
 - Plugin-owned fields are visually distinguishable from user / built-in fields (the field row in `FieldsSection.tsx` carries the plugin's icon + name; the cell label adds a small badge).
-- Plugins ship new field-type kinds as React components in their editor bundle, externalising `react` / `@pagebuilder/host-ui` / `@pagebuilder/host-hooks`.
+- Plugins ship new field-type kinds as React components in their editor bundle, externalising `react` / `@instatic/host-ui` / `@instatic/host-hooks`.
 - Field id collisions are structurally impossible: plugin-owned ids are `<pluginId>.<name>`, user-added ids are pattern-restricted to NOT contain a dot, built-in ids are reserved string literals.
 - `api.cms.content.*` from the A.2 plan reads / writes plugin-owned fields through the SAME cell-key path — no new content-access RPCs.
 - Deactivate / uninstall lifecycle is explicit and operator-visible. Deactivate hides the fields without data loss; uninstall is a destructive action that requires confirmation if non-null cells exist.
@@ -291,7 +291,7 @@ api.editor: {
     /**
      * Register a custom field-type kind. The id MUST match one of the plugin's
      * declared `manifest.fieldTypes[]` entries. Re-registration replaces the
-     * previous components (normal on hot-reload during `pb-plugin dev`).
+     * previous components (normal on hot-reload during `instatic-plugin dev`).
      *
      * Requires the `editor.fieldTypes.register` permission. The components
      * run in the admin's React tree — no QuickJS sandbox involved.
@@ -495,7 +495,7 @@ The editor entrypoint registers the chip-input field type:
 ```tsx
 // editor/index.js (TypeScript source: editor/fieldTypes/seoKeywords.tsx)
 import { Type } from '@sinclair/typebox'
-import { Input, Stack } from '@pagebuilder/host-ui'
+import { Input, Stack } from '@instatic/host-ui'
 import { useState } from 'react'
 
 export default {
@@ -613,13 +613,13 @@ The custom field's `detail` component opens a tabbed dialog with one tab per con
 6. **Cell editor switch.** Add the `case 'custom':` branch in `src/admin/pages/data/components/DataGrid/cells/CellEditorRenderer.tsx`. Add `PluginFieldTypeMount` + `PluginFieldTypeMissing` in `src/admin/plugin-host-ui/`.
 7. **Field-type registry.** New `usePluginFieldTypeRegistry()` hook in `src/admin/plugin-host-hooks/`. Backed by a Zustand slice (or a plain `Map` exposed via React Context) that the plugin editor entrypoint's activate populates.
 8. **Editor SDK.** Add `api.editor.fieldTypes` surface in `src/core/plugin-sdk/types/editorApi.ts`. Add the `PluginFieldTypeDefinition` type + builder helpers (`defineFieldType<TValue>(...)`) in `src/core/plugin-sdk/builders/`.
-9. **Bundle externals.** `HOST_RUNTIME_EXTERNALS` in `src/core/plugin-sdk/cli/build.ts:69-77` already covers `react` / `@pagebuilder/host-ui` / `@pagebuilder/host-hooks` for editor entrypoints — no change.
+9. **Bundle externals.** `HOST_RUNTIME_EXTERNALS` in `src/core/plugin-sdk/cli/build.ts:69-77` already covers `react` / `@instatic/host-ui` / `@instatic/host-hooks` for editor entrypoints — no change.
 10. **Manifest install consent UI.** Extend the install dialog to render `schemaExtensions` and `fieldTypes` sections from the [Permissions](#permissions) example.
 11. **Content workspace form layout.** Update the content form to honor `section` (grouped header) and `displayOrder` (sort key). One small change in the form-rendering component; reading is already from the table's `fields[]`.
-12. **Binding-picker filter.** Plugin-owned custom-type fields are excluded from the page-builder binding picker because their values are opaque to the host. `buildMetaFields` in `src/core/data/fields.ts:64-96` gets one new branch: `if (field.type === 'custom') continue` — mirrors the existing `pageTree` / `fieldSchema` exclusion.
+12. **Binding-picker filter.** Plugin-owned custom-type fields are excluded from the instatic binding picker because their values are opaque to the host. `buildMetaFields` in `src/core/data/fields.ts:64-96` gets one new branch: `if (field.type === 'custom') continue` — mirrors the existing `pageTree` / `fieldSchema` exclusion.
 13. **SEO Suite migration.** Replace the `seo-entries` plugin-private resource with the four schema-extension fields. Delete the sidecar storage code. Add the keyword chip-input field type. Update the README. The plugin's `permissions` array gains `cms.schema.extend` + `editor.fieldTypes.register`.
 14. **Docs.** Update `docs/features/plugin-system.md` with the new permission entries + a cookbook section. Add cross-references from `docs/features/content-storage.md`.
-15. **CLI.** Add `bun pb-plugin init --kind=content-extender` scaffold that pre-declares `cms.schema.extend` + a `schemaExtensions[]` entry on `pages`. Add `--kind=field-type` for plugins shipping a new field type.
+15. **CLI.** Add `bun instatic-plugin init --kind=content-extender` scaffold that pre-declares `cms.schema.extend` + a `schemaExtensions[]` entry on `pages`. Add `--kind=field-type` for plugins shipping a new field type.
 
 One PR. `bun test && bun run build && bun run lint` must pass.
 

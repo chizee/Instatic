@@ -223,8 +223,8 @@ export async function publishDataRow(
  *
  * The artefact is baked whether or not the template is fully static: a static
  * template bakes a complete document; a template with dynamic nodes bakes its
- * static SHELL with `<pb-hole>` placeholders (the hole runtime hydrates each
- * fragment from `/_pb/hole/`). Either way HTML + CSS + JS come from disk.
+ * static SHELL with `<instatic-hole>` placeholders (the hole runtime hydrates each
+ * fragment from `/_instatic/hole/`). Either way HTML + CSS + JS come from disk.
  *
  * Steps:
  *   1. Remove the old artefact if the slug changed (old URL no longer valid).

@@ -61,7 +61,7 @@ const marked = new Marked({ gfm: true })
 marked.use({
   extensions: [
     {
-      name: 'pbVideo',
+      name: 'instaticVideo',
       level: 'block',
       start(src: string) {
         return src.indexOf('@[video](')
@@ -69,7 +69,7 @@ marked.use({
       tokenizer(src: string) {
         const match = src.match(/^@\[video\]\(([^)\s]+)\)\s*(?:\n|$)/)
         if (!match) return undefined
-        return { type: 'pbVideo', raw: match[0], href: match[1].trim() }
+        return { type: 'instaticVideo', raw: match[0], href: match[1].trim() }
       },
       renderer() {
         // We never use marked to render — only to lex. Return empty.
@@ -149,8 +149,8 @@ function tokenToBlockNode(token: Token): JSONNode | JSONNode[] | null {
       return { type: 'paragraph', content: [{ type: 'text', text: raw }] }
     }
     default:
-      // Custom tokens (e.g. pbVideo)
-      if (token.type === 'pbVideo') {
+      // Custom tokens (e.g. instaticVideo)
+      if (token.type === 'instaticVideo') {
         const href = (token as unknown as { href?: unknown }).href
         if (typeof href === 'string') {
           return mediaNode('video', href, '')
@@ -298,10 +298,10 @@ function inlineTokensToNodes(tokens: Token[], marks: JSONMark[]): JSONNode[] {
 }
 
 /**
- * Expand inline `<u>` … `</u>` HTML pairs into synthetic `pbUnderline`
+ * Expand inline `<u>` … `</u>` HTML pairs into synthetic `instaticUnderline`
  * tokens, then walk each resulting token with the given mark stack.
  * Called at the entry point AND whenever the walker recurses into a
- * marked child group (em / strong / del / link / pbUnderline), so nested
+ * marked child group (em / strong / del / link / instaticUnderline), so nested
  * underlines inside bold / italic / etc. survive the round-trip.
  *
  * Markdown has no native underline syntax — we round-trip it as inline
@@ -309,7 +309,7 @@ function inlineTokensToNodes(tokens: Token[], marks: JSONMark[]): JSONNode[] {
  * save + reload cycles.
  */
 function pushInlineGroup(out: JSONNode[], tokens: Token[], marks: JSONMark[]): void {
-  const expanded = expandInlineHtmlMarkPairs(tokens, '<u>', '</u>', 'pbUnderline')
+  const expanded = expandInlineHtmlMarkPairs(tokens, '<u>', '</u>', 'instaticUnderline')
   for (const token of expanded) pushInline(out, token, marks)
 }
 
@@ -416,7 +416,7 @@ function pushInline(out: JSONNode[], token: Token, marks: JSONMark[]): void {
       if (raw) out.push(textNode(raw, marks))
       return
     }
-    case 'pbUnderline': {
+    case 'instaticUnderline': {
       const inner = (token as unknown as { tokens?: Token[] }).tokens ?? []
       pushInlineGroup(out, inner, addMark(marks, { type: 'underline' }))
       return

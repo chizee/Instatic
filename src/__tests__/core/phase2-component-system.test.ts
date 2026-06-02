@@ -6,13 +6,13 @@
  *   renameParam, updateParamMeta
  *
  * Gate groups:
- *   PB-1 to PB-2 — setNodePropBinding (page mode + VC mode)
- *   PB-2a        — setNodePropBinding: null activeDocument (default page canvas)
- *   PB-3 to PB-4 — clearNodePropBinding (GC orphan + no-GC when still referenced)
- *   PB-3a        — clearNodePropBinding: null activeDocument (default page canvas)
- *   PB-5         — updateParamDefaultValue
- *   PB-6 to PB-8 — renameParam (happy path, stability invariant, throw on invalid)
- *   PB-9         — updateParamMeta round-trip
+ *   PROP-BIND-1 to PROP-BIND-2 — setNodePropBinding (page mode + VC mode)
+ *   PROP-BIND-2a        — setNodePropBinding: null activeDocument (default page canvas)
+ *   PROP-BIND-3 to PROP-BIND-4 — clearNodePropBinding (GC orphan + no-GC when still referenced)
+ *   PROP-BIND-3a        — clearNodePropBinding: null activeDocument (default page canvas)
+ *   PROP-BIND-5         — updateParamDefaultValue
+ *   PROP-BIND-6 to PROP-BIND-8 — renameParam (happy path, stability invariant, throw on invalid)
+ *   PROP-BIND-9         — updateParamMeta round-trip
  *
  * Uses the same freshStore / setupSite pattern as task436-visual-components-data-layer.test.ts
  *
@@ -97,10 +97,10 @@ function getActivePage() {
 }
 
 // ---------------------------------------------------------------------------
-// Gate PB-1 — setNodePropBinding: VC mode sets propBindings on the VC node
+// Gate PROP-BIND-1 — setNodePropBinding: VC mode sets propBindings on the VC node
 // ---------------------------------------------------------------------------
 
-describe('Gate PB-1 — setNodePropBinding in VC mode', () => {
+describe('Gate PROP-BIND-1 — setNodePropBinding in VC mode', () => {
   beforeEach(() => { setupSite() })
 
   it('sets propBindings[propKey] on the VC rootNode when activeDocument is a VC', () => {
@@ -120,10 +120,10 @@ describe('Gate PB-1 — setNodePropBinding in VC mode', () => {
 })
 
 // ---------------------------------------------------------------------------
-// Gate PB-2 — setNodePropBinding: page mode sets propBindings on the page node
+// Gate PROP-BIND-2 — setNodePropBinding: page mode sets propBindings on the page node
 // ---------------------------------------------------------------------------
 
-describe('Gate PB-2 — setNodePropBinding in page mode', () => {
+describe('Gate PROP-BIND-2 — setNodePropBinding in page mode', () => {
   beforeEach(() => { setupSite() })
 
   it('sets propBindings[propKey] on the page node when activeDocument is a page', () => {
@@ -141,10 +141,10 @@ describe('Gate PB-2 — setNodePropBinding in page mode', () => {
 })
 
 // ---------------------------------------------------------------------------
-// Gate PB-2a — setNodePropBinding: null activeDocument (default page canvas state)
+// Gate PROP-BIND-2a — setNodePropBinding: null activeDocument (default page canvas state)
 // ---------------------------------------------------------------------------
 
-describe('Gate PB-2a — setNodePropBinding with null activeDocument (default page canvas)', () => {
+describe('Gate PROP-BIND-2a — setNodePropBinding with null activeDocument (default page canvas)', () => {
   beforeEach(() => { setupSite() })
 
   it('sets propBindings on the page node when activeDocument is null and activePageId is set', () => {
@@ -163,10 +163,10 @@ describe('Gate PB-2a — setNodePropBinding with null activeDocument (default pa
 })
 
 // ---------------------------------------------------------------------------
-// Gate PB-3 — clearNodePropBinding: GCs orphan param when no other node references it
+// Gate PROP-BIND-3 — clearNodePropBinding: GCs orphan param when no other node references it
 // ---------------------------------------------------------------------------
 
-describe('Gate PB-3 — clearNodePropBinding GCs orphan param', () => {
+describe('Gate PROP-BIND-3 — clearNodePropBinding GCs orphan param', () => {
   beforeEach(() => { setupSite() })
 
   it('removes the param from vc.params when no other node references it after clear', () => {
@@ -193,10 +193,10 @@ describe('Gate PB-3 — clearNodePropBinding GCs orphan param', () => {
 })
 
 // ---------------------------------------------------------------------------
-// Gate PB-4 — clearNodePropBinding: does NOT GC when another node still references it
+// Gate PROP-BIND-4 — clearNodePropBinding: does NOT GC when another node still references it
 // ---------------------------------------------------------------------------
 
-describe('Gate PB-4 — clearNodePropBinding does NOT GC when still referenced', () => {
+describe('Gate PROP-BIND-4 — clearNodePropBinding does NOT GC when still referenced', () => {
   beforeEach(() => { setupSite() })
 
   it('keeps the param in vc.params when another node still has a binding to it', () => {
@@ -235,10 +235,10 @@ describe('Gate PB-4 — clearNodePropBinding does NOT GC when still referenced',
 })
 
 // ---------------------------------------------------------------------------
-// Gate PB-3a — clearNodePropBinding: null activeDocument (default page canvas state)
+// Gate PROP-BIND-3a — clearNodePropBinding: null activeDocument (default page canvas state)
 // ---------------------------------------------------------------------------
 
-describe('Gate PB-3a — clearNodePropBinding with null activeDocument (default page canvas)', () => {
+describe('Gate PROP-BIND-3a — clearNodePropBinding with null activeDocument (default page canvas)', () => {
   beforeEach(() => { setupSite() })
 
   it('removes propBinding from page node when activeDocument is null and activePageId is set', () => {
@@ -261,10 +261,10 @@ describe('Gate PB-3a — clearNodePropBinding with null activeDocument (default 
 })
 
 // ---------------------------------------------------------------------------
-// Gate PB-5 — updateParamDefaultValue updates params[i].defaultValue
+// Gate PROP-BIND-5 — updateParamDefaultValue updates params[i].defaultValue
 // ---------------------------------------------------------------------------
 
-describe('Gate PB-5 — updateParamDefaultValue', () => {
+describe('Gate PROP-BIND-5 — updateParamDefaultValue', () => {
   beforeEach(() => { setupSite() })
 
   it('updates the defaultValue of the specified param', () => {
@@ -279,10 +279,10 @@ describe('Gate PB-5 — updateParamDefaultValue', () => {
 })
 
 // ---------------------------------------------------------------------------
-// Gate PB-6 — renameParam: validates and updates params[i].name
+// Gate PROP-BIND-6 — renameParam: validates and updates params[i].name
 // ---------------------------------------------------------------------------
 
-describe('Gate PB-6 — renameParam happy path', () => {
+describe('Gate PROP-BIND-6 — renameParam happy path', () => {
   beforeEach(() => { setupSite() })
 
   it('renames a param and updates its name field', () => {
@@ -297,11 +297,11 @@ describe('Gate PB-6 — renameParam happy path', () => {
 })
 
 // ---------------------------------------------------------------------------
-// Gate PB-7 — renameParam: stability invariant
+// Gate PROP-BIND-7 — renameParam: stability invariant
 // Rename should NOT affect propOverrides (which key by paramId, not name)
 // ---------------------------------------------------------------------------
 
-describe('Gate PB-7 — renameParam stability invariant', () => {
+describe('Gate PROP-BIND-7 — renameParam stability invariant', () => {
   beforeEach(() => { setupSite() })
 
   it('override stored by paramId is still findable after param rename', () => {
@@ -327,10 +327,10 @@ describe('Gate PB-7 — renameParam stability invariant', () => {
 })
 
 // ---------------------------------------------------------------------------
-// Gate PB-8 — renameParam: throws VisualComponentParamNameError on invalid name
+// Gate PROP-BIND-8 — renameParam: throws VisualComponentParamNameError on invalid name
 // ---------------------------------------------------------------------------
 
-describe('Gate PB-8 — renameParam throws on invalid name', () => {
+describe('Gate PROP-BIND-8 — renameParam throws on invalid name', () => {
   beforeEach(() => { setupSite() })
 
   it('throws VisualComponentParamNameError when renaming to an empty name', () => {
@@ -357,10 +357,10 @@ describe('Gate PB-8 — renameParam throws on invalid name', () => {
 })
 
 // ---------------------------------------------------------------------------
-// Gate PB-9 — updateParamMeta: round-trips required / description / enumOptions
+// Gate PROP-BIND-9 — updateParamMeta: round-trips required / description / enumOptions
 // ---------------------------------------------------------------------------
 
-describe('Gate PB-9 — updateParamMeta round-trip', () => {
+describe('Gate PROP-BIND-9 — updateParamMeta round-trip', () => {
   beforeEach(() => { setupSite() })
 
   it('updates required, description, and enumOptions for an enum param', () => {

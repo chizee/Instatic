@@ -64,7 +64,7 @@ interface LoopEntitySource {
    * that varies per visitor request (live API, time-of-day data, per-
    * visitor results). Loops using a request-dependent source become
    * Layer C "holes" — the publisher emits a placeholder + a tiny client
-   * runtime fetches the rendered fragment lazily via `/_pb/hole/<nodeId>`.
+   * runtime fetches the rendered fragment lazily via `/_instatic/hole/<nodeId>`.
    *
    * Built-in sources (`content.entries`, `site.pages`, `site.media`)
    * declare `false` — their data is publish-time-deterministic, the loop

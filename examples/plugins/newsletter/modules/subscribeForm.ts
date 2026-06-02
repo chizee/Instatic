@@ -1,5 +1,5 @@
 /**
- * pagebuilder.newsletter.subscribe-form
+ * instatic.newsletter.subscribe-form
  *
  * Renders a clean semantic HTML subscribe form. Submits via GET to the
  * plugin's public /subscribe endpoint so it works from published pages
@@ -17,7 +17,7 @@
  */
 import { control, defineModule, html, safeUrl } from '@core/plugin-sdk'
 
-const PLUGIN_ID = 'pagebuilder.newsletter'
+const PLUGIN_ID = 'instatic.newsletter'
 const SUBSCRIBE_PATH = `/admin/api/cms/plugins/${PLUGIN_ID}/runtime/subscribe`
 
 export default defineModule({

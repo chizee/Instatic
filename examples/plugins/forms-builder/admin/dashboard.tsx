@@ -21,9 +21,9 @@ import {
   Stack,
   StatValue,
   Text,
-} from '@pagebuilder/host-ui'
-import { usePluginRoutes } from '@pagebuilder/host-hooks'
-import { definePluginAdminApp } from '@pagebuilder/plugin-sdk'
+} from '@instatic/host-ui'
+import { usePluginRoutes } from '@instatic/host-hooks'
+import { definePluginAdminApp } from '@instatic/plugin-sdk'
 import { Type } from '@sinclair/typebox'
 import type { Static } from '@sinclair/typebox'
 

@@ -44,7 +44,7 @@ async function evalResolvedInner<T>(
   code: string,
   read: (handle: QuickJSHandle) => T,
 ): Promise<T> {
-  const evalResult = ctx.evalCode(code, 'pagebuilder-eval.js')
+  const evalResult = ctx.evalCode(code, 'instatic-eval.js')
   const evalHandle = ctx.unwrapResult(evalResult)
 
   // Drain any microtasks scheduled by the eval's synchronous portion.

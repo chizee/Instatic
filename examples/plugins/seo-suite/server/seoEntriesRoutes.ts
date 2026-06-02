@@ -10,7 +10,7 @@
  * The admin dashboard calls these routes via `usePluginRoutes().fetch(...)`.
  * GET routes require `plugins.read`; POST upsert requires `plugins.configure`.
  */
-import type { ServerPluginApi, ServerPluginRouteContext } from '@pagebuilder/plugin-sdk'
+import type { ServerPluginApi, ServerPluginRouteContext } from '@instatic/plugin-sdk'
 
 export function registerSeoEntriesRoutes(api: ServerPluginApi): void {
   const seoEntries = api.cms.storage.collection('seo-entries')

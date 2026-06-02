@@ -755,7 +755,7 @@ describe('CMS handlers', () => {
         headers: { 'content-type': 'application/json', 'x-forwarded-proto': 'https' },
       }), db)
       const sessionCookie = (loginRes.headers.get('set-cookie') ?? '')
-        .split(';')[0] // just `pb_admin_session=<token>`
+        .split(';')[0] // just `instatic_admin_session=<token>`
 
       const logoutRes = await handleCmsRequest(new Request('http://localhost/admin/api/cms/logout', {
         method: 'POST',

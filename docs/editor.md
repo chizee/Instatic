@@ -1,6 +1,6 @@
 # Editor
 
-Deep dive on the admin app and the visual page builder — how the SPA boots, how routing works, how the editor store mutates pages, how the canvas renders.
+Deep dive on the admin app and the visual editor — how the SPA boots, how routing works, how the editor store mutates pages, how the canvas renders.
 
 The frontend is a single React 19 + Vite SPA mounted at `/admin`. Inside it, two concerns coexist: the **admin shell** (auth, navigation, workspaces, plugin host UI) and the **visual editor** (`src/admin/pages/site/`). They share auth, routing, theming, and the spotlight palette; they differ in everything else — the editor owns a heavy Zustand store and a custom rendering pipeline.
 
@@ -62,7 +62,7 @@ Why the split:
 - **`AdminEntry`** is eager-imported but small (~10 KB gz). Owns the boot probe and gate.
 - **`AuthenticatedAdmin`** is `React.lazy` so the login screen doesn't pay for SpotlightRoot, the editor store, or any workspace page chunk.
 - **Workspace pages** are wrapped in `prewarmedLazy(...)` — the active page pre-warms at module evaluation (alone, so no 8 sibling imports stealing CPU); after first paint a `requestIdleCallback` pre-warms the remaining pages. The result: subsequent workspace navigation renders synchronously with no Suspense fallback.
-- **Plugin runtime** (`globalThis.__pagebuilder`) is installed lazily by `ensurePluginRuntime()` in `pluginRuntimeBootstrap.ts`. It's triggered on first admin-layout mount via `useInstalledEditorPlugins`, so plugin code never runs before login and the runtime download stays off the dashboard critical path.
+- **Plugin runtime** (`globalThis.__instatic`) is installed lazily by `ensurePluginRuntime()` in `pluginRuntimeBootstrap.ts`. It's triggered on first admin-layout mount via `useInstalledEditorPlugins`, so plugin code never runs before login and the runtime download stays off the dashboard critical path.
 
 ---
 
@@ -103,7 +103,7 @@ import { useInitialQueryParams, useUrlQuerySync } from '@admin/lib/urlState'
 
 ### Why a separate module
 
-Workspace selections still need bookmarkable query strings without replaying route navigation. `urlState` solves this by operating on `window.history.replaceState` directly — no `pb:locationchange` event, no route re-match, just a query-string update that keeps the pathname stable.
+Workspace selections still need bookmarkable query strings without replaying route navigation. `urlState` solves this by operating on `window.history.replaceState` directly — no `instatic:locationchange` event, no route re-match, just a query-string update that keeps the pathname stable.
 
 ### `useInitialQueryParams()`
 
@@ -189,7 +189,7 @@ src/admin/
 ├── access.ts                   ← workspace gating
 ├── workspace.ts                ← AdminWorkspace union
 ├── session.tsx, sessionContext.ts ← AdminSession context
-├── pluginRuntimeBootstrap.ts   ← installs globalThis.__pagebuilder (lazy)
+├── pluginRuntimeBootstrap.ts   ← installs globalThis.__instatic (lazy)
 │
 ├── layouts/
 │   ├── AdminCanvasLayout/      ← site editor shell (heavy)
@@ -386,13 +386,13 @@ Each iframe `<head>` receives three `<style>` elements, in this order:
 
 | Element | Injector | Cascade layer | Contents |
 |---|---|---|---|
-| `<style id="pb-editor-chrome">` | `EditorChromeInjector` | **unlayered** | Editor-only chrome: placeholder, slot-instance, list placeholder, unknown-module fallback |
+| `<style id="instatic-editor-chrome">` | `EditorChromeInjector` | **unlayered** | Editor-only chrome: placeholder, slot-instance, list placeholder, unknown-module fallback |
 | `<style id="mc-classes">` | `ClassStyleInjector` | `@layer user-authored` | Publisher reset + framework CSS + class registry CSS |
 | `<style id="mc-user-styles">` | `UserStylesheetInjector` | `@layer user-authored` | User-uploaded stylesheets (verbatim, unscoped) |
 
 The **unlayered-vs-layered** split is the cascade isolation mechanism: CSS rules outside any `@layer` always beat rules inside `@layer`-d blocks, regardless of specificity. Author CSS (both the class registry and user stylesheets) goes into `@layer user-authored`, so it can never override the editor chrome even with a high-specificity selector.
 
-`EditorChromeInjector` targets chrome elements via **stable data-attribute selectors** (`data-canvas-module-placeholder`, `data-pb-slot-instance`, `data-pb-unknown-module`, etc.) rather than hashed CSS-Module class names, which only exist in the parent document. At mount, it copies the required design tokens (`--editor-text-muted`, `--canvas-placeholder-bg`, `--editor-radius`, etc.) from the parent document's `:root` onto the iframe's `:root` so `var(--editor-*)` resolves correctly inside the iframe.
+`EditorChromeInjector` targets chrome elements via **stable data-attribute selectors** (`data-canvas-module-placeholder`, `data-instatic-slot-instance`, `data-instatic-unknown-module`, etc.) rather than hashed CSS-Module class names, which only exist in the parent document. At mount, it copies the required design tokens (`--editor-text-muted`, `--canvas-placeholder-bg`, `--editor-radius`, etc.) from the parent document's `:root` onto the iframe's `:root` so `var(--editor-*)` resolves correctly inside the iframe.
 
 Full details: [`docs/features/canvas-iframe-per-frame.md`](../features/canvas-iframe-per-frame.md).
 
@@ -510,7 +510,7 @@ Data sources:
 - **Layouts:** seeded `LAYOUT_PRESETS`, built from the same serialized subtree shape as `FORM_PRESETS`.
 - **Components:** `site.visualComponents`.
 - **Community:** reserved for a future plugin catalog backend; no mocked catalog is shown in the real editor.
-- **Recent:** per-browser local state in `pb-module-inserter-v1`, validated with TypeBox before use.
+- **Recent:** per-browser local state in `instatic-module-inserter-v1`, validated with TypeBox before use.
 
 The modal uses the tile-card pattern from `docs/design.md`: `--editor-surface` parent, 1px grid gap, `--editor-surface-2` tiles, `--card-radius`, rail-tint accents via `data-accent`, and an achromatic `--editor-focus-ring` selection state. Wireframe image regions reuse `--canvas-placeholder-bg`.
 
@@ -538,7 +538,7 @@ The palette is wired so that **plugin-registered commands work the same as built
 
 Two folders carry the plugin frontend:
 
-- **`src/admin/plugin-host-hooks/`** — React hooks exposed to plugins via `globalThis.__pagebuilder` (set up by `installPluginRuntime()` in `AuthenticatedAdmin`).
+- **`src/admin/plugin-host-hooks/`** — React hooks exposed to plugins via `globalThis.__instatic` (set up by `installPluginRuntime()` in `AuthenticatedAdmin`).
 - **`src/admin/plugin-host-ui/`** — UI primitives plugins call to render dashboard / panel / page surfaces.
 
 Plugin canvas modules render inside the canvas iframe like any other module. Plugin admin pages mount at `/admin/plugins/:pluginId/:pageId` via the `pluginPage` workspace.

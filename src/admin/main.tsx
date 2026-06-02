@@ -123,7 +123,7 @@ const root = createRoot(rootElement, {
 //
 // Unauthenticated users (no cookie) skip the preload entirely — they
 // don't pay for the AuthenticatedAdmin chunk on the login screen.
-// `window.__pbAuthed` is injected by `server/static.ts` ONLY when the
+// `window.__instaticAuthed` is injected by `server/static.ts` ONLY when the
 // request carried a valid session cookie. We can't read the cookie
 // directly (it's HttpOnly), so the server tells us via this flag.
 //
@@ -139,7 +139,7 @@ const root = createRoot(rootElement, {
 // The mapping below is hand-maintained — `import('./pages/' + section + '/...')`
 // would silently break Vite/Rolldown's static-analysis chunk-resolution.
 // Adding a new workspace section requires one new entry here.
-if (typeof window !== 'undefined' && (window as unknown as { __pbAuthed?: number }).__pbAuthed === 1) {
+if (typeof window !== 'undefined' && (window as unknown as { __instaticAuthed?: number }).__instaticAuthed === 1) {
   const pathname = window.location.pathname
   const sectionImport: Promise<unknown> = (() => {
     if (pathname.startsWith('/admin/dashboard')) return import('./pages/dashboard/DashboardPage')

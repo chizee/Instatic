@@ -1,7 +1,7 @@
 /**
  * Analytics plugin — top pages section.
  */
-import { Card, Heading, Stack, Text, EmptyState, Bars } from '@pagebuilder/host-ui'
+import { Card, Heading, Stack, Text, EmptyState, Bars } from '@instatic/host-ui'
 
 export interface TopEntry {
   label: string

@@ -11,7 +11,7 @@
  *               and hook listeners.
  *   uninstall — removes all subscriber, list, broadcast, and delivery records.
  */
-import type { ServerPluginApi, ServerPluginModule } from '@pagebuilder/plugin-sdk'
+import type { ServerPluginApi, ServerPluginModule } from '@instatic/plugin-sdk'
 import { registerSubscribeRoutes } from './subscribe'
 import { registerBroadcastRoutes, registerBroadcastSchedule } from './broadcasts'
 import { registerWebhookRoutes } from './webhooks'

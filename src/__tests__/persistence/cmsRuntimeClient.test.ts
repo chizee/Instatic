@@ -10,7 +10,7 @@ describe('CMS runtime client', () => {
       updatedAt: 123,
     }
     const packageImportmap = {
-      imports: { 'canvas-confetti': '/_pb/runtime/cache/abc/canvas-confetti/dist/confetti.module.mjs' },
+      imports: { 'canvas-confetti': '/_instatic/runtime/cache/abc/canvas-confetti/dist/confetti.module.mjs' },
       lockHash: 'abc',
     }
 

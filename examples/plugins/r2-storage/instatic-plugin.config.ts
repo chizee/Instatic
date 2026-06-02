@@ -1,5 +1,5 @@
 /**
- * Cloudflare R2 storage adapter — official Page Builder plugin.
+ * Cloudflare R2 storage adapter — official Instatic plugin.
  *
  * R2 is Cloudflare's S3-compatible object storage with FREE egress —
  * a strong default for self-hosted CMS deployments that serve a lot of
@@ -7,22 +7,22 @@
  * canonical-request shape), so this plugin reuses the same signer the
  * AWS S3 plugin uses, just with R2-specific endpoint shape + simpler UX.
  *
- * Build:   bun pb-plugin build examples/plugins/r2-storage
+ * Build:   bun instatic-plugin build examples/plugins/r2-storage
  * Install: upload `examples/plugins/r2-storage.plugin.zip` from /admin/plugins
  *
  * After install + permission grants + filling in Settings, open the
  * Media workspace → Storage panel and elect "Cloudflare R2" for the
  * `Originals` role. Hit "Test connection" to verify credentials.
  */
-import { definePlugin, permissions } from '@pagebuilder/plugin-sdk'
+import { definePlugin, permissions } from '@instatic/plugin-sdk'
 
 export default definePlugin({
-  id: 'pagebuilder.r2-storage',
+  id: 'instatic.r2-storage',
   name: 'Cloudflare R2 Storage',
   version: '1.0.0',
   description:
     'Stores uploaded media on Cloudflare R2 (S3-compatible object storage with zero egress fees). Pre-signed PUTs upload directly from the host; pre-signed GETs serve private buckets via a host redirect.',
-  author: { name: 'Page Builder', email: 'plugins@pagebuilder.dev' },
+  author: { name: 'Instatic', email: 'plugins@instatic.dev' },
   license: 'MIT',
   keywords: ['storage', 'r2', 'cloudflare', 'media', 'adapter'],
   icon: 'icon.svg',

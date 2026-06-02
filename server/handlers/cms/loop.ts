@@ -1,5 +1,5 @@
 /**
- * `/_pb/loop/<loopId>` endpoint — serves additional pages for
+ * `/_instatic/loop/<loopId>` endpoint — serves additional pages for
  * infinite-loading loops.
  *
  * Called by the loop runtime (`loopRuntime.ts`) after the user clicks
@@ -30,7 +30,7 @@ import { collectLoopNodes, readLoopProps } from '../../publish/loopPrefetch'
 import { publicSlugFromPath } from '../../publish/publicRouter'
 import { LOOP_RUNTIME_JS } from '../../publish/loopRuntime'
 
-const LOOP_RUNTIME_PATH = '/_pb/assets/loop-runtime.js'
+const LOOP_RUNTIME_PATH = '/_instatic/assets/loop-runtime.js'
 
 export function isLoopRuntimeAssetPath(pathname: string): boolean {
   return pathname === LOOP_RUNTIME_PATH
@@ -61,8 +61,8 @@ export async function handleLoopRequest(
     return jsonResponse({ error: 'Method not allowed' }, { status: 405 })
   }
 
-  // /_pb/loop/<encoded-loopId>
-  const loopId = decodeURIComponent(url.pathname.slice('/_pb/loop/'.length))
+  // /_instatic/loop/<encoded-loopId>
+  const loopId = decodeURIComponent(url.pathname.slice('/_instatic/loop/'.length))
   if (!loopId) return jsonResponse({ error: 'Missing loop id' }, { status: 400 })
 
   const pageNumberRaw = url.searchParams.get('page') ?? '1'

@@ -4,7 +4,7 @@
  * Converts ISO 3166-1 alpha-2 country codes to flag emoji using regional
  * indicator symbol characters (offset 127397 from 'A').
  */
-import { Card, Heading, Stack, Text, EmptyState } from '@pagebuilder/host-ui'
+import { Card, Heading, Stack, Text, EmptyState } from '@instatic/host-ui'
 
 export interface TopEntry {
   label: string

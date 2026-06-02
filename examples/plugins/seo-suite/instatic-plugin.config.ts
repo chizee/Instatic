@@ -1,24 +1,24 @@
 /**
  * SEO Suite — single source of truth for the plugin manifest.
  *
- * Build:   bun run pb-plugin build examples/plugins/seo-suite
+ * Build:   bun run instatic-plugin build examples/plugins/seo-suite
  * Install: upload examples/plugins/seo-suite.plugin.zip from /admin/plugins
  *
  * IMPORTANT: this file is evaluated by the build CLI in the host's Bun
  * process, so it imports from `@core/plugin-sdk` (resolved via the host's
  * tsconfig paths). Plugin SOURCE files (admin/, server/) instead use
- * `@pagebuilder/plugin-sdk` so they're externalized at build time and
+ * `@instatic/plugin-sdk` so they're externalized at build time and
  * resolved at runtime via the host's import map.
  */
 import { definePlugin, permissions } from '@core/plugin-sdk'
 
 export default definePlugin({
-  id: 'pagebuilder.seo-suite',
+  id: 'instatic.seo-suite',
   name: 'SEO Suite',
   version: '1.0.0',
   description:
     'Production-grade SEO tooling: sitemap, robots, per-page meta, JSON-LD, OG image generation.',
-  author: { name: 'Page Builder', email: 'plugins@pagebuilder.dev' },
+  author: { name: 'Instatic', email: 'plugins@instatic.dev' },
   license: 'MIT',
   icon: 'icon.svg',
 
@@ -157,7 +157,7 @@ export default definePlugin({
       label: 'OG Image Provider URL',
       type: 'url',
       description:
-        'POST endpoint that accepts { title, description, siteName, url } and returns { url: string }. Required for automatic OG image generation. The provider host must also be added to networkAllowedHosts in pb-plugin.config.ts.',
+        'POST endpoint that accepts { title, description, siteName, url } and returns { url: string }. Required for automatic OG image generation. The provider host must also be added to networkAllowedHosts in instatic-plugin.config.ts.',
       placeholder: 'https://og.example.com/generate',
     },
     {

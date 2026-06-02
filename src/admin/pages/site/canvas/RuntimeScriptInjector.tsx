@@ -37,7 +37,7 @@ interface RuntimeScriptInjectorProps {
   scripts: InjectableRuntimeScript[]
 }
 
-const RUNTIME_SCRIPT_MARKER = 'data-pb-canvas-runtime-script'
+const RUNTIME_SCRIPT_MARKER = 'data-instatic-canvas-runtime-script'
 
 export function RuntimeScriptInjector({ targetDocument, scripts }: RuntimeScriptInjectorProps) {
   useEffect(() => {

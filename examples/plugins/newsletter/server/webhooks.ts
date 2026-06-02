@@ -11,7 +11,7 @@
  *   email.opened      — set delivery.openedAt + increment broadcast.openCount
  *   email.clicked     — set delivery.clickedAt + increment broadcast.clickCount
  */
-import type { ServerPluginApi } from '@pagebuilder/plugin-sdk'
+import type { ServerPluginApi } from '@instatic/plugin-sdk'
 import { verifyWebhookSignature } from './resend'
 
 export function registerWebhookRoutes(api: ServerPluginApi): void {

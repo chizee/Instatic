@@ -60,7 +60,7 @@ export type PendingAction = Static<typeof PendingActionSchema>
 
 // ─── Storage ─────────────────────────────────────────────────────────────────
 
-const STORAGE_KEY = 'pb-spotlight-pending-action'
+const STORAGE_KEY = 'instatic-spotlight-pending-action'
 
 /**
  * Actions older than this are ignored on consume. Prevents an action queued

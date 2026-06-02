@@ -18,7 +18,7 @@
  *      the iframe's :root at mount time — so `var(--editor-text-muted)` etc.
  *      resolve correctly inside the chrome CSS.
  *   2. Style editor chrome via STABLE data-attribute selectors
- *      (data-canvas-module-placeholder, data-pb-slot-instance, etc.) instead
+ *      (data-canvas-module-placeholder, data-instatic-slot-instance, etc.) instead
  *      of hashed CSS-Module class names which will never match inside the iframe.
  *
  * Cascade isolation via @layer
@@ -30,7 +30,7 @@
  * bleed into placeholder / slot-boundary chrome even at high specificity.
  *
  * Mount order inside the portal:
- *   <EditorChromeInjector>   ← <style id="pb-editor-chrome">  (unlayered)
+ *   <EditorChromeInjector>   ← <style id="instatic-editor-chrome">  (unlayered)
  *   <ClassStyleInjector>     ← <style id="mc-classes">        (@layer user-authored)
  *   <UserStylesheetInjector> ← <style id="mc-user-styles">    (@layer user-authored)
  *   {children}
@@ -41,7 +41,7 @@
 
 import { useEffect } from 'react'
 
-const STYLE_TAG_ID = 'pb-editor-chrome'
+const STYLE_TAG_ID = 'instatic-editor-chrome'
 
 /**
  * Design tokens to forward from the parent document's :root onto the iframe's
@@ -108,7 +108,7 @@ const CHROME_RULES = `
 /* ── CanvasModulePlaceholder ───────────────────────────────────────────────
  * Reproduced from CanvasModulePlaceholder.module.css using stable
  * data-attribute selectors (data-canvas-module-placeholder, data-variant,
- * data-pb-placeholder-*) added to the component alongside the existing
+ * data-instatic-placeholder-*) added to the component alongside the existing
  * CSS-Module class names. The CSS-Module classes still style the component
  * when it renders outside the iframe (e.g. in tests); the data-attribute
  * hooks give the iframe chrome CSS a stable target.
@@ -152,7 +152,7 @@ const CHROME_RULES = `
   padding: 6px 10px;
 }
 
-[data-canvas-module-placeholder] [data-pb-placeholder-icon] {
+[data-canvas-module-placeholder] [data-instatic-placeholder-icon] {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -165,7 +165,7 @@ const CHROME_RULES = `
   white-space: normal;
 }
 
-[data-canvas-module-placeholder] [data-pb-placeholder-label] {
+[data-canvas-module-placeholder] [data-instatic-placeholder-label] {
   color: var(--editor-text-secondary);
   font-size: 12px;
   font-family: var(--font-sans);
@@ -178,11 +178,11 @@ const CHROME_RULES = `
   white-space: normal;
 }
 
-[data-canvas-module-placeholder][data-variant="inline"] [data-pb-placeholder-label] {
+[data-canvas-module-placeholder][data-variant="inline"] [data-instatic-placeholder-label] {
   font-weight: 500;
 }
 
-[data-canvas-module-placeholder] [data-pb-placeholder-description] {
+[data-canvas-module-placeholder] [data-instatic-placeholder-description] {
   max-width: 36ch;
   color: var(--editor-text-muted);
   font-size: 11px;
@@ -196,7 +196,7 @@ const CHROME_RULES = `
   white-space: normal;
 }
 
-[data-canvas-module-placeholder] [data-pb-placeholder-actions] {
+[data-canvas-module-placeholder] [data-instatic-placeholder-actions] {
   display: inline-flex;
   flex-wrap: wrap;
   justify-content: center;
@@ -204,7 +204,7 @@ const CHROME_RULES = `
   margin-top: 4px;
 }
 
-[data-canvas-module-placeholder] [data-pb-placeholder-actions] button {
+[data-canvas-module-placeholder] [data-instatic-placeholder-actions] button {
   height: 28px;
   padding: 0 14px;
   border: 1px solid color-mix(in srgb, var(--editor-text) 14%, transparent);
@@ -220,19 +220,19 @@ const CHROME_RULES = `
   cursor: default;
 }
 
-[data-canvas-module-placeholder] [data-pb-placeholder-actions] button:hover {
+[data-canvas-module-placeholder] [data-instatic-placeholder-actions] button:hover {
   background: var(--editor-surface-2);
   border-color: color-mix(in srgb, var(--editor-text) 22%, transparent);
 }
 
-[data-canvas-module-placeholder] [data-pb-placeholder-actions] button:active {
+[data-canvas-module-placeholder] [data-instatic-placeholder-actions] button:active {
   background: var(--editor-surface-3);
 }
 
 /* ── base.slot-instance ─────────────────────────────────────────────────────
  * Reproduced from SlotInstance.module.css using stable data-attribute selectors
- * (data-pb-slot-instance, data-pb-slot-instance-header, data-pb-slot-label,
- * data-pb-slot-instance-content) added to SlotInstanceEditor.tsx alongside
+ * (data-instatic-slot-instance, data-instatic-slot-instance-header, data-instatic-slot-label,
+ * data-instatic-slot-instance-content) added to SlotInstanceEditor.tsx alongside
  * the existing CSS-Module class names.
  *
  * Note: --editor-border-low is not defined in globals.css (it is only
@@ -240,7 +240,7 @@ const CHROME_RULES = `
  * --editor-border which resolves to the nearest defined border token.
  */
 
-[data-pb-slot-instance] {
+[data-instatic-slot-instance] {
   border: 1px solid var(--editor-border-med);
   border-radius: var(--editor-radius);
   background: var(--editor-surface);
@@ -255,7 +255,7 @@ const CHROME_RULES = `
   text-transform: none;
 }
 
-[data-pb-slot-instance-header] {
+[data-instatic-slot-instance-header] {
   display: flex;
   align-items: center;
   gap: 5px;
@@ -276,7 +276,7 @@ const CHROME_RULES = `
   pointer-events: none;
 }
 
-[data-pb-slot-instance-header] [data-pb-slot-label] {
+[data-instatic-slot-instance-header] [data-instatic-slot-label] {
   color: var(--editor-text-secondary);
   font-size: 11px;
   font-style: italic;
@@ -288,17 +288,17 @@ const CHROME_RULES = `
   white-space: normal;
 }
 
-[data-pb-slot-instance-content] {
+[data-instatic-slot-instance-content] {
   min-height: 24px;
   padding: 4px;
 }
 
 /* ── base.list placeholder ──────────────────────────────────────────────────
  * Reproduced from list.module.css .placeholder using the stable
- * data-pb-list-placeholder attribute added to ListEditor.tsx.
+ * data-instatic-list-placeholder attribute added to ListEditor.tsx.
  */
 
-[data-pb-list-placeholder] {
+[data-instatic-list-placeholder] {
   color: var(--editor-text-muted);
   margin-bottom: 6px;
   font-family: var(--font-sans);
@@ -311,10 +311,10 @@ const CHROME_RULES = `
 
 /* ── NodeRenderer unknown-module fallback ───────────────────────────────────
  * Reproduced from NodeRenderer.module.css .unknownModule using the stable
- * data-pb-unknown-module attribute added to NodeRenderer.tsx.
+ * data-instatic-unknown-module attribute added to NodeRenderer.tsx.
  */
 
-[data-pb-unknown-module] {
+[data-instatic-unknown-module] {
   outline: 1px dashed var(--editor-danger);
   padding: 4px;
   color: var(--editor-text-muted);

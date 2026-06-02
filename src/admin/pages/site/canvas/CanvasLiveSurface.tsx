@@ -3,7 +3,7 @@
  * canvasView is 'live'.
  *
  * This replaces the design canvas's pan/zoom multi-breakpoint layer with ONE
- * frame at 100% size, scrolling normally — like a conventional page builder's
+ * frame at 100% size, scrolling normally — like a conventional visual editor's
  * live view. Crucially it is NOT a read-only preview: it reuses the very same
  * editable iframe (`IframeFrameSurface`) and selection overlay the design
  * canvas uses, so click-to-select, the properties panel, and structural edits

@@ -151,7 +151,7 @@ async function dispatch(
     case 'mailgun':
       return sendMailgun(settings, subject, text, htmlBody)
     default:
-      throw new Error(`[plugin:pagebuilder.forms] Unknown email provider: ${String(settings.provider)}`)
+      throw new Error(`[plugin:instatic.forms] Unknown email provider: ${String(settings.provider)}`)
   }
 }
 
@@ -182,7 +182,7 @@ export async function sendSubmissionEmail(
     res = await dispatch(settings, subject, text, htmlBody)
   } catch (err) {
     throw new Error(
-      `[plugin:pagebuilder.forms] Email send failed (${settings.provider}): ${err instanceof Error ? err.message : String(err)}`,
+      `[plugin:instatic.forms] Email send failed (${settings.provider}): ${err instanceof Error ? err.message : String(err)}`,
       { cause: err },
     )
   }
@@ -195,18 +195,18 @@ export async function sendSubmissionEmail(
       retryRes = await dispatch(settings, subject, text, htmlBody)
     } catch (err) {
       throw new Error(
-        `[plugin:pagebuilder.forms] Email retry failed (${settings.provider}): ${err instanceof Error ? err.message : String(err)}`,
+        `[plugin:instatic.forms] Email retry failed (${settings.provider}): ${err instanceof Error ? err.message : String(err)}`,
         { cause: err },
       )
     }
     if (!retryRes.ok) {
       throw new Error(
-        `[plugin:pagebuilder.forms] Email delivery failed after retry (${settings.provider}): HTTP ${retryRes.status}`,
+        `[plugin:instatic.forms] Email delivery failed after retry (${settings.provider}): HTTP ${retryRes.status}`,
       )
     }
   } else if (!res.ok) {
     throw new Error(
-      `[plugin:pagebuilder.forms] Email rejected by ${settings.provider}: HTTP ${res.status}`,
+      `[plugin:instatic.forms] Email rejected by ${settings.provider}: HTTP ${res.status}`,
     )
   }
 }

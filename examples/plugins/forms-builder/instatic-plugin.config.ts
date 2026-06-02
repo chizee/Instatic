@@ -1,23 +1,23 @@
 /**
  * Forms Builder — plugin configuration (single source of truth).
  *
- * Run `bun run pb-plugin build examples/plugins/forms-builder` to produce
+ * Run `bun run instatic-plugin build examples/plugins/forms-builder` to produce
  * the installable zip at `examples/plugins/forms-builder.plugin.zip`.
  */
-// `pb-plugin.config.ts` is evaluated by the build CLI in the host Bun process
+// `instatic-plugin.config.ts` is evaluated by the build CLI in the host Bun process
 // → import from `@core/plugin-sdk` (resolved via host tsconfig paths).
-// Plugin source files (admin/, modules/, server/) use `@pagebuilder/plugin-sdk`
+// Plugin source files (admin/, modules/, server/) use `@instatic/plugin-sdk`
 // so they are externalized at bundle time and resolved at runtime via import map.
 import { definePlugin, permissions } from '@core/plugin-sdk'
 import modules from './modules/index'
 
 export default definePlugin({
-  id: 'pagebuilder.forms',
+  id: 'instatic.forms',
   name: 'Forms Builder',
   version: '1.0.0',
   description:
     'Drag-and-drop form builder with email delivery, spam protection, and a submission dashboard.',
-  author: { name: 'Page Builder' },
+  author: { name: 'Instatic' },
   license: 'MIT',
   icon: 'icon.svg',
   keywords: ['forms', 'contact', 'submissions', 'email'],

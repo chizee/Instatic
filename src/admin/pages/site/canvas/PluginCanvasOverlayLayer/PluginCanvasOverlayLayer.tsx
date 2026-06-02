@@ -7,7 +7,7 @@
  * misbehaving plugin can't blank the canvas.
  *
  * Plugins position children using `useCanvasNodeRect(nodeId)` from
- * `@pagebuilder/host-hooks`, which returns layer-relative coordinates
+ * `@instatic/host-hooks`, which returns layer-relative coordinates
  * already mapped through any pan/zoom transform on the canvas.
  */
 import { useEffect, useState, useSyncExternalStore } from 'react'

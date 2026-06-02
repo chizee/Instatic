@@ -1,6 +1,6 @@
 /**
  * Site CSS bundle — type definitions for the four external CSS files served
- * at `/_pb/css/<filename>` for every published page.
+ * at `/_instatic/css/<filename>` for every published page.
  *
  * The IMPLEMENTATION (`buildSiteCssBundle`) lives in `server/publish/siteCssBundle.ts`
  * because it depends on `node:crypto` for content hashing. Only the type shape
@@ -67,7 +67,7 @@ export const SITE_CSS_BUNDLE_IDS: readonly SiteCssBundleId[] = [
 
 /**
  * One built CSS file. `filename` already includes the content hash and `.css`
- * extension, ready to drop into the `/_pb/css/` URL or a `<link>` href.
+ * extension, ready to drop into the `/_instatic/css/` URL or a `<link>` href.
  */
 export interface CssBundleFile {
   /** Logical bundle this file belongs to. */

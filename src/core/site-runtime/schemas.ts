@@ -69,7 +69,7 @@ export type SiteScriptTiming = Static<typeof SiteScriptTimingSchema>
 // SiteAssetScope — discriminated union on `type`
 //
 // Shared by scripts AND stylesheets: both can target all pages, an explicit
-// list of pages, or an explicit list of template pages. The page-builder UI
+// list of pages, or an explicit list of template pages. The instatic UI
 // drives both through the same multi-select scope picker.
 // ---------------------------------------------------------------------------
 
@@ -127,7 +127,7 @@ export type SiteStyleRuntimeConfig = Static<typeof SiteStyleRuntimeConfigSchema>
  * after `bun install` populates the cache, then attached to the site
  * runtime state so the editor's iframe sandbox and the published page
  * use identical URLs. URLs point at the host's
- * `/_pb/runtime/cache/<lockHash>/<name>/<entry>` route.
+ * `/_instatic/runtime/cache/<lockHash>/<name>/<entry>` route.
  */
 const RuntimePackageImportmapSchema = Type.Object({
   /** `name` → entry-file URL, plus `name/` → package-root URL prefix. */

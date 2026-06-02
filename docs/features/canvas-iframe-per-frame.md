@@ -100,13 +100,13 @@ Three `<style>` elements are injected per iframe, in this order:
 
 | Injector | `id` attribute | Cascade layer | Purpose |
 |---|---|---|---|
-| `EditorChromeInjector` | `pb-editor-chrome` | **unlayered** | Editor chrome: placeholder, slot-instance, unknown-module styles. Copies design tokens (`--editor-*`) from parent `:root` onto iframe `:root`. |
+| `EditorChromeInjector` | `instatic-editor-chrome` | **unlayered** | Editor chrome: placeholder, slot-instance, unknown-module styles. Copies design tokens (`--editor-*`) from parent `:root` onto iframe `:root`. |
 | `ClassStyleInjector` | `mc-classes` | `@layer user-authored` | Publisher reset + framework CSS + class registry CSS |
 | `UserStylesheetInjector` | `mc-user-styles` | `@layer user-authored` | User-uploaded stylesheets (verbatim, unscoped) |
 
 Unlayered rules always beat `@layer`-d rules regardless of specificity. User CSS can never override editor chrome even with a high-specificity selector.
 
-`EditorChromeInjector` uses **stable `data-*` attribute selectors** (`data-canvas-module-placeholder`, `data-pb-slot-instance`, etc.) — not hashed CSS Module class names which only exist in the parent document.
+`EditorChromeInjector` uses **stable `data-*` attribute selectors** (`data-canvas-module-placeholder`, `data-instatic-slot-instance`, etc.) — not hashed CSS Module class names which only exist in the parent document.
 
 ---
 
@@ -129,7 +129,7 @@ React synthetic events bubble through the React fiber tree, not the DOM tree, so
 Native events require explicit forwarding for two cases:
 
 - **Wheel events (design mode):** `IframeFrameSurface` listens for `wheel` inside the iframe document and re-dispatches a new `WheelEvent` on the iframe element (parent document) so `useCanvas`'s pan/zoom handler picks it up.
-- **Pointer events (design mode):** Middle-click pan, space+left-click pan, and active reorder drags (`data-pb-canvas-dragging` on `<html>`) all need to cross the iframe boundary. `IframeFrameSurface` tracks `spaceHeld` and `panPointerId` state to identify when a pointerdown starts a pan, then forwards `pointerdown`/`pointermove`/`pointerup`/`pointercancel` to the parent document.
+- **Pointer events (design mode):** Middle-click pan, space+left-click pan, and active reorder drags (`data-instatic-canvas-dragging` on `<html>`) all need to cross the iframe boundary. `IframeFrameSurface` tracks `spaceHeld` and `panPointerId` state to identify when a pointerdown starts a pan, then forwards `pointerdown`/`pointermove`/`pointerup`/`pointercancel` to the parent document.
 
 Native mouse movement is also surfaced for editor chrome that must follow the cursor in the parent document, such as inactive-breakpoint activation hints. These events are not forwarded as new DOM events; `IframeFrameSurface` invokes callback props with the iframe-native `MouseEvent`, and callers translate the point with `clientPointToEditorDoc`.
 

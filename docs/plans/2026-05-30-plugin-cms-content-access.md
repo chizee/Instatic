@@ -604,7 +604,7 @@ The filter context follows the existing `CmsServerFilterContexts` shape — type
 
 ```ts
 // examples/plugins/seo-suite/server/index.ts (after migration)
-import type { ServerPluginModule } from '@pagebuilder/plugin-sdk'
+import type { ServerPluginModule } from '@instatic/plugin-sdk'
 
 const mod: ServerPluginModule = {
   activate(api) {
@@ -720,7 +720,7 @@ In-repo plugins migrated in the same change:
 11. **Delete the old surface.** Remove `cms.pages.*` API, permissions, types, RPC targets, handlers, repo function, gate test rename.
 12. **Migrate in-repo plugins.** `examples/plugins/seo-suite` and `analytics` to the new surface.
 13. **Docs.** Update `docs/features/plugin-system.md` (surface table, permission catalog, cookbook entry). Add hook reference in `docs/features/content-storage.md`. Update `CLAUDE.md`'s "11 named tree-mutation store actions" sentence to point at `applyTreeOperation` too.
-14. **CLI.** Add `bun pb-plugin init --kind=content-editor` scaffold that pre-declares the typical permission set (`cms.content.read`, `cms.content.write`) and a `contentAccess` block.
+14. **CLI.** Add `bun instatic-plugin init --kind=content-editor` scaffold that pre-declares the typical permission set (`cms.content.read`, `cms.content.write`) and a `contentAccess` block.
 
 One PR. `bun test && bun run build && bun run lint` must pass.
 

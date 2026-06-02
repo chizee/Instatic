@@ -32,7 +32,7 @@ import type {
   MediaStorageVerifyResult,
   MediaStorageWriteResult,
   ServerPluginApi,
-} from '@pagebuilder/plugin-sdk'
+} from '@instatic/plugin-sdk'
 import { azureBlobHost, presignAzureBlobUrl } from './sas'
 
 type AzureCloud = 'public' | 'usgov' | 'china'
@@ -201,7 +201,7 @@ export function buildAzureBlobAdapter(api: ServerPluginApi): MediaStorageAdapter
     },
 
     /**
-     * Mint a short-lived read URL the host's `/_pb/media/<id>/<path>`
+     * Mint a short-lived read URL the host's `/_instatic/media/<id>/<path>`
      * route redirects to. 1 hour matches the other storage adapters —
      * long enough to survive a CDN warm-up, short enough that leaks
      * expire fast. Clamped defensively even though callers usually send

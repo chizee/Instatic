@@ -2,7 +2,7 @@
  * Public search route handler — GET /search
  *
  * Mounted at:
- *   /admin/api/cms/plugins/pagebuilder.search/runtime/search
+ *   /admin/api/cms/plugins/instatic.search/runtime/search
  *
  * No authentication required — registered via `api.cms.routes.public.get`.
  * Plugin manifest declares `cms.routes.public` so the install dialog
@@ -23,11 +23,11 @@
  * acceptable without hammering the backend on every keystroke.
  */
 
-import type { ServerPluginRouteContext } from '@pagebuilder/plugin-sdk'
+import type { ServerPluginRouteContext } from '@instatic/plugin-sdk'
 import type { SearchBackend } from './backends/types'
 import type { RateLimiter } from './rateLimit'
 import { logQuery } from './analytics'
-import type { ServerPluginApi } from '@pagebuilder/plugin-sdk'
+import type { ServerPluginApi } from '@instatic/plugin-sdk'
 
 // ---------------------------------------------------------------------------
 // Param validation helpers (no TypeBox — sandbox internal)

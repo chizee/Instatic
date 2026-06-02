@@ -5,7 +5,7 @@
  *   ┌─ site.runtime.dependencyLock  (resolved versions, SRI, tarball URL)
  *   ├─ ensureRuntimeDependencyCache  (bun install → node_modules/)
  *   └─ buildRuntimePackageImportmap  ← we resolve each package's ESM entry
- *                                       to a `/_pb/runtime/cache/<hash>/...`
+ *                                       to a `/_instatic/runtime/cache/<hash>/...`
  *                                       URL the host serves.
  *
  * Resolution rules per package:
@@ -126,7 +126,7 @@ async function resolvePackageEntry(packageDir: string): Promise<string | null> {
 }
 
 export interface BuildPackageImportmapOptions {
-  /** URL prefix the host serves the cache from. Defaults to `/_pb/runtime/cache/`. */
+  /** URL prefix the host serves the cache from. Defaults to `/_instatic/runtime/cache/`. */
   cacheUrlPrefix?: string
 }
 
@@ -143,7 +143,7 @@ export async function buildRuntimePackageImportmap(
   const lockedNames = Object.keys(lock.packages)
   if (lockedNames.length === 0) return null
 
-  const prefix = options.cacheUrlPrefix ?? '/_pb/runtime/cache/'
+  const prefix = options.cacheUrlPrefix ?? '/_instatic/runtime/cache/'
   const baseUrl = `${prefix.replace(/\/+$/g, '')}/${cache.hash}/`
 
   const imports: Record<string, string> = {}
@@ -207,10 +207,10 @@ export async function buildRuntimePackageImportmapFromLock(
 ): Promise<RuntimePackageImportmap | null> {
   const cacheRoot = options.cacheRoot
     ?? process.env.RUNTIME_CACHE_DIR
-    ?? join((await import('node:os')).tmpdir(), 'page-builder-runtime-cache')
+    ?? join((await import('node:os')).tmpdir(), 'instatic-runtime-cache')
   const hash = runtimeDependencyLockHash(lock)
   const cacheDir = join(cacheRoot, 'deps', hash)
-  if (!existsSync(join(cacheDir, '.pb-install-complete'))) return null
+  if (!existsSync(join(cacheDir, '.instatic-install-complete'))) return null
 
   return buildRuntimePackageImportmap(
     lock,

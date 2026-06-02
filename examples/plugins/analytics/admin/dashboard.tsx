@@ -15,9 +15,9 @@ import {
   Sparkline,
   Stack,
   Text,
-} from '@pagebuilder/host-ui'
-import { usePluginRoutes } from '@pagebuilder/host-hooks'
-import { definePluginAdminApp } from '@pagebuilder/plugin-sdk'
+} from '@instatic/host-ui'
+import { usePluginRoutes } from '@instatic/host-hooks'
+import { definePluginAdminApp } from '@instatic/plugin-sdk'
 import { DashboardStatsSchema, type DashboardStats } from './schemas'
 import { StatCard } from './charts/StatCard'
 import { TopPages } from './sections/TopPages'
@@ -39,7 +39,7 @@ const RANGE_OPTIONS = [
 
 type RangeValue = typeof RANGE_OPTIONS[number]['value']
 
-const ROUTE_BASE = '/admin/api/cms/plugins/pagebuilder.analytics/runtime'
+const ROUTE_BASE = '/admin/api/cms/plugins/instatic.analytics/runtime'
 
 // ---------------------------------------------------------------------------
 // Dashboard component

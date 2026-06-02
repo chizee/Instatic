@@ -200,7 +200,7 @@ async function* runOpenAiStream(req: AiStreamRequest): AsyncIterable<AiStreamEve
 
 function buildAgent(req: AiStreamRequest): Agent {
   return new Agent({
-    name: 'page-builder-agent',
+    name: 'instatic-agent',
     // Agents SDK flattens an `instructions` string into the system prompt;
     // we join our cache-tagged array (the cache marker is no-op here).
     instructions: req.systemPrompt.join('\n\n'),

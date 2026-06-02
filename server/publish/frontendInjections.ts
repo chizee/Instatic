@@ -6,7 +6,7 @@
  * is declared up front in the plugin's manifest under `frontend.assets[]`
  * (see `FrontendAsset` in `@core/plugin-sdk/types`). The host does NOT ship
  * any tag content of its own — no built-in tracker, no shared runtime, no
- * special-cased scripts. If a plugin wants `window.__pb_analytics`, that
+ * special-cased scripts. If a plugin wants `window.__instatic_analytics`, that
  * plugin ships the IIFE that installs it. The host's job is to:
  *
  *   1. Walk enabled plugins, gather their declared assets.
@@ -394,7 +394,7 @@ function relaxCspForPlan(html: string, plan: FrontendInjections): string {
  * regardless of whether any frontend plugin tags were injected — a site can
  * use an external storage backend without any frontend.assets plugin being
  * active. The directive sources extend `'self'` so the host-relative
- * defaults (`/uploads/*`, `/_pb/*`) keep working.
+ * defaults (`/uploads/*`, `/_instatic/*`) keep working.
  */
 function appendMediaAdapterCspOrigins(
   html: string,

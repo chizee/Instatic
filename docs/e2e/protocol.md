@@ -1,4 +1,4 @@
-# Page Builder User E2E Protocol
+# Instatic User E2E Protocol
 
 ## Purpose
 

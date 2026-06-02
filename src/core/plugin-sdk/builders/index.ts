@@ -9,7 +9,7 @@
  *     definePluginAdminApp, definePluginPanel,
  *     control, html, raw, safeUrl,
  *     permissions, createNamespace, h, vc,
- *   } from '@pagebuilder/plugin-sdk'
+ *   } from '@instatic/plugin-sdk'
  *
  * The host re-exports this surface from `@core/plugin-sdk` so first-party
  * plugins (in this monorepo) can use the same API without an extra

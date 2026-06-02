@@ -8,7 +8,7 @@
  * published page at the cost of a tiny memory footprint (one entry ≈ a few
  * hundred bytes).
  */
-import type { ServerPluginApi, PluginRecord } from '@pagebuilder/plugin-sdk'
+import type { ServerPluginApi, PluginRecord } from '@instatic/plugin-sdk'
 import { Type } from '@sinclair/typebox'
 import { Value } from '@sinclair/typebox/value'
 

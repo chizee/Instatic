@@ -1,7 +1,7 @@
 /**
  * StatsCard — shows live backend stats on the Search admin dashboard.
  */
-import { Card, Heading, Stack, Text } from '@pagebuilder/host-ui'
+import { Card, Heading, Stack, Text } from '@instatic/host-ui'
 import type { StatusResponse } from '../apiSchemas'
 import styles from './StatsCard.module.css'
 

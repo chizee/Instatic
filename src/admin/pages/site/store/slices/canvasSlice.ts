@@ -15,7 +15,7 @@ type CanvasMode = 'select' | 'pan' | 'insert'
  *   shown side-by-side with pan/zoom. Fully reactive to property edits.
  * - 'live': a single editable frame at 100% (fluid full-width, optionally
  *   clamped to a breakpoint width) with normal vertical scrolling, like a
- *   conventional page builder's live view. It reuses the SAME editable iframe
+ *   conventional visual editor's live view. It reuses the SAME editable iframe
  *   the design canvas uses (React-rendered node tree), so selection, the
  *   properties panel, and structural edits all keep working — it is not a
  *   read-only preview.

@@ -6,7 +6,7 @@
  *   - AdminSessionProvider (session context for authenticated children)
  *   - StepUpProvider (auth re-verification for sensitive actions)
  *   - The 9 workspace page components (DashboardPage, SitePage, …)
- *   - installPluginRuntime() (populates globalThis.__pagebuilder for plugins)
+ *   - installPluginRuntime() (populates globalThis.__instatic for plugins)
  *
  * Splitting this out from `AdminEntry` keeps the cold-load JS execution
  * gap small for the unauthenticated login flow: the entry chunk no longer
@@ -103,7 +103,7 @@ const DataPage = prewarmedLazy(
   { displayName: 'DataPage' },
 )
 
-// Plugin runtime (globalThis.__pagebuilder) is now installed LAZILY by
+// Plugin runtime (globalThis.__instatic) is now installed LAZILY by
 // `ensurePluginRuntime()` in `pluginRuntimeBootstrap.ts`. The two callers
 // that need it (useInstalledEditorPlugins, PluginPageRenderer) await it
 // before triggering their plugin dynamic-imports. Eagerly installing

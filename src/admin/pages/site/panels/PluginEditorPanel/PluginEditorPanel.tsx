@@ -5,7 +5,7 @@
  * it inside the host-owned panel chrome (`PanelHeader` + scrollable body).
  *
  * The plugin's component is a real React component (`definePluginPanel`)
- * that imports `react`, `@pagebuilder/host-ui`, and `@pagebuilder/host-hooks`
+ * that imports `react`, `@instatic/host-ui`, and `@instatic/host-hooks`
  * as externals. The host's import map resolves those bare specifiers to
  * its own React instance + design system primitives at mount time, so
  * plugin bundles share host React without bundling a copy.
@@ -44,7 +44,7 @@ export function PluginEditorPanel({ panelId }: PluginEditorPanelProps) {
 
 function PluginEditorPanelContent({ panelId }: PluginEditorPanelProps) {
   // Subscribe to the runtime so the panel re-renders if the plugin is
-  // re-activated (e.g. after a hot reload from `pb-plugin dev`).
+  // re-activated (e.g. after a hot reload from `instatic-plugin dev`).
   const [tick, setTick] = useState(0)
   useEffect(() => {
     const unsubscribe = pluginRuntime.subscribe(() => setTick((t) => t + 1))

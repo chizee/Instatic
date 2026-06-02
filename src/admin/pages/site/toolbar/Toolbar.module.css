@@ -355,14 +355,14 @@
 }
 
 /* ── Spinner animation ────────────────────────────────────────────────────── */
-@keyframes pbSpin {
+@keyframes instaticSpin {
     to {
         transform: rotate(360deg);
     }
 }
 
 .spinIcon {
-    animation: pbSpin 0.8s linear infinite;
+    animation: instaticSpin 0.8s linear infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {

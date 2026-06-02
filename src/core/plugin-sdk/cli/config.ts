@@ -1,6 +1,6 @@
 /**
  * Resolve plugin-build / plugin-dev configuration without an explicit
- * `pb-plugin login` step. The dev workflow is filesystem-direct — the CLI
+ * `instatic-plugin login` step. The dev workflow is filesystem-direct — the CLI
  * writes built plugin files into the running CMS's `uploads/plugins/<id>/<version>/`
  * directory, and the host's server module loader picks the changes up
  * automatically via the `?v=Date.now()` cache buster on its dynamic import.
@@ -8,11 +8,11 @@
  * That means the only thing the CLI needs to know is *where the host's
  * uploads directory lives*. Resolution order, highest-priority first:
  *
- *   1. CLI flag:   `pb-plugin dev --uploads <path>`
- *   2. Environment: `PB_UPLOADS_DIR=<path> pb-plugin dev`
+ *   1. CLI flag:   `instatic-plugin dev --uploads <path>`
+ *   2. Environment: `INSTATIC_UPLOADS_DIR=<path> instatic-plugin dev`
  *   3. Auto-detect: walk up from the plugin source dir looking for an
  *      `uploads/plugins/` sibling — covers the common case of editing a
- *      first-party plugin inside the page-builder monorepo.
+ *      first-party plugin inside the instatic monorepo.
  *
  * No login, no API tokens, no env-mode flag. The filesystem is the gate.
  * Whoever can write to `uploads/plugins/` already has the same effective
@@ -71,7 +71,7 @@ export function resolvePluginDevConfig(
     }
   }
 
-  const envUploads = env.PB_UPLOADS_DIR
+  const envUploads = env.INSTATIC_UPLOADS_DIR
   if (envUploads && envUploads.trim()) {
     return {
       uploadsDir: isAbsolute(envUploads)
@@ -92,11 +92,11 @@ export function resolvePluginDevConfig(
       ``,
       `Provide it explicitly with one of:`,
       `  • --uploads <path>            (CLI flag)`,
-      `  • PB_UPLOADS_DIR=<path>        (environment variable)`,
+      `  • INSTATIC_UPLOADS_DIR=<path>        (environment variable)`,
       ``,
-      `…or run \`pb-plugin dev\` from a plugin folder whose ancestor contains an`,
+      `…or run \`instatic-plugin dev\` from a plugin folder whose ancestor contains an`,
       `\`uploads/plugins/\` directory (the default for first-party plugins inside`,
-      `the page-builder monorepo).`,
+      `the instatic monorepo).`,
     ].join('\n'),
   )
 }

@@ -4,7 +4,7 @@
  * RFC 4180 quoting: fields containing comma, double-quote, or newline are
  * wrapped in double-quotes; embedded double-quotes are escaped as `""`.
  */
-import type { PluginRecord } from '@pagebuilder/plugin-sdk'
+import type { PluginRecord } from '@instatic/plugin-sdk'
 
 function quoteField(value: unknown): string {
   const s = value == null ? '' : String(value)

@@ -1,6 +1,6 @@
 # Analytics Plugin
 
-Self-hosted, privacy-first analytics for Page Builder. A Plausible/Fathom alternative built on the host's frontend tracker. **No third-party services. All data stays in your CMS database.**
+Self-hosted, privacy-first analytics for Instatic. A Plausible/Fathom alternative built on the host's frontend tracker. **No third-party services. All data stays in your CMS database.**
 
 ## What it tracks
 
@@ -18,7 +18,7 @@ Self-hosted, privacy-first analytics for Page Builder. A Plausible/Fathom altern
 - **No raw visitor IDs stored.** Each visitor gets a daily-rotating SHA-256 hash: `SHA-256(salt + visitorId + YYYY-MM-DD)`. The same visitor has a different hash every day. A compromised database reveals nothing about identity.
 - **No User-Agent stored raw.** The UA is used server-side to classify the device (desktop/mobile/tablet/bot) and then discarded.
 - **Do-Not-Track honoured by default.** When `respectDnt` is on, browsers with DNT=1 receive no tracking code.
-- **Client-side opt-out.** Any visitor can opt out by running `localStorage.setItem('__pb_analytics_optout', '1')` in their browser console.
+- **Client-side opt-out.** Any visitor can opt out by running `localStorage.setItem('__instatic_analytics_optout', '1')` in their browser console.
 
 ## Settings
 
@@ -49,7 +49,7 @@ Use Unix-style globs:
 Set `publicStatsToken` to a secret value, then embed aggregate stats on any public page:
 
 ```
-GET /admin/api/cms/plugins/pagebuilder.analytics/runtime/public-stats.json?token=<your-token>
+GET /admin/api/cms/plugins/instatic.analytics/runtime/public-stats.json?token=<your-token>
 ```
 
 Returns the same 30-day dashboard payload as the admin view.
@@ -59,7 +59,7 @@ Example widget using the endpoint:
 ```html
 <div id="stats"></div>
 <script>
-  fetch('/admin/api/cms/plugins/pagebuilder.analytics/runtime/public-stats.json?token=YOUR_TOKEN')
+  fetch('/admin/api/cms/plugins/instatic.analytics/runtime/public-stats.json?token=YOUR_TOKEN')
     .then(r => r.json())
     .then(data => {
       document.getElementById('stats').textContent =
@@ -73,13 +73,13 @@ Example widget using the endpoint:
 Visitors can opt out client-side by running this in the browser console:
 
 ```js
-localStorage.setItem('__pb_analytics_optout', '1')
+localStorage.setItem('__instatic_analytics_optout', '1')
 ```
 
 To opt back in:
 
 ```js
-localStorage.removeItem('__pb_analytics_optout')
+localStorage.removeItem('__instatic_analytics_optout')
 ```
 
 ## Data model

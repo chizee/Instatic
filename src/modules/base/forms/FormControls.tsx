@@ -88,9 +88,9 @@ export function FormEditor({ children, mcClassName, nodeWrapperProps, props }: M
     <form
       {...nodeWrapperProps}
       className={mcClassName}
-      data-pb-form-id={formId}
-      data-pb-form-editor-preview={previewState !== 'default' ? previewState : undefined}
-      data-pb-form-state={runtimeState !== 'default' ? runtimeState : undefined}
+      data-instatic-form-id={formId}
+      data-instatic-form-editor-preview={previewState !== 'default' ? previewState : undefined}
+      data-instatic-form-state={runtimeState !== 'default' ? runtimeState : undefined}
       aria-busy={previewState === 'submitting' ? true : undefined}
     >
       {children}
@@ -232,9 +232,9 @@ export function FormMessageEditor({ mcClassName, nodeWrapperProps, props }: Modu
     <div
       {...nodeWrapperProps}
       className={mcClassName}
-      data-pb-form-message={props.kind}
-      data-pb-form-id={normalizeIdentifierValue(props.formId)}
-      data-pb-form-preview-active={previewActive ? 'true' : undefined}
+      data-instatic-form-message={props.kind}
+      data-instatic-form-id={normalizeIdentifierValue(props.formId)}
+      data-instatic-form-preview-active={previewActive ? 'true' : undefined}
       hidden={previewKind !== null && props.kind !== previewKind ? true : undefined}
       role={props.kind === 'error' ? 'alert' : 'status'}
     >

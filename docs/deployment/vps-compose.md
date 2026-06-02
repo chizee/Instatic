@@ -13,8 +13,8 @@ Install Docker Engine and Docker Compose on the VPS. Point your domain to the se
 Create an install directory:
 
 ```sh
-mkdir -p page-builder-cms
-cd page-builder-cms
+mkdir -p instatic-cms
+cd instatic-cms
 ```
 
 Download the production Compose and environment templates from the release source:
@@ -44,7 +44,7 @@ cp .env.production.example .env
 Edit `.env` and replace:
 
 ```txt
-PAGE_BUILDER_IMAGE=ghcr.io/GITHUB_OWNER/IMAGE_NAME:latest
+INSTATIC_IMAGE=ghcr.io/GITHUB_OWNER/IMAGE_NAME:latest
 POSTGRES_PASSWORD=replace-with-a-long-random-hex-password
 ```
 

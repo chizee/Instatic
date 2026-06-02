@@ -1,13 +1,13 @@
 ---
-name: page-builder-user-e2e
-description: Run user-facing Page Builder CMS E2E audits with a real browser and disposable local data. Use when asked to test the app as a user, run an agent-browser pass, perform a fresh-install smoke test, audit UX friction, verify setup/login/edit/publish/public-page flows, retest E2E issues, or update the Page Builder E2E protocol and feature matrix.
+name: instatic-user-e2e
+description: Run user-facing Instatic E2E audits with a real browser and disposable local data. Use when asked to test the app as a user, run an agent-browser pass, perform a fresh-install smoke test, audit UX friction, verify setup/login/edit/publish/public-page flows, retest E2E issues, or update the Instatic E2E protocol and feature matrix.
 ---
 
-# Page Builder User E2E
+# Instatic User E2E
 
 ## Overview
 
-Use this skill to operate Page Builder CMS like a real user through the browser, record product-quality findings, and keep durable run logs. This is not a replacement for `bun test`; it covers the gaps that unit, API, architecture, and happy-dom tests cannot see.
+Use this skill to operate Instatic like a real user through the browser, record product-quality findings, and keep durable run logs. This is not a replacement for `bun test`; it covers the gaps that unit, API, architecture, and happy-dom tests cannot see.
 
 ## Core Rule
 

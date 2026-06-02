@@ -2,7 +2,7 @@
  * SiteImportModal — the Super Import wizard.
  *
  * A five-step dialog that lets the user import a static site (folder, .zip,
- * or loose files) into the page builder in a single undo-able operation.
+ * or loose files) into the visual editor in a single undo-able operation.
  *
  * Steps:
  *   drop      → user drops/picks files

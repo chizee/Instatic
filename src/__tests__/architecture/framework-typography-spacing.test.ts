@@ -6,7 +6,7 @@
  *     .../scale.ts, .../preferences.ts) MUST stay React-free so the publisher
  *     and any future server-side code can import it.
  *   - The editor panels MUST live under src/admin/pages/site/components/<Family>Panel/
- *     and consume only the page-builder design tokens (no raw hex, no Tailwind).
+ *     and consume only the instatic design tokens (no raw hex, no Tailwind).
  *   - The new icons (`type`, `ruler-dimension`) MUST be on the panel rail and
  *     reachable through the catalog import path the icon gate already enforces.
  *

@@ -1,21 +1,21 @@
 import { issuePublicFormPageToken } from './challenge'
 
-export const FORM_RUNTIME_PATH = '/_pb/form-runtime.js'
+export const FORM_RUNTIME_PATH = '/_instatic/form-runtime.js'
 
 const CSP_META_PATTERN = /<meta http-equiv="Content-Security-Policy"\s+content="([^"]*)"\s*\/?>/i
-const CMS_FORM_PATTERN = /<form\b(?=[^>]*\bdata-pb-form-mode=(["'])cms\1)(?=[^>]*\bdata-pb-form-id=(["'])[^"']+\2)[^>]*>/i
-const CMS_FORM_TAG_PATTERN = /<form\b(?=[^>]*\bdata-pb-form-mode=(["'])cms\1)(?=[^>]*\bdata-pb-form-id=(["'])[^"']+\2)[^>]*>/gi
+const CMS_FORM_PATTERN = /<form\b(?=[^>]*\bdata-instatic-form-mode=(["'])cms\1)(?=[^>]*\bdata-instatic-form-id=(["'])[^"']+\2)[^>]*>/i
+const CMS_FORM_TAG_PATTERN = /<form\b(?=[^>]*\bdata-instatic-form-mode=(["'])cms\1)(?=[^>]*\bdata-instatic-form-id=(["'])[^"']+\2)[^>]*>/gi
 
 export const FORM_RUNTIME_JS = `(() => {
-  const script = document.querySelector('script[data-pb-form-runtime]');
-  const pageId = script ? script.getAttribute('data-pb-page-id') || '' : '';
-  const forms = document.querySelectorAll('form[data-pb-form-mode="cms"][data-pb-form-id]');
+  const script = document.querySelector('script[data-instatic-form-runtime]');
+  const pageId = script ? script.getAttribute('data-instatic-page-id') || '' : '';
+  const forms = document.querySelectorAll('form[data-instatic-form-mode="cms"][data-instatic-form-id]');
 
   for (const form of forms) attachForm(form);
 
   function attachForm(form) {
-    if (form.__pbFormRuntimeAttached) return;
-    form.__pbFormRuntimeAttached = true;
+    if (form.__instaticFormRuntimeAttached) return;
+    form.__instaticFormRuntimeAttached = true;
     connectLabels(form);
     prepareMessages(form);
     prefetchChallenge(form);
@@ -26,8 +26,8 @@ export const FORM_RUNTIME_JS = `(() => {
   }
 
   async function submitForm(form) {
-    const formId = form.getAttribute('data-pb-form-id') || '';
-    const pageToken = form.getAttribute('data-pb-page-token') || '';
+    const formId = form.getAttribute('data-instatic-form-id') || '';
+    const pageToken = form.getAttribute('data-instatic-page-token') || '';
     if (!formId || !pageId || !pageToken) {
       setState(form, 'error', 'This form is missing its published form link.');
       return;
@@ -38,7 +38,7 @@ export const FORM_RUNTIME_JS = `(() => {
 
     try {
       const challenge = await takeChallenge(form);
-      await postJson('/_pb/form/submit', {
+      await postJson('/_instatic/form/submit', {
         pageId,
         formId,
         token: challenge.token,
@@ -46,14 +46,14 @@ export const FORM_RUNTIME_JS = `(() => {
         values: collectValues(form),
       });
 
-      const redirectUrl = form.getAttribute('data-pb-success-redirect') || '';
+      const redirectUrl = form.getAttribute('data-instatic-success-redirect') || '';
       if (redirectUrl) {
         window.location.assign(redirectUrl);
         return;
       }
 
-      setState(form, 'success', form.getAttribute('data-pb-success-message') || 'Thanks. Your submission was received.');
-      if (form.getAttribute('data-pb-reset-on-success') !== 'false') form.reset();
+      setState(form, 'success', form.getAttribute('data-instatic-success-message') || 'Thanks. Your submission was received.');
+      if (form.getAttribute('data-instatic-reset-on-success') !== 'false') form.reset();
     } catch (err) {
       const message = err instanceof Error && err.message ? err.message : 'Form submission failed.';
       setState(form, 'error', message);
@@ -64,42 +64,42 @@ export const FORM_RUNTIME_JS = `(() => {
   }
 
   function prefetchChallenge(form) {
-    if (form.__pbFormChallenge || form.__pbFormChallengePromise) return form.__pbFormChallengePromise;
+    if (form.__instaticFormChallenge || form.__instaticFormChallengePromise) return form.__instaticFormChallengePromise;
     const request = requestChallenge(form)
       .then((challenge) => {
-        form.__pbFormChallenge = challenge;
-        form.__pbFormChallengePromise = null;
+        form.__instaticFormChallenge = challenge;
+        form.__instaticFormChallengePromise = null;
         return challenge;
       })
       .catch((err) => {
-        form.__pbFormChallenge = null;
-        form.__pbFormChallengePromise = null;
+        form.__instaticFormChallenge = null;
+        form.__instaticFormChallengePromise = null;
         throw err;
       });
-    form.__pbFormChallengePromise = request;
+    form.__instaticFormChallengePromise = request;
     request.catch(() => {});
     return request;
   }
 
   async function takeChallenge(form) {
-    const existing = form.__pbFormChallenge;
+    const existing = form.__instaticFormChallenge;
     if (existing && challengeIsFresh(existing)) {
-      form.__pbFormChallenge = null;
+      form.__instaticFormChallenge = null;
       return existing;
     }
-    form.__pbFormChallenge = null;
+    form.__instaticFormChallenge = null;
     const challenge = await prefetchChallenge(form);
-    form.__pbFormChallenge = null;
+    form.__instaticFormChallenge = null;
     return challenge;
   }
 
   function requestChallenge(form) {
-    const formId = form.getAttribute('data-pb-form-id') || '';
-    const pageToken = form.getAttribute('data-pb-page-token') || '';
+    const formId = form.getAttribute('data-instatic-form-id') || '';
+    const pageToken = form.getAttribute('data-instatic-page-token') || '';
     if (!formId || !pageId || !pageToken) {
       return Promise.reject(new Error('This form is missing its published form link.'));
     }
-    return postJson('/_pb/form/challenge', { pageId, formId, pageToken });
+    return postJson('/_instatic/form/challenge', { pageId, formId, pageToken });
   }
 
   function challengeIsFresh(challenge) {
@@ -156,7 +156,7 @@ export const FORM_RUNTIME_JS = `(() => {
   }
 
   function connectLabels(form) {
-    const elements = Array.from(form.querySelectorAll('label[data-pb-label-target="auto"], input:not([type="hidden"]):not([data-pb-honeypot]), textarea, select'));
+    const elements = Array.from(form.querySelectorAll('label[data-instatic-label-target="auto"], input:not([type="hidden"]):not([data-instatic-honeypot]), textarea, select'));
     let counter = 0;
     for (const element of elements) {
       if (element.tagName.toLowerCase() !== 'label') continue;
@@ -165,7 +165,7 @@ export const FORM_RUNTIME_JS = `(() => {
       if (!control) continue;
       if (!control.id) {
         counter += 1;
-        control.id = 'pb-form-' + safeToken(form.getAttribute('data-pb-form-id') || 'form') + '-' + counter;
+        control.id = 'instatic-form-' + safeToken(form.getAttribute('data-instatic-form-id') || 'form') + '-' + counter;
       }
       element.setAttribute('for', control.id);
     }
@@ -180,51 +180,51 @@ export const FORM_RUNTIME_JS = `(() => {
     const buttons = form.querySelectorAll('button, input[type="submit"], input[type="button"]');
     for (const button of buttons) {
       if (busy) {
-        if (button.disabled) button.setAttribute('data-pb-was-disabled', 'true');
+        if (button.disabled) button.setAttribute('data-instatic-was-disabled', 'true');
         button.disabled = true;
-      } else if (!button.hasAttribute('data-pb-was-disabled')) {
+      } else if (!button.hasAttribute('data-instatic-was-disabled')) {
         button.disabled = false;
       } else {
-        button.removeAttribute('data-pb-was-disabled');
+        button.removeAttribute('data-instatic-was-disabled');
       }
     }
   }
 
   function prepareMessages(form) {
     for (const message of formMessages(form)) {
-      if (!message.hasAttribute('data-pb-default-text')) {
-        message.setAttribute('data-pb-default-text', message.textContent || '');
+      if (!message.hasAttribute('data-instatic-default-text')) {
+        message.setAttribute('data-instatic-default-text', message.textContent || '');
       }
-      const kind = message.getAttribute('data-pb-form-message') || 'status';
+      const kind = message.getAttribute('data-instatic-form-message') || 'status';
       if (kind === 'success' || kind === 'error') message.hidden = true;
     }
   }
 
   function setState(form, state, text) {
-    form.setAttribute('data-pb-form-state', state);
+    form.setAttribute('data-instatic-form-state', state);
     const messages = formMessages(form);
     const messageKind = state === 'error' ? 'error' : state === 'success' ? 'success' : 'status';
-    const hasExactMessage = messages.some((message) => (message.getAttribute('data-pb-form-message') || 'status') === messageKind);
+    const hasExactMessage = messages.some((message) => (message.getAttribute('data-instatic-form-message') || 'status') === messageKind);
 
     for (const message of messages) {
-      if (!message.hasAttribute('data-pb-default-text')) {
-        message.setAttribute('data-pb-default-text', message.textContent || '');
+      if (!message.hasAttribute('data-instatic-default-text')) {
+        message.setAttribute('data-instatic-default-text', message.textContent || '');
       }
-      const kind = message.getAttribute('data-pb-form-message') || 'status';
+      const kind = message.getAttribute('data-instatic-form-message') || 'status';
       const shouldShow = kind === messageKind || (!hasExactMessage && kind === 'status');
       if (!shouldShow) {
         message.hidden = true;
         continue;
       }
-      message.textContent = text || message.getAttribute('data-pb-default-text') || '';
+      message.textContent = text || message.getAttribute('data-instatic-default-text') || '';
       message.hidden = !message.textContent;
     }
   }
 
   function formMessages(form) {
-    const formId = form.getAttribute('data-pb-form-id') || '';
-    return Array.from(document.querySelectorAll('[data-pb-form-message]')).filter((message) => {
-      return form.contains(message) || (formId && message.getAttribute('data-pb-form-id') === formId);
+    const formId = form.getAttribute('data-instatic-form-id') || '';
+    return Array.from(document.querySelectorAll('[data-instatic-form-message]')).filter((message) => {
+      return form.contains(message) || (formId && message.getAttribute('data-instatic-form-id') === formId);
     });
   }
 })();`
@@ -234,9 +234,9 @@ export function pageHasCmsNativeForm(html: string): boolean {
 }
 
 export function injectFormRuntime(html: string, pageId: string): string {
-  if (!pageHasCmsNativeForm(html) || html.includes('data-pb-form-runtime')) return html
+  if (!pageHasCmsNativeForm(html) || html.includes('data-instatic-form-runtime')) return html
   const withPageTokens = stampFormPageTokens(html, pageId)
-  const script = `<script src="${FORM_RUNTIME_PATH}" defer data-pb-form-runtime data-pb-page-id="${escapeAttr(pageId)}"></script>`
+  const script = `<script src="${FORM_RUNTIME_PATH}" defer data-instatic-form-runtime data-instatic-page-id="${escapeAttr(pageId)}"></script>`
   const withScript = withPageTokens.includes('</body>')
     ? withPageTokens.replace('</body>', `${script}\n</body>`)
     : `${withPageTokens}\n${script}`
@@ -260,11 +260,11 @@ function relaxScriptCsp(html: string): string {
 
 function stampFormPageTokens(html: string, pageId: string): string {
   return html.replace(CMS_FORM_TAG_PATTERN, (tag) => {
-    if (/\bdata-pb-page-token=/.test(tag)) return tag
-    const formId = attrValue(tag, 'data-pb-form-id')
+    if (/\bdata-instatic-page-token=/.test(tag)) return tag
+    const formId = attrValue(tag, 'data-instatic-form-id')
     if (!formId) return tag
     const token = issuePublicFormPageToken({ pageId, formId })
-    return tag.replace(/<form\b/i, `<form data-pb-page-token="${escapeAttr(token)}"`)
+    return tag.replace(/<form\b/i, `<form data-instatic-page-token="${escapeAttr(token)}"`)
   })
 }
 

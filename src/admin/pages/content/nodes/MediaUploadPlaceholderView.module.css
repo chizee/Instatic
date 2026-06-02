@@ -12,7 +12,7 @@
     background: var(--editor-surface-3);
 }
 
-.frame[data-pb-upload-status='failed'] {
+.frame[data-instatic-upload-status='failed'] {
     border-color: var(--editor-danger);
 }
 

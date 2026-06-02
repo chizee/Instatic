@@ -265,7 +265,7 @@ async function measureAuthenticatedColdLoad(
     const target = new URL(baseUrl)
     await fresh.context.addCookies([
       {
-        name: 'pb_admin_session',
+        name: 'instatic_admin_session',
         value: sessionCookieValue,
         domain: target.hostname,
         path: '/admin',
@@ -374,7 +374,7 @@ export const browserBench: BenchModule = {
       let sessionCookieValue: string | null = null
       if (authOk && session) {
         const cookies = await session.context.cookies()
-        const sessionCookie = cookies.find((c) => c.name === 'pb_admin_session')
+        const sessionCookie = cookies.find((c) => c.name === 'instatic_admin_session')
         sessionCookieValue = sessionCookie?.value ?? null
       }
 

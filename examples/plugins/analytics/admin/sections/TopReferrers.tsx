@@ -1,7 +1,7 @@
 /**
  * Analytics plugin — top referrers section.
  */
-import { Card, Heading, Stack, Text, EmptyState } from '@pagebuilder/host-ui'
+import { Card, Heading, Stack, Text, EmptyState } from '@instatic/host-ui'
 
 export interface TopEntry {
   label: string

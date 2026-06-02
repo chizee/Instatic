@@ -25,7 +25,7 @@ import type {
   MediaStorageVerifyResult,
   MediaStorageWriteResult,
   ServerPluginApi,
-} from '@pagebuilder/plugin-sdk'
+} from '@instatic/plugin-sdk'
 import { presignS3Url } from './sigv4'
 
 interface GcsAdapterSettings {

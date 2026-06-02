@@ -43,14 +43,14 @@
   font-weight: 600;
 }
 
-@keyframes pbAdminSpin {
+@keyframes instaticAdminSpin {
   to {
     transform: rotate(360deg);
   }
 }
 
 .spinIcon {
-  animation: pbAdminSpin 0.8s linear infinite;
+  animation: instaticAdminSpin 0.8s linear infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {

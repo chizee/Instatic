@@ -170,7 +170,7 @@ function renderStandardNode(
 }
 
 /**
- * Emit a `<pb-hole>` placeholder for a dynamic node.
+ * Emit a `<instatic-hole>` placeholder for a dynamic node.
  *
  * The subtree is NOT rendered — the hole runtime fetches it at request time
  * when the element approaches the viewport. The optional `staticPlaceholder`
@@ -198,9 +198,9 @@ function renderHolePlaceholder(
   const version = ctx.publishVersion ?? 0
 
   return (
-    `<pb-hole id="hole-${safeId}" data-pb-hole="${safeId}" data-pb-version="${version}" style="display:contents">` +
+    `<instatic-hole id="hole-${safeId}" data-instatic-hole="${safeId}" data-instatic-version="${version}" style="display:contents">` +
     sanitized +
-    `</pb-hole>`
+    `</instatic-hole>`
   )
 }
 
@@ -243,12 +243,12 @@ export function renderNode(nodeId: string, ctx: RenderContext): string {
   const def = ctx.registry.get(node.moduleId)
   if (!def) {
     // Unknown module — emit a comment so the page doesn't silently lose content
-    return `<!-- pb: unknown module "${escapeHtml(node.moduleId)}" -->`
+    return `<!-- instatic: unknown module "${escapeHtml(node.moduleId)}" -->`
   }
 
-  // Layer C: when this node id is in the dynamic set, emit a <pb-hole>
+  // Layer C: when this node id is in the dynamic set, emit a <instatic-hole>
   // placeholder and do NOT recurse into the subtree. The hole runtime will
-  // fetch the full rendered fragment at request time via /_pb/hole/<nodeId>.
+  // fetch the full rendered fragment at request time via /_instatic/hole/<nodeId>.
   if (ctx.dynamicNodeIds?.has(nodeId)) {
     return renderHolePlaceholder(node, def, ctx)
   }

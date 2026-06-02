@@ -1,11 +1,11 @@
 /**
- * `/_pb/hole-runtime.js` and `/_pb/hole/<nodeId>` endpoints — Layer C server islands.
+ * `/_instatic/hole-runtime.js` and `/_instatic/hole/<nodeId>` endpoints — Layer C server islands.
  *
  * The runtime asset is a tiny JavaScript module (< 1 KB) that uses
- * IntersectionObserver to lazily fetch rendered fragments for `<pb-hole>`
+ * IntersectionObserver to lazily fetch rendered fragments for `<instatic-hole>`
  * elements in published pages.
  *
- * The fragment endpoint (`/_pb/hole/<nodeId>?v=<version>&u=<page-url>`) renders
+ * The fragment endpoint (`/_instatic/hole/<nodeId>?v=<version>&u=<page-url>`) renders
  * a single node subtree from the latest published snapshot AT REQUEST TIME and
  * returns it as HTML. The originating page URL (`u`) seeds the route frame so
  * `route.query.*` bindings resolve, drives per-loop pagination, and is fed to
@@ -17,7 +17,7 @@
  *   - PER-VISITOR hole — bypasses Layer B, reads request cookies, re-renders on
  *     every page load, and responds with `Cache-Control: no-store`.
  *
- * Version-awareness: the hole runtime stamps `data-pb-version` on each
+ * Version-awareness: the hole runtime stamps `data-instatic-version` on each
  * placeholder. The endpoint compares `?v=` to the current `publishVersion`; a
  * mismatch returns a lightweight stale sentinel so the next page load picks up
  * the new version.
@@ -42,8 +42,8 @@ import { prefetchLoopData } from '../../publish/loopPrefetch'
 import { getOrRender, getPublishVersion } from '../../publish/renderCache'
 import { HOLE_RUNTIME_JS } from '../../publish/holeRuntime'
 
-const HOLE_RUNTIME_PATH = '/_pb/hole-runtime.js'
-const HOLE_PATH_PREFIX = '/_pb/hole/'
+const HOLE_RUNTIME_PATH = '/_instatic/hole-runtime.js'
+const HOLE_PATH_PREFIX = '/_instatic/hole/'
 
 export function isHoleRuntimeAssetPath(pathname: string): boolean {
   return pathname === HOLE_RUNTIME_PATH
@@ -161,7 +161,7 @@ function isPerVisitorHole(node: PageNode): boolean {
 /**
  * Render one node subtree at request time. Builds the same named frames the
  * full-page publisher builds (route/page/site) plus pre-fetched loop data for
- * loops INSIDE this subtree, then renders fully (no `<pb-hole>` recursion).
+ * loops INSIDE this subtree, then renders fully (no `<instatic-hole>` recursion).
  */
 async function renderHoleFragment(
   nodeId: string,
@@ -197,7 +197,7 @@ async function renderHoleFragment(
 /**
  * Render a single dynamic node subtree for Layer C hole hydration.
  *
- * GET `/_pb/hole/<nodeId>?v=<publishVersion>&u=<page-url>` → HTML fragment.
+ * GET `/_instatic/hole/<nodeId>?v=<publishVersion>&u=<page-url>` → HTML fragment.
  */
 export async function handleHoleRequest(
   req: Request,
@@ -225,7 +225,7 @@ export async function handleHoleRequest(
   const requestVersion = url.searchParams.get('v') ?? ''
   const currentVersion = getPublishVersion()
   if (requestVersion !== String(currentVersion)) {
-    return new Response('<pb-hole-stale data-pb-stale="true"></pb-hole-stale>', {
+    return new Response('<instatic-hole-stale data-instatic-stale="true"></instatic-hole-stale>', {
       headers: {
         'content-type': 'text/html; charset=utf-8',
         'cache-control': 'no-store',

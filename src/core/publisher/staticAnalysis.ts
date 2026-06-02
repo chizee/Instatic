@@ -30,7 +30,7 @@ export { isBindingSourceRequestDependent }
  *
  * Empty list ⇔ every node (including VC-ref'd trees) is
  * publish-time-deterministic, so the page bakes to a complete static document
- * rather than a `<pb-hole>` shell. (Layer A bakes BOTH kinds to disk; this
+ * rather than a `<instatic-hole>` shell. (Layer A bakes BOTH kinds to disk; this
  * predicate just distinguishes "complete document" from "shell with holes".)
  *
  * Useful for developer tooling and editor introspection.
@@ -45,7 +45,7 @@ export function staticReasons(
 
 /**
  * Returns `true` iff the page tree contains no request-dependent constructs —
- * i.e. it bakes to a complete static document with no `<pb-hole>` placeholders.
+ * i.e. it bakes to a complete static document with no `<instatic-hole>` placeholders.
  *
  * Returns `false` if any node is dynamic (module flag, request-dependent
  * binding, request-dependent loop source, or a VC ref to a dynamic VC), or

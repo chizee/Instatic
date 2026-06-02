@@ -4,7 +4,7 @@
  * Displays a single metric with an optional delta indicator.
  * Delegates to host-ui `StatValue` and `Delta` for consistent styling.
  */
-import { Card, Stack, Text, StatValue, Delta } from '@pagebuilder/host-ui'
+import { Card, Stack, Text, StatValue, Delta } from '@instatic/host-ui'
 
 export interface StatCardProps {
   label: string

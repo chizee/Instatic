@@ -223,7 +223,7 @@ export async function createPluginVm(args: {
     settingsHandle.dispose()
 
     // 4. Evaluate the bootstrap and plugin bundle.
-    ctx.unwrapResult(ctx.evalCode(BOOTSTRAP_SOURCE, 'pagebuilder-bootstrap.js')).dispose()
+    ctx.unwrapResult(ctx.evalCode(BOOTSTRAP_SOURCE, 'instatic-bootstrap.js')).dispose()
     ctx.unwrapResult(ctx.evalCode(args.pluginSource, `plugin:${args.env.pluginId}`)).dispose()
 
     // 5. Detect which lifecycle hooks the plugin exported.

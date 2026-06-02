@@ -18,7 +18,7 @@ A plan to take the current single-provider, single-surface Claude Agent SDK inte
   - OpenAI: `@openai/agents`. Driver constructs a per-call `OpenAIProvider({ apiKey })` and wires it via `Runner({ modelProvider })`.
   - Ollama: no SDK, plain `fetch` against any OpenAI-compatible local endpoint. `baseUrl` mode (+ optional bearer key).
 - One **tool registry** (`server/ai/tools/`) defined with TypeBox; drivers translate to their SDK's native shape (Anthropic gets a thin Zod wrapper required by the Claude Agent SDK's `tool()` API; OpenAI gets JSON Schema; Ollama gets the same JSON Schema).
-- **Encrypted credential store** (`ai_provider_credentials` table) — AES-256-GCM via Bun's `crypto.subtle`, master key from env var `PAGE_BUILDER_SECRET_KEY`. Multiple rows per provider allowed (different keys for different purposes). Plaintext never crosses the wire.
+- **Encrypted credential store** (`ai_provider_credentials` table) — AES-256-GCM via Bun's `crypto.subtle`, master key from env var `INSTATIC_SECRET_KEY`. Multiple rows per provider allowed (different keys for different purposes). Plaintext never crosses the wire.
 - **Persistent conversations**: tables `ai_conversations` + `ai_messages`, scoped per user + per surface. Soft-delete with a nightly job that hard-purges rows older than 30 days. Conversations survive reload and device-switching.
 - **Four AI surfaces** with scoped toolsets and **independent message histories**: Site editor (24 tools, live), Content workspace (15 tools, live), Data workspace (Phase 4 follow-up), Plugin SDK (Phase 5).
 - **Model picker** in every chat: `(credentialId, modelId)` persisted per-surface. Defaults sourced from site-wide config with per-user override.
@@ -90,7 +90,7 @@ server/ai/
 ├── tools/
 │   ├── index.ts            Tool registry + selectByScope() / selectByIds().
 │   ├── types.ts            AiTool<TInput, TOutput> + ToolScope union.
-│   ├── pageBuilder/        22 site-editor tools (replaces handlers/agent/tools.ts).
+│   ├── instatic/        22 site-editor tools (replaces handlers/agent/tools.ts).
 │   ├── content/            Posts/pages CRUD + richtext-assist tools.
 │   ├── data/               Tables/rows CRUD + generateRows + queryRows.
 │   └── shared/             render_snapshot (browser-bridged), getSiteContext, ...
@@ -433,12 +433,12 @@ export async function decryptSecret(masterKey: CryptoKey, ciphertext: Uint8Array
 // server/ai/credentials/masterKey.ts
 
 export async function loadMasterKey(): Promise<CryptoKey> {
-  const raw = process.env.PAGE_BUILDER_SECRET_KEY
+  const raw = process.env.INSTATIC_SECRET_KEY
   if (raw) return importMasterKeyFromBase64(raw)
 
   if (process.env.NODE_ENV === 'production') {
     throw new Error(
-      '[ai/credentials] PAGE_BUILDER_SECRET_KEY is required in production. ' +
+      '[ai/credentials] INSTATIC_SECRET_KEY is required in production. ' +
       'Generate one with: bun run scripts/generate-secret-key.ts',
     )
   }
@@ -507,7 +507,7 @@ The user-facing concept is **one provider per backend** (Anthropic, OpenAI, Olla
 Every tool defined once, in TypeBox, with explicit scope and execution mode.
 
 ```ts
-// server/ai/tools/pageBuilder/insertNode.ts (example)
+// server/ai/tools/instatic/insertNode.ts (example)
 
 import { Type, type Static } from '@core/utils/typeboxHelpers'
 import type { AiTool } from '../types'
@@ -656,7 +656,7 @@ Independent message histories: each scope has its own slice instance keyed by `s
 - `src/admin/pages/site/agent/agentSlice.ts` is **deleted**. The Site editor mounts `<AiAssistantDrawer scope="site" />`.
 - `src/admin/pages/site/agent/executor.ts` keeps its role: the **browser bridge dispatcher** for site write tools. Renamed to `siteBridge.ts` and registered with the drawer for `scope: 'site'`.
 - `renderEvidence.ts` and `pageContext.ts` (renamed from `agentSlice.ts`'s `buildPageContext`) build the page snapshot, attached to the chat request and stored as `context_json` on the conversation row.
-- System prompt unchanged, moved to `server/ai/tools/pageBuilder/systemPrompt.ts`.
+- System prompt unchanged, moved to `server/ai/tools/instatic/systemPrompt.ts`.
 - Conversation sidebar shows the user's recent site-editor chats; opening one re-attaches the snapshot it was created with (so the agent can still reason about that page even if the user navigated elsewhere).
 
 ### Content workspace ✅ shipped
@@ -702,7 +702,7 @@ The browser-bridged `toolRequest`/`tool-result` POST cycle is unchanged in shape
 
 ## System prompts
 
-Each scope has its own system prompt under `server/ai/tools/<scope>/systemPrompt.ts`. The current site-editor prompt at `src/admin/pages/site/agent/systemPrompt.ts:34` moves into `server/ai/tools/pageBuilder/systemPrompt.ts` unchanged.
+Each scope has its own system prompt under `server/ai/tools/<scope>/systemPrompt.ts`. The current site-editor prompt at `src/admin/pages/site/agent/systemPrompt.ts:34` moves into `server/ai/tools/instatic/systemPrompt.ts` unchanged.
 
 The runtime takes a `systemPrompt: string[]` (with `__SYSTEM_PROMPT_DYNAMIC_BOUNDARY__` separator) and the Anthropic driver applies `cache_control` to the prefix. Other drivers concatenate.
 
@@ -797,7 +797,7 @@ Each phase is independently shippable and leaves the app in a runnable state.
 
 - Implemented `server/ai/runtime/`, `server/ai/drivers/` (anthropic apiKey-only, openai apiKey-only, ollama baseUrl), `server/ai/credentials/`, `server/ai/conversations/`, `server/ai/tools/site/` (24 tools).
 - Migration `007_ai_runtime` (4 tables) added to both `migrations-pg.ts` and `migrations-sqlite.ts` with identical IDs.
-- `loadMasterKey` + env var (`PAGE_BUILDER_SECRET_KEY`) + dev-mode `.tmp/secret.key` fallback.
+- `loadMasterKey` + env var (`INSTATIC_SECRET_KEY`) + dev-mode `.tmp/secret.key` fallback.
 - Conversation purge job registered with the scheduler tick: hard-deletes `deleted_at < now() - 30d` nightly.
 - Architecture gates: `ai-driver-isolation.test.ts`, `ai-credentials-never-leak.test.ts`, `ai-tools-typebox-only.test.ts`, `ai-handlers-capability-gated.test.ts`.
 

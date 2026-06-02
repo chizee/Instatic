@@ -52,7 +52,7 @@ interface MediaCanvasProps {
 
 type ViewMode = 'list' | 'grid'
 
-const VIEW_MODE_STORAGE_KEY = 'pb-media-page-view-mode'
+const VIEW_MODE_STORAGE_KEY = 'instatic-media-page-view-mode'
 
 function readStoredViewMode(): ViewMode {
   try {

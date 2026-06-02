@@ -5,12 +5,12 @@
  * navigation built in; underline-indicator style).
  * Each tab is a separate section component imported from ./sections/*.
  *
- * Externalised imports: react, @pagebuilder/host-ui, @pagebuilder/host-hooks,
- * @pagebuilder/plugin-sdk — resolved by the host's import map at runtime.
+ * Externalised imports: react, @instatic/host-ui, @instatic/host-hooks,
+ * @instatic/plugin-sdk — resolved by the host's import map at runtime.
  */
 import { useState } from 'react'
-import { Heading, Stack, Tab, TabList, TabPanel, Tabs, Text } from '@pagebuilder/host-ui'
-import { definePluginAdminApp } from '@pagebuilder/plugin-sdk'
+import { Heading, Stack, Tab, TabList, TabPanel, Tabs, Text } from '@instatic/host-ui'
+import { definePluginAdminApp } from '@instatic/plugin-sdk'
 import { Stats } from './sections/Stats'
 import { Subscribers } from './sections/Subscribers'
 import { Lists } from './sections/Lists'

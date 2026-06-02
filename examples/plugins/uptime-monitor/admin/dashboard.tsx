@@ -20,13 +20,13 @@ import {
   Heading,
   Stack,
   Text,
-} from '@pagebuilder/host-ui'
-import { usePluginRoutes } from '@pagebuilder/host-hooks'
-import { definePluginAdminApp } from '@pagebuilder/plugin-sdk'
+} from '@instatic/host-ui'
+import { usePluginRoutes } from '@instatic/host-hooks'
+import { definePluginAdminApp } from '@instatic/plugin-sdk'
 
 interface CheckRecord {
   url: string
-  /** Hyphenated keys match the resource field IDs in pb-plugin.config.ts. */
+  /** Hyphenated keys match the resource field IDs in instatic-plugin.config.ts. */
   'status-code': number | null
   'latency-ms': number
   ok: boolean

@@ -3,7 +3,7 @@
  *
  * Renders a donut chart alongside a legend for the four device categories.
  */
-import { Card, Heading, Stack, Text, EmptyState } from '@pagebuilder/host-ui'
+import { Card, Heading, Stack, Text, EmptyState } from '@instatic/host-ui'
 import { Donut } from '../charts/Donut'
 
 export interface TopEntry {

@@ -680,7 +680,7 @@ Plugin can override any header explicitly; otherwise SSE works out of the box.
 12. **Worker integration.** Update `server/plugins/pluginWorker.ts:serializeRouteResult` to detect `respond.*` results; update message dispatch to handle inbound `stream-chunk-deliver` / `stream-abort` events by calling `__deliverStreamChunk` / `__abortStreamReader` on the VM.
 13. **Delete the `__response` shape.** Migrate `examples/plugins/forms-builder` to `ctx.respond.json(...)`. The forms-builder's plain-JSON returns are unchanged.
 14. **Docs.** Update `docs/features/plugin-system.md` route + fetch sections. Add a cookbook entry for SSE-streamed LLM chat and binary webhook verification. Update `docs/features/agent.md` if the AI runtime starts using this path.
-15. **CLI.** Add a `bun pb-plugin init --kind=webhook-receiver` scaffold that pre-declares `cms.routes.public` + a `binary: true` route. Add an `--kind=ai-assistant` scaffold pre-declaring `responseType: 'stream'` and `cms.respond.events`.
+15. **CLI.** Add a `bun instatic-plugin init --kind=webhook-receiver` scaffold that pre-declares `cms.routes.public` + a `binary: true` route. Add an `--kind=ai-assistant` scaffold pre-declaring `responseType: 'stream'` and `cms.respond.events`.
 
 One PR. `bun test && bun run build && bun run lint` must pass.
 

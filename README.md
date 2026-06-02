@@ -1,6 +1,6 @@
-# Page Builder CMS
+# Instatic
 
-Self-hosted CMS with an integrated visual page builder. The app serves the public website, admin editor, CMS API, published pages, and uploaded media from one Bun server. Supports **Postgres** and **SQLite** — selected by `DATABASE_URL`.
+Self-hosted CMS with an integrated visual editor. The app serves the public website, admin editor, CMS API, published pages, and uploaded media from one Bun server. Supports **Postgres** and **SQLite** — selected by `DATABASE_URL`.
 
 The site is currently private and the final public repository/image name is still work in progress. Deployment files are prepared for a published GitHub Container Registry image; replace placeholder image names with the final package before the first public release.
 
@@ -102,7 +102,7 @@ Do not run `docker compose -f compose.prod.yml down -v` unless you intentionally
 ```sh
 bun run build
 bun test
-docker build -t page-builder-cms:local .
+docker build -t instatic-cms:local .
 docker compose -f compose.prod.yml pull app
 curl http://localhost:3001/health
 ```

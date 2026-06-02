@@ -759,7 +759,7 @@ api.cms.queue.define('import-post', {
 13. **Crash-recovery wiring.** When `crashRecovery.ts` tears down a worker, every job whose `lock_until > now` and whose `running_token` was minted by that worker is released. The host writes a single SQL UPDATE: `update plugin_jobs set state='pending', running_token=null, lock_until=null where plugin_id=$1 and state='running'`. Next tick re-fires.
 14. **Admin UI.** A "Queues" tab under each plugin's row on the Plugins page. Shows the queue's concurrency, pending/running/dead counts, recent jobs with progress bars, "Requeue" + "Cancel" buttons per job, "Pause queue" button at the queue level. Mostly host UI work; the data already comes from the repository. (Sketch only — full admin design is a follow-up issue, but `cms.queue.status` + `.list` make the data trivially available.)
 15. **Docs.** Update `docs/features/plugin-system.md` (new permission, new surface, cookbook entry). Add a "Choosing schedule vs queue" subsection clarifying the trade-off. Update the newsletter plugin's README.
-16. **CLI.** `bun pb-plugin init --kind=background-worker` scaffold pre-declares `cms.queue` + a simple `define`/`enqueue` example.
+16. **CLI.** `bun instatic-plugin init --kind=background-worker` scaffold pre-declares `cms.queue` + a simple `define`/`enqueue` example.
 
 One PR. `bun test && bun run build && bun run lint` must pass.
 

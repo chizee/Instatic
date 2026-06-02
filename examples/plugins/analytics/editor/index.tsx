@@ -3,8 +3,8 @@
  *
  * Registers TWO dashboard widgets for the host's `/admin` dashboard:
  *
- *   • `pagebuilder.analytics.visitors`   — Visitors sparkline + delta
- *   • `pagebuilder.analytics.top-pages`  — Top viewed paths list
+ *   • `instatic.analytics.visitors`   — Visitors sparkline + delta
+ *   • `instatic.analytics.top-pages`  — Top viewed paths list
  *
  * Both used to ship first-party from the host; they now come from this
  * plugin so the host stays Analytics-agnostic. The visuals are an EXACT
@@ -27,14 +27,14 @@ import {
   Widget,
   WidgetList,
   WidgetListRow,
-} from '@pagebuilder/host-ui'
+} from '@instatic/host-ui'
 import { EyeSolidIcon } from 'pixel-art-icons/icons/eye-solid'
 import { StarSolidIcon } from 'pixel-art-icons/icons/star-solid'
 import type {
   EditorPluginApi,
   EditorPluginModule,
   PluginDashboardWidgetRendererProps,
-} from '@pagebuilder/plugin-sdk'
+} from '@instatic/plugin-sdk'
 
 // ---------------------------------------------------------------------------
 // Range -> server query param
@@ -54,7 +54,7 @@ const SINCE_LABEL: Record<Range, string> = {
   '30d': 'Last 30 days',
 }
 
-const STATS_URL = '/admin/api/cms/plugins/pagebuilder.analytics/runtime/stats'
+const STATS_URL = '/admin/api/cms/plugins/instatic.analytics/runtime/stats'
 
 interface TopEntry {
   label: string
@@ -131,7 +131,7 @@ function VisitorsWidget({ span, editing }: PluginDashboardWidgetRendererProps) {
 
   return (
     <Widget
-      widgetId="pagebuilder.analytics.visitors"
+      widgetId="instatic.analytics.visitors"
       title="Visitors"
       icon={EyeSolidIcon}
       tint="mint"
@@ -199,7 +199,7 @@ function TopPagesWidget({ span, editing }: PluginDashboardWidgetRendererProps) {
 
   return (
     <Widget
-      widgetId="pagebuilder.analytics.top-pages"
+      widgetId="instatic.analytics.top-pages"
       title="Top pages"
       icon={StarSolidIcon}
       tint="lilac"
@@ -238,7 +238,7 @@ function TopPagesWidget({ span, editing }: PluginDashboardWidgetRendererProps) {
 const mod: EditorPluginModule = {
   activate(api: EditorPluginApi) {
     api.dashboard.widgets.register({
-      id: 'pagebuilder.analytics.visitors',
+      id: 'instatic.analytics.visitors',
       name: 'Visitors',
       description: 'Unique visitors over time, with 24h / 7d / 30d toggle.',
       iconName: 'eye',
@@ -247,7 +247,7 @@ const mod: EditorPluginModule = {
       component: VisitorsWidget,
     })
     api.dashboard.widgets.register({
-      id: 'pagebuilder.analytics.top-pages',
+      id: 'instatic.analytics.top-pages',
       name: 'Top pages',
       description: 'Most-viewed URLs over the last 7 days.',
       iconName: 'star',

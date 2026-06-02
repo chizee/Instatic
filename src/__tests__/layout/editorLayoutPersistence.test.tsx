@@ -21,7 +21,7 @@ import type { CmsCurrentUser } from '@core/persistence'
 import { pageToCells } from '@core/data/pageFromRow'
 import '@modules/base/index'
 
-const LAYOUT_STORAGE_KEY = 'pb-editor-layout-v2'
+const LAYOUT_STORAGE_KEY = 'instatic-editor-layout-v2'
 const SRC_ROOT = join(import.meta.dir, '../..')
 
 const originalFetch = globalThis.fetch
@@ -237,7 +237,7 @@ describe('AdminCanvasLayout — CMS site hydration gate', () => {
     try {
       renderEditorLayout({ preloadSite: false })
 
-      expect(screen.getByRole('status', { name: /loading page builder/i })).toBeDefined()
+      expect(screen.getByRole('status', { name: /loading visual editor/i })).toBeDefined()
       expect(document.querySelector('[data-editor-skeleton="true"]')).toBeNull()
       expect(screen.queryByTestId('toolbar')).toBeNull()
       expect(screen.queryByText(/loading site/i)).toBeNull()

@@ -4,7 +4,7 @@
  * Runs entirely inside the QuickJS-WASM sandbox. Bytes never cross
  * the VM boundary; the plugin only signs URLs the host then streams to.
  */
-import type { ServerPluginApi, ServerPluginModule } from '@pagebuilder/plugin-sdk'
+import type { ServerPluginApi, ServerPluginModule } from '@instatic/plugin-sdk'
 import { buildGcsAdapter } from './adapter'
 
 const mod: ServerPluginModule = {

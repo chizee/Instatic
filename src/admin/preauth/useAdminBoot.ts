@@ -14,7 +14,7 @@ import {
  *
  * The unauthenticated SSR shell ships an inline `<script>` that fires the
  * three boot fetches at HTML-parse time and exposes the result promises on
- * `window.__pbBootPromises`. When present, this hook consumes them instead
+ * `window.__instaticBootPromises`. When present, this hook consumes them instead
  * of issuing its own fetches — net effect: ~300 ms shaved off cold load
  * because React 19's `useEffect` would otherwise be deferred behind the
  * scheduler + first-paint cycle.
@@ -30,7 +30,7 @@ interface PreflightedBootPromises {
 
 function readPreflightedBootPromises(): PreflightedBootPromises | null {
   if (typeof window === 'undefined') return null
-  const candidate = (window as unknown as { __pbBootPromises?: unknown }).__pbBootPromises
+  const candidate = (window as unknown as { __instaticBootPromises?: unknown }).__instaticBootPromises
   if (!candidate || typeof candidate !== 'object') return null
   const c = candidate as Record<string, unknown>
   if (!('setupStatus' in c) || !('me' in c) || !('publicSite' in c)) return null

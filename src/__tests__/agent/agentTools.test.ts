@@ -73,7 +73,7 @@ function makeContext(): SiteSnapshot {
   }
 }
 
-describe('page-builder agent tools', () => {
+describe('instatic agent tools', () => {
   it('builds a dynamic module, class, and page snapshot for MCP discovery tools', () => {
     const snapshot = makeContext()
 
