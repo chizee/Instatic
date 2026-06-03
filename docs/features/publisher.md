@@ -16,7 +16,7 @@ The published output has **no framework runtime**, **no client-side hydration of
 - Module `render()` is a **pure function**: no DOM, no React, no side effects (Constraint #179).
 - Every node's props pass through `escapeProps` before `render()` (Constraint #211).
 - Server-side wrappers (`server/publish/publicRouter.ts` → `publicRenderer.ts` → `publishedHtmlPipeline.ts`) call `publishPage`, run plugin filters, and return the HTML in the visitor response.
-- Output is routed through a three-layer publishing pipeline: **Layer A** bakes fully-static pages to `uploads/published/current/<route>.html` at publish time (atomic two-slot symlink swap). **Layer B** memoises dynamic pages in an in-memory LRU keyed by `(urlPath, queryString)` with per-entry version tracking; `bumpPublishVersion()` evicts lazily and version capture at render start discards results from mid-flight publishes. **Layer C** emits `<instatic-hole>` placeholders for nodes auto-classified as request-dependent; a ~668 B `IntersectionObserver` runtime lazy-loads each fragment via `/_instatic/hole/<nodeId>`.
+- Output is routed through a three-layer publishing pipeline: **Layer A** bakes fully-static pages to `uploads/published/current/<route>.html` at publish time (atomic two-slot symlink swap). **Layer B** memoises dynamic pages in an in-memory LRU keyed by `(urlPath, canonicalQuery)` with per-entry version tracking; `canonicalQuery` is the output of `canonicalRenderQuery()` (in `loopPrefetch.ts`), which keeps only `loop_<nodeId>_page` pagination params — arbitrary junk params collapse to `''` so they never mint new cache slots; `bumpPublishVersion()` evicts lazily and version capture at render start discards results from mid-flight publishes. **Layer C** emits `<instatic-hole>` placeholders for nodes auto-classified as request-dependent; a ~668 B `IntersectionObserver` runtime lazy-loads each fragment via `/_instatic/hole/<nodeId>`.
 - Auto-classification lives in `src/core/publisher/dynamicDetection.ts:findDynamicNodesWithReasons` — one walker, four rules, used by `isFullyStaticPage` (Layer A) and `renderNode`'s placeholder emission (Layer C). Authors don't toggle anything.
 
 ---
@@ -277,7 +277,7 @@ Editing the CSP manually is **not** safe — it's a derived value. Edit the sour
 |-------------------------------------------------|---------------------------------------------------------------------|
 | `server/publish/publicRouter.ts`                | Gateway: Layer A disk fast-path → Layer B LRU → live `resolvePublicRoute` + `renderPublicResolution`. |
 | `server/publish/staticArtefact.ts`              | Two-slot symlink swap (`swapSlot`), per-file atomic writes (`writeArtefact`, `updateArtefactInPlace`), and reads (`readArtefact`). Layer A. |
-| `server/publish/renderCache.ts`                 | In-memory LRU keyed by `(urlPath, queryString)`, entries versioned. `getOrRender` (single-flight) + `bumpPublishVersion`. Version captured at render start — a publish landing mid-render discards the result rather than caching stale HTML. Layer B. |
+| `server/publish/renderCache.ts`                 | In-memory LRU keyed by `(urlPath, canonicalQuery)`, entries versioned. `getOrRender` (single-flight) + `bumpPublishVersion`. Version captured at render start — a publish landing mid-render discards the result rather than caching stale HTML. Layer B. |
 | `server/publish/holeRuntime.ts`                 | Exports `runInstaticHoleRuntime` (the TypeScript source of the Layer C runtime) and `HOLE_RUNTIME_JS` (IIFE-serialized string, ~668 B, served to browsers). Tests call `runInstaticHoleRuntime()` directly to avoid dynamic eval. |
 | `server/publish/publicRenderer.ts`              | `renderPublishedSnapshot`, `renderPublishedDataRowTemplate`. Calls `publishPage`. |
 | `server/publish/publishedHtmlPipeline.ts`       | Post-process: DOMPurify the final HTML, run plugin `publish.html` filter, splice in declarative tags from plugin manifests, inject runtime assets. Runs at publish time only — never per-request. |
@@ -287,7 +287,7 @@ Editing the CSP manually is **not** safe — it's a derived value. Edit the sour
 | `server/publish/frontendInjections.ts`          | Compute plugin `<script>`/`<link>`/`<meta>` tags + CSP entries.     |
 | `server/publish/mediaPresentation.ts`           | At publish time, build `<picture>` / `<img srcset>` markup from `media_assets.variants_json`. |
 | `server/publish/mediaPrefetch.ts`               | Resolve all referenced media into a `Map<url, ResolvedMedia>` before render. |
-| `server/publish/loopPrefetch.ts`                | Fetch every loop source's items before render so the walker is purely synchronous. |
+| `server/publish/loopPrefetch.ts`                | Fetch every loop source's items before render so the walker is purely synchronous. Also exports `canonicalRenderQuery(searchParams)` — strips all non-loop-pagination params from a URL's query, returning only `loop_<nodeId>_page` keys in sorted order (or `''` when none remain). Used by `publicRouter.ts` to normalise the Layer B cache key and Layer A fast-path eligibility. |
 | `server/publish/runtime/packageServer.ts`       | Serve per-site `bun install` workspace under `/_instatic/runtime/cache/`. |
 | `server/publish/loopRuntime.ts`                 | The loop runtime asset (small JS shim used by certain loop variants).|
 | `server/handlers/cms/hole.ts`                   | `GET /_instatic/hole-runtime.js` (serves `HOLE_RUNTIME_JS`) and `GET /_instatic/hole/<nodeId>` (renders a node subtree at request time for Layer C islands). |
@@ -354,16 +354,21 @@ tryServePublicRoute (server/router.ts)
     │
     └─→ server/publish/publicRouter.ts:renderPublicResolution
           │
-          ├─→ Layer A disk fast-path (only if url.search === ''):
+          ├─→ canonicalRenderQuery(url.searchParams) → canonicalQuery
+          │     keeps only loop_<nodeId>_page params (sorted); everything else → ''
+          │     e.g. ?utm=foo → '' (junk collapses);  ?loop_x_page=2 → '?loop_x_page=2'
+          │
+          ├─→ Layer A disk fast-path (only if canonicalQuery === ''):
           │     readArtefact(uploadsDir, url.pathname)
           │     hit → stream HTML (~0.6–1.4 ms, no DB, no render, no filter)
+          │     (URLs with only junk params hit Layer A just like bare URLs)
           │
           ├─→ resolvePublicRoute(db, url) → page | row | redirect | not-found
           │     redirects → 301 (not cached)
           │     not-found → null (router falls through to next handler)
           │
           └─→ Layer B in-memory LRU:
-                getOrRender({urlPath, queryString}, async () => {
+                getOrRender({urlPath, queryString: canonicalQuery}, async () => {
                   publishPage(page, ctx) using snapshot bytes
                   applyPublishedHtmlPipeline (plugin filters)
                   return { body, headers, status: 200 }
