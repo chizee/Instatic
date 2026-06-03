@@ -25,6 +25,7 @@ A plugin is a zip package containing a `plugin.json` manifest and one or more Ja
 | SDK (author-facing API surface)| `src/core/plugin-sdk/`                    |
 | `instatic-plugin` CLI                | `src/core/plugin-sdk/cli/`                |
 | Manifest schema + parser       | `src/core/plugins/manifest.ts`            |
+| Admin-page route helpers       | `src/core/plugins/manifestAdminPages.ts`  |
 | Host-side plugin runtime       | `src/core/plugins/`                       |
 | Sandbox host (server entrypoint)| `server/plugins/quickjsHost.ts`          |
 | Sandbox host (module pack VMs) | `server/plugins/modulePackVm.ts`          |
