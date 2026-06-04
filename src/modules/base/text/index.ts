@@ -9,6 +9,7 @@ import type { ModuleDefinition } from '@core/module-engine'
 import { TextStartTIcon } from 'pixel-art-icons/icons/text-start-t'
 import { Type, Value, type Static } from '@core/utils/typeboxHelpers'
 import { TextEditor } from './TextEditor'
+import { normalizeTag } from './tags'
 
 const TextPropsSchema = Type.Object({
   text: Type.String({ default: 'Add your text here.' }),
@@ -32,27 +33,6 @@ const TextPropsSchema = Type.Object({
 })
 
 type TextProps = Static<typeof TextPropsSchema>
-type TextTag = TextProps['tag']
-
-const TEXT_TAGS = new Set<TextTag>([
-  'p',
-  'h1',
-  'h2',
-  'h3',
-  'h4',
-  'h5',
-  'h6',
-  'span',
-  'div',
-  'small',
-  'strong',
-  'em',
-])
-
-function normalizeTag(tag: unknown): TextTag {
-  const value = String(tag || 'p').toLowerCase() as TextTag
-  return TEXT_TAGS.has(value) ? value : 'p'
-}
 
 export const TextModule: ModuleDefinition<TextProps> = {
   id: 'base.text',

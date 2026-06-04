@@ -3,8 +3,8 @@
  *
  * Component-only file so React Fast Refresh can hot-patch edits without
  * re-running module registration. Per Constraint #309, this file MUST NOT
- * export non-component values — `normalizeTag` is duplicated in `index.ts`
- * for the publisher render path.
+ * export non-component values — `normalizeTag` and the tag vocabulary live in
+ * the shared `./tags` module that both this file and `index.ts` import.
  *
  * Text is edited via the Properties panel only. The canvas-side inline
  * (double-click contentEditable) editing was removed because the
@@ -14,44 +14,11 @@
  */
 import React from 'react'
 import type { ModuleComponentProps } from '@core/module-engine'
-
-type TextTag =
-  | 'p'
-  | 'h1'
-  | 'h2'
-  | 'h3'
-  | 'h4'
-  | 'h5'
-  | 'h6'
-  | 'span'
-  | 'div'
-  | 'small'
-  | 'strong'
-  | 'em'
+import { normalizeTag, type TextTag } from './tags'
 
 interface TextProps extends Record<string, unknown> {
   text: string
   tag: TextTag
-}
-
-const TEXT_TAGS = new Set<TextTag>([
-  'p',
-  'h1',
-  'h2',
-  'h3',
-  'h4',
-  'h5',
-  'h6',
-  'span',
-  'div',
-  'small',
-  'strong',
-  'em',
-])
-
-function normalizeTag(tag: unknown): TextTag {
-  const value = String(tag || 'p').toLowerCase() as TextTag
-  return TEXT_TAGS.has(value) ? value : 'p'
 }
 
 export const TextEditor: React.FC<ModuleComponentProps<TextProps>> = ({
