@@ -28,11 +28,11 @@
 
 import { type CSSProperties } from "react";
 import { useEditorStore } from "@site/store/store";
-import { SPACING_RATIO_OPTIONS } from "@core/framework/scale";
+import { SPACING_RATIO_OPTIONS } from '@core/framework'
 import type {
   FrameworkSpacingClassGenerator,
   FrameworkSpacingGroup,
-} from '@core/framework/schemas'
+} from '@core/framework'
 import { cn } from "@ui/cn";
 import { MonitorSolidIcon } from "pixel-art-icons/icons/monitor-solid";
 import { RulerDimensionSolidIcon } from "pixel-art-icons/icons/ruler-dimension-solid";

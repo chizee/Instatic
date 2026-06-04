@@ -13,9 +13,11 @@ import type { SiteSnapshot } from './snapshot'
 import {
   inspectPageClass,
   inspectPageNode,
+  listSiteTokens,
   searchPageNodes,
   type InspectClassArgs,
   type InspectNodeArgs,
+  type ListTokensArgs,
   type SearchNodesArgs,
 } from './snapshotHelpers'
 
@@ -218,6 +220,34 @@ const listPagesTool: AiTool = {
 }
 
 // ---------------------------------------------------------------------------
+// list_tokens
+// ---------------------------------------------------------------------------
+
+const ListTokensInput = Type.Object({
+  family: Type.Optional(
+    Type.Union([
+      Type.Literal('colors'),
+      Type.Literal('typography'),
+      Type.Literal('spacing'),
+      Type.Literal('fonts'),
+    ]),
+  ),
+})
+
+const listTokensTool: AiTool = {
+  name: 'list_tokens',
+  scope: 'site',
+  execution: 'server',
+  description:
+    "List the site's design tokens — color tokens (with shades/tints), typography & spacing scale steps, and font tokens — each with its CSS variable (use as `var(--name)` in a <style> block) and the utility class(es) bound to it (e.g. `text-primary`, `text-l`, `padding-m`). Prefer these over hardcoded colors/sizes/fonts. `family` narrows to one of colors|typography|spacing|fonts.",
+  inputSchema: ListTokensInput,
+  handler: async (input, ctx) => {
+    const snap = asSnap(ctx.snapshot)
+    return { tokens: listSiteTokens(snap, input as ListTokensArgs) }
+  },
+}
+
+// ---------------------------------------------------------------------------
 // All read tools — convenient barrel for the registry
 // ---------------------------------------------------------------------------
 
@@ -230,4 +260,5 @@ export const siteReadTools: AiTool[] = [
   inspectNodeTool,
   inspectClassTool,
   listPagesTool,
+  listTokensTool,
 ]

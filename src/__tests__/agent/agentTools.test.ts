@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test'
 import {
   inspectPageClass,
   inspectPageNode,
+  listSiteTokens,
   searchPageNodes,
 } from '../../../server/ai/tools/site/snapshotHelpers'
 import type { SiteSnapshot } from '../../../server/ai/tools/site'
@@ -70,6 +71,46 @@ function makeContext(): SiteSnapshot {
         },
       },
     ],
+    tokens: {
+      colors: [
+        {
+          slug: 'primary',
+          category: 'Brand',
+          cssVar: '--primary',
+          ref: 'var(--primary)',
+          value: 'hsla(238, 100%, 62%, 1)',
+          utilityClasses: ['text-primary', 'bg-primary'],
+          variants: [],
+        },
+      ],
+      typography: [
+        {
+          id: 'type-group',
+          family: 'typography',
+          name: 'Typography',
+          namingConvention: 'text',
+          steps: [
+            {
+              step: 'm',
+              cssVar: '--text-m',
+              ref: 'var(--text-m)',
+              value: 'clamp(1rem, 1vw, 1.125rem)',
+              utilityClasses: ['text-m'],
+            },
+          ],
+        },
+      ],
+      spacing: [],
+      fonts: [
+        {
+          name: 'Primary',
+          cssVar: '--font-primary',
+          ref: 'var(--font-primary)',
+          family: 'Inter',
+          stack: '"Inter", sans-serif',
+        },
+      ],
+    },
   }
 }
 
@@ -94,6 +135,21 @@ describe('instatic agent tools', () => {
       { id: 'desktop', label: 'Desktop', width: 1440, icon: 'monitor' },
     ])
     expect(snapshot.nodes.map((node) => node.id)).toEqual(['root', 'title'])
+  })
+
+  it('lists all design tokens, and narrows to one family on request', () => {
+    const snapshot = makeContext()
+
+    const all = listSiteTokens(snapshot)
+    expect(all.colors[0].cssVar).toBe('--primary')
+    expect(all.colors[0].utilityClasses).toContain('text-primary')
+    expect(all.typography[0].steps[0].cssVar).toBe('--text-m')
+    expect(all.fonts[0].ref).toBe('var(--font-primary)')
+
+    const onlyColors = listSiteTokens(snapshot, { family: 'colors' })
+    expect(onlyColors.colors).toHaveLength(1)
+    expect(onlyColors.typography).toEqual([])
+    expect(onlyColors.fonts).toEqual([])
   })
 
   it('searches existing nodes by text, module, and assigned class name', () => {

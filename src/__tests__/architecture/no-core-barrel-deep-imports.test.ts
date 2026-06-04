@@ -1,12 +1,14 @@
 /**
  * Architecture Source-Scan — Core Barrel Deep Imports
  *
- * Four heavily-used `src/core/` engine modules publish a public `index.ts`
- * barrel as their canonical entrypoint:
+ * These `src/core/` engine modules publish a public `index.ts` barrel as their
+ * canonical entrypoint:
  *   - `@core/page-tree`
  *   - `@core/module-engine`
  *   - `@core/visualComponents`
  *   - `@core/publisher`
+ *   - `@core/framework`
+ *   - `@core/fonts`
  *
  * Per the barrel convention (CLAUDE.md → "Barrel imports"): everything OUTSIDE
  * a module imports through its barrel; files INSIDE the module import each
@@ -25,7 +27,14 @@ import { join, extname } from 'path'
 
 const ROOT = join(import.meta.dir, '../../..')
 
-const BARRELLED_MODULES = ['page-tree', 'module-engine', 'visualComponents', 'publisher']
+const BARRELLED_MODULES = [
+  'page-tree',
+  'module-engine',
+  'visualComponents',
+  'publisher',
+  'framework',
+  'fonts',
+]
 
 // Scan production + test sources in both the app and the server.
 const SCAN_ROOTS = [join(ROOT, 'src'), join(ROOT, 'server')]

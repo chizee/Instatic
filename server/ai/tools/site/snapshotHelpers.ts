@@ -13,7 +13,10 @@ import type {
   NodeInfo,
   ModuleInfo,
   SiteSnapshot,
+  SnapshotTokens,
 } from './snapshot'
+
+export type TokenFamily = keyof SnapshotTokens
 
 const TEXT_PREVIEW_KEYS = ['text', 'label', 'title', 'heading', 'content', 'caption', 'alt']
 const TEXT_PREVIEW_MAX_LENGTH = 80
@@ -283,6 +286,29 @@ function stringifySearchValue(value: unknown): string {
   if (typeof value === 'string') return value
   if (typeof value === 'number' || typeof value === 'boolean') return String(value)
   return ''
+}
+
+// ---------------------------------------------------------------------------
+// list_tokens
+// ---------------------------------------------------------------------------
+
+export interface ListTokensArgs {
+  family?: TokenFamily
+}
+
+/**
+ * Return the site's design tokens, optionally narrowed to one family. Families
+ * not requested come back as empty arrays so the shape is stable.
+ */
+export function listSiteTokens(snap: SiteSnapshot, args: ListTokensArgs = {}): SnapshotTokens {
+  const tokens = snap.tokens ?? { colors: [], typography: [], spacing: [], fonts: [] }
+  if (!args.family) return tokens
+  return {
+    colors: args.family === 'colors' ? tokens.colors : [],
+    typography: args.family === 'typography' ? tokens.typography : [],
+    spacing: args.family === 'spacing' ? tokens.spacing : [],
+    fonts: args.family === 'fonts' ? tokens.fonts : [],
+  }
 }
 
 // Re-export ClassInfo type for callers that want it without going to snapshot.ts
