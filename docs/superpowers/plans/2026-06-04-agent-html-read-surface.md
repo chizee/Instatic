@@ -48,71 +48,25 @@
 - Modify (doc comments only): `src/core/publisher/render.ts:148-153`, `src/core/publisher/renderContext.ts:108-116`
 - Test: `src/__tests__/publisher/injectNodeId.test.ts` (create if absent; otherwise add a case to the nearest existing publisher annotation test)
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
-Create `src/__tests__/publisher/injectNodeId.test.ts`:
+Tests added to `src/__tests__/publisher/annotateNodeIds.test.ts` (the plan suggested `injectNodeId.test.ts` if absent; the implementer added to the nearest existing annotation test file instead).
 
-```ts
-import { describe, expect, it } from 'bun:test'
-import { injectNodeId } from '@core/publisher/classInjection'
+- [x] **Step 2: Run test to verify it fails**
 
-describe('injectNodeId', () => {
-  it('injects a bare uid attribute as the first attribute of the root element', () => {
-    expect(injectNodeId('<section class="hero">x</section>', 'abc'))
-      .toBe('<section uid="abc" class="hero">x</section>')
-  })
+- [x] **Step 3: Change the attribute name**
 
-  it('escapes the id value', () => {
-    expect(injectNodeId('<div></div>', 'a"b'))
-      .toBe('<div uid="a&quot;b"></div>')
-  })
+`injectNodeId` in `src/core/publisher/classInjection.ts` now emits `uid="…"`.
 
-  it('returns html unchanged when there is no element tag', () => {
-    expect(injectNodeId('<!-- comment -->', 'abc')).toBe('<!-- comment -->')
-  })
-})
-```
+- [x] **Step 4: Update doc-comment references**
 
-> Note: `classInjection.ts` is an internal publisher file. If `@core/publisher/classInjection` is not exported through the barrel, import via the relative path the other publisher tests use (check an existing test in `src/__tests__/publisher/` for the convention) — do NOT add a new barrel export just for the test.
+`render.ts` and `renderContext.ts` doc comments updated to `uid="<id>"`.
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 5: Run test + publisher suite to verify pass**
 
-Run: `bun test src/__tests__/publisher/injectNodeId.test.ts`
-Expected: FAIL — current output is `<section data-node-id="abc" class="hero">…`.
+- [x] **Step 6: Commit**
 
-- [ ] **Step 3: Change the attribute name**
-
-In `src/core/publisher/classInjection.ts`, edit `injectNodeId`:
-
-```ts
-export function injectNodeId(html: string, nodeId: string): string {
-  const tagMatch = html.match(/<([a-zA-Z][\w-]*)\b([^>]*)>/)
-  if (!tagMatch) return html
-
-  const [fullMatch, tagName, attrs] = tagMatch
-  const tagStart = tagMatch.index ?? 0
-  const newTag = `<${tagName} uid="${escapeHtml(nodeId)}"${attrs}>`
-  return html.slice(0, tagStart) + newTag + html.slice(tagStart + fullMatch.length)
-}
-```
-
-Also update the function's doc comment (lines ~143-152) to say `uid="<id>"` instead of `data-node-id="<id>"`.
-
-- [ ] **Step 4: Update doc-comment references**
-
-In `src/core/publisher/render.ts` (~line 148-153) change the `annotateNodeIds` option doc from `` `data-node-id="<id>"` `` to `` `uid="<id>"` ``. Do the same in `src/core/publisher/renderContext.ts` (~line 111). (Leave the option NAME `annotateNodeIds` as-is.)
-
-- [ ] **Step 5: Run test + publisher suite to verify pass**
-
-Run: `bun test src/__tests__/publisher/`
-Expected: PASS (new test green; no other publisher test asserts on `data-node-id` — verify none regressed).
-
-- [ ] **Step 6: Commit**
-
-```bash
-git add src/core/publisher/classInjection.ts src/core/publisher/render.ts src/core/publisher/renderContext.ts src/__tests__/publisher/injectNodeId.test.ts
-git commit -m "feat(publisher): annotate agent render with bare uid attribute"
-```
+Committed as `feat(publisher): annotate agent render with bare uid attribute` (614169195d2e).
 
 ---
 

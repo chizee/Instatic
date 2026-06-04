@@ -97,7 +97,8 @@ For each node, bottom-up:
   7. { html, css } = def.render(safeProps, children)                  ← MODULE BOUNDARY
   8. cssMap.set(moduleId, sanitizeModuleCSS(css))        ← neutralise </style (Constraint #228), dedup by moduleId
   9. html = injectNodeClassIds(html, node, site)         ← splice classIds into root tag
- 10. return html
+ 10. html = injectNodeInlineStyles(html, node.inlineStyles) ← splice inline styles onto root tag
+ 11. [annotateNodeIds] html = injectNodeId(html, node.id)   ← editor-only uid="<id>" on root element
 ```
 
 The walker is recursive, but every step is local — there's no global state mutation, no cross-node coupling. Each node's output is a function of its node + its already-rendered children.
@@ -136,8 +137,8 @@ When the walker hits a `base.visual-component-ref` node, it calls `renderVisualC
 1. Resolves the target Visual Component from the site's `components` table.
 2. Builds `slotInstancesByName` from the ref's `base.slot-instance` children in the consumer page tree.
 3. Calls `instantiateVCAtRef(vc, propOverrides, slotInstancesByName, ctx.page.nodes, node.id)` to materialise a flat node map where slot outlets are already filled with consumer content.
-4. Wraps the instantiated node map in a synthetic `Page` and a synthetic `RenderContext`. **The synthetic context inherits `loopData`, `mediaAssets`, `infiniteLoopIds`, `publishVersion`, and `holeNodeIds` from the outer context**, so `base.loop` nodes and image props inside the VC body resolve with data exactly as they would on a plain page.
-5. Renders via `renderNode(rootNodeId, syntheticCtx)`. The shared `cssMap` ensures CSS dedup across the whole page, including all inlined VC instances.
+4. Wraps the instantiated node map in a synthetic `Page` and a synthetic `RenderContext`. **The synthetic context inherits `loopData`, `mediaAssets`, `infiniteLoopIds`, `publishVersion`, and `holeNodeIds` from the outer context**, so `base.loop` nodes and image props inside the VC body resolve with data exactly as they would on a plain page. `annotateNodeIds` is **not** propagated — VC-definition node ids are not part of the agent's page read surface. Only the page-level ref node's `uid` lands on the VC root (applied in step 5 below).
+5. Renders via `renderNode(rootNodeId, syntheticCtx)`. The shared `cssMap` ensures CSS dedup across the whole page, including all inlined VC instances. After recursive rendering, the ref node's classIds and inline styles are injected onto the VC root element; when `annotateNodeIds` is set, the ref node's own `uid="<id>"` is also injected — one `uid` per element, targeting the page-tree node the agent can address.
 
 See [docs/features/visual-components.md](visual-components.md) for the VC modeling details.
 
