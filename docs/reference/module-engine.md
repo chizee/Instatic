@@ -272,6 +272,28 @@ See `src/core/publisher/mediaPresentation.ts` for the resolved shape.
 
 ---
 
+## `htmlTag` — semantic tag hint
+
+`htmlTag` is a display-only metadata field that tells the editor which HTML tag a module emits as its root element. It is shown as a `<tag>` badge in the DOM / Layers panel next to each row so authors can see the underlying semantics at a glance.
+
+Two forms:
+
+```ts
+// Static — tag is always the same regardless of props
+htmlTag: 'article',
+
+// Function — tag depends on props (e.g. author-chosen semantic element)
+htmlTag: (props) => resolveHtmlTag(props.tag, props.customTag),
+// or return null when there is no single deterministic root tag
+htmlTag: () => null,
+```
+
+Return `null` for modules that don't emit a single deterministic root tag (`base.visual-component-ref`, `base.slot-outlet`, `base.loop`, etc.). The badge is hidden when `null` is returned or when `htmlTag` is omitted.
+
+`htmlTag` is **not consumed by the publisher** — `render()` remains the source of truth for the emitted HTML. This is pure metadata for editor display.
+
+---
+
 ## Module dependencies (npm imports)
 
 If the module needs a runtime npm package (e.g. `three.js` in a 3D scene):

@@ -452,7 +452,7 @@ Why this matters: selection rings and the floating selection toolbar are portale
 | CanvasNotch                           | 53                |
 | CanvasModeToggle                      | 53                |
 | CanvasContextSelector                 | 60                |
-| VisualComponentModeControl            | 200               |
+| TemplateModeControl / VisualComponentModeControl | 200      |
 | Drop-indicator inside iframe          | 2147483647 (max)  |
 
 Canvas-internal values are not CSS tokens — they are raw integers intentionally scoped to the canvas stacking context and isolated from the layout stacking context by the `z-index: 0` on `CanvasRoot`.
@@ -486,6 +486,11 @@ Canvas-internal values are not CSS tokens — they are raw integers intentionall
 | `useCanvasKeyboardShortcuts.ts` | Editor keyboard shortcuts (delete, duplicate, wrap, …)          |
 | `useRuntimeScriptBuild.ts`      | Builds the bundled runtime scripts for the Run-scripts toggle    |
 | `useIframeCursorBridge.ts`      | Bridges iframe-native cursor movement to parent-doc callbacks (used by breakpoint activation tooltip) |
+| `CanvasComposedTree.tsx`        | Renders the active document inside its matching template chain (wrappers read-only, active doc editable) |
+| `canvasComposition.ts`          | `resolveEditorWrapperTemplates` — editor-side mirror of `resolveTemplateChain` for canvas wrapping |
+| `DocumentSwitcher.tsx`          | Compact grouped dropdown (Pages / Templates / Components) for jumping to any other document — shared by `TemplateModeControl` and `VisualComponentModeControl` |
+| `TemplateModeControl.tsx`       | Floating control shown while editing a template: document switcher + preview-source selector |
+| `VisualComponentModeControl.tsx`| Floating control shown while editing a Visual Component: "Back to page" exit + document switcher |
 
 ---
 

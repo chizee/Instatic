@@ -253,7 +253,28 @@ Use `placeholder: true` for an empty/default option that should stay selectable 
 as placeholder text in the open menu. When the `Select` itself has a non-empty
 `placeholder`, its empty-value option is treated this way automatically.
 
-For long lists or async options, use `SearchBar` + a custom dropdown built with `ContextMenu`. `Select` is for short fixed lists.
+### Grouped menus (`<optgroup>`)
+
+Pass JSX children with `<optgroup label="...">` for grouped dropdowns. Each group label renders as a non-interactive header row; `<option>` elements inside the group are selectable normally. When a search query is active, headers are dropped and only matching items are shown.
+
+```tsx
+<Select value={doc} onChange={setDoc} aria-label="Switch document" menuMinWidth={220}>
+  <optgroup label="Pages">
+    <option value="page:home">Home</option>
+    <option value="page:about">About</option>
+  </optgroup>
+  <optgroup label="Templates">
+    <option value="page:layout">Global layout</option>
+  </optgroup>
+  <optgroup label="Components">
+    <option value="vc:hero">Hero</option>
+  </optgroup>
+</Select>
+```
+
+The search box auto-enables once the flat option count (excluding headers) exceeds the threshold. Force it with `searchable={true/false}`.
+
+For long lists or async options, use `SearchBar` + a custom dropdown built with `ContextMenu`. `Select` is for fixed-option lists.
 
 ---
 
