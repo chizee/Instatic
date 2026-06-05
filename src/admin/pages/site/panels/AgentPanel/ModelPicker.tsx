@@ -39,7 +39,7 @@ export function ModelPicker({
     <SharedModelPicker
       className={className}
       variant="inline"
-      placeholder="Default"
+      placeholder="Choose a model"
       credentials={credentials}
       credentialsLoaded={credentialsLoaded}
       value={value}

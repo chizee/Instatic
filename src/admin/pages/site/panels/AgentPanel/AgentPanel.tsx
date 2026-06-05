@@ -75,6 +75,9 @@ export function AgentPanel({ variant = 'floating' }: { variant?: PanelVariant })
   const abortAgent = useAgentStore((s) => s.abortAgent)
   const clearAgentMessages = useAgentStore((s) => s.clearAgentMessages)
   const startNewAgentConversation = useAgentStore((s) => s.startNewAgentConversation)
+  const loadScopeDefault = useAgentStore((s) => s.loadScopeDefault)
+  const activeCredentialId = useAgentStore((s) => s.agentActiveCredentialId)
+  const activeModelId = useAgentStore((s) => s.agentActiveModelId)
   const credentialsResource = useAsyncResource(
     (signal) => listCredentials(signal),
     [],
@@ -84,15 +87,18 @@ export function AgentPanel({ variant = 'floating' }: { variant?: PanelVariant })
   const credentialsLoaded = credentialsResource.data !== null || !credentialsResource.loading
   const noCredentials = credentialsLoaded && credentials.length === 0
   const noProviderError = agentError?.startsWith('No AI provider configured') ?? false
-  const showCredentialSetup = noCredentials || noProviderError
+  // Once a credential + model is active (preloaded scope default OR an explicit
+  // pick), a provider IS configured — so the setup state must not show even if
+  // a stale no-provider error string is still hanging around. This is what
+  // keeps the composer usable after the user picks a model post-error.
+  const hasActiveProvider = Boolean(activeCredentialId && activeModelId)
+  const showCredentialSetup = (noCredentials || noProviderError) && !hasActiveProvider
 
   // Resolve the active model's context window from the catalogue (via the
   // models endpoint) so the composer meter can show "0 / window" before the
   // first turn. Re-runs whenever the selected credential/model changes; null
   // until a model is picked, or when the provider has no published window
   // (Ollama / uncatalogued) — the meter then stays hidden.
-  const activeCredentialId = useAgentStore((s) => s.agentActiveCredentialId)
-  const activeModelId = useAgentStore((s) => s.agentActiveModelId)
   const activeProviderId =
     credentials.find((c) => c.id === activeCredentialId)?.providerId ?? null
   const contextWindowResource = useAsyncResource(
@@ -135,6 +141,14 @@ export function AgentPanel({ variant = 'floating' }: { variant?: PanelVariant })
     const id = setTimeout(() => inputRef.current?.focus(), 50)
     return () => clearTimeout(id)
   }, [isOpen])
+
+  // Preload the per-scope default credential + model when the panel opens, so
+  // the picker shows the configured default immediately and the first send
+  // uses it. The action no-ops if a conversation or explicit pick already
+  // exists, so re-opens are cheap.
+  useEffect(() => {
+    if (isOpen) void loadScopeDefault()
+  }, [isOpen, loadScopeDefault])
 
   // Escape key — close the AI panel
   useEffect(() => {

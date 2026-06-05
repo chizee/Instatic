@@ -153,6 +153,16 @@ export interface AgentSlice {
    * conversation-create call.
    */
   setAgentProvider(credentialId: string, modelId: string): Promise<void>
+
+  /**
+   * Preload the per-scope default `(credential, model)` (from
+   * `/admin/api/ai/defaults`) and stage it as the active selection, so the
+   * model picker shows the configured default up-front and the first send
+   * uses it directly — no `Default` placeholder, no send-time "no provider"
+   * surprise. No-op when a conversation is already active or the user has
+   * already made an explicit pick. Called by the panel when it opens.
+   */
+  loadScopeDefault(): Promise<void>
 }
 
 // Session-id is in-memory only. While the editor stays open, follow-up
@@ -353,10 +363,18 @@ export function createAgentSlice(
     async setAgentProvider(credentialId: string, modelId: string) {
       const currentId = get().agentConversationId
       // Always reflect the picker selection locally so the dropdown's
-      // displayed value updates immediately. The context "used" count is left
-      // as-is — the history size is unchanged by a model switch and the next
-      // turn re-measures it; the window half (view layer) tracks the new model.
-      set({ agentActiveCredentialId: credentialId, agentActiveModelId: modelId })
+      // displayed value updates immediately. Clearing agentError is essential:
+      // a prior send with no configured default leaves a sticky "no provider
+      // configured" error that keeps the composer disabled — picking a model
+      // IS configuring a provider, so the composer must re-enable. The context
+      // "used" count is left as-is — the history size is unchanged by a model
+      // switch and the next turn re-measures it; the window half (view layer)
+      // tracks the new model.
+      set({
+        agentActiveCredentialId: credentialId,
+        agentActiveModelId: modelId,
+        agentError: null,
+      })
       if (!currentId) return  // staged for the next conversation-create call
       try {
         await updateConversationProvider(currentId, credentialId, modelId)
@@ -364,6 +382,24 @@ export function createAgentSlice(
         console.error('[AgentSlice] Failed to update provider:', err)
         set({ agentError: 'Failed to update conversation provider.' })
       }
+    },
+
+    async loadScopeDefault() {
+      // Only fill the "nothing chosen yet" gap — never clobber an active
+      // conversation's provider or an explicit user pick.
+      if (get().agentConversationId) return
+      if (get().agentActiveCredentialId && get().agentActiveModelId) return
+      const scopeDefault = await fetchScopeDefault(config.scope)
+      // No default configured for this scope: leave the picker empty (shows
+      // its "Choose a model" placeholder) and let the user pick one. The
+      // send-time path still surfaces the actionable no-provider error if they
+      // send without choosing.
+      if (!scopeDefault) return
+      set({
+        agentActiveCredentialId: scopeDefault.credentialId,
+        agentActiveModelId: scopeDefault.modelId,
+        agentError: null,
+      })
     },
 
     // ── sendAgentMessage ─────────────────────────────────────────────────────
@@ -496,6 +532,7 @@ export function createAgentSlice(
               bridge,
               _abortController?.signal ?? null,
               config.dispatchTool,
+              config.buildSnapshot,
             )
           }
         }

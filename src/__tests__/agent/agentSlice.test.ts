@@ -503,3 +503,109 @@ describe('sendAgentMessage — request lifecycle', () => {
     expect(intercept.calls.some((c) => c.url === '/admin/api/ai/chat/site')).toBe(false)
   })
 })
+
+// ---------------------------------------------------------------------------
+// loadScopeDefault — preload the configured default into the picker
+// ---------------------------------------------------------------------------
+
+describe('loadScopeDefault', () => {
+  it('stages the scope default as the active selection and clears any error', async () => {
+    freshAgentState()
+    useEditorStore.setState({
+      isAgentStreaming: false,
+      agentConversationId: null,
+      agentActiveCredentialId: null,
+      agentActiveModelId: null,
+      agentError: 'No AI provider configured for the site editor.',
+    })
+
+    const intercept = captureFetchByRoute({
+      '/admin/api/ai/defaults': defaultsResponse,
+    })
+
+    try {
+      await useEditorStore.getState().loadScopeDefault()
+    } finally {
+      intercept.restore()
+    }
+
+    expect(useEditorStore.getState().agentActiveCredentialId).toBe('cred-1')
+    expect(useEditorStore.getState().agentActiveModelId).toBe('claude-sonnet-4-6')
+    expect(useEditorStore.getState().agentError).toBeNull()
+  })
+
+  it('does not clobber an explicit selection that is already staged', async () => {
+    freshAgentState()
+    useEditorStore.setState({
+      isAgentStreaming: false,
+      agentConversationId: null,
+      agentActiveCredentialId: 'cred-picked',
+      agentActiveModelId: 'model-picked',
+      agentError: null,
+    })
+
+    const intercept = captureFetchByRoute({
+      '/admin/api/ai/defaults': defaultsResponse,
+    })
+
+    try {
+      await useEditorStore.getState().loadScopeDefault()
+    } finally {
+      intercept.restore()
+    }
+
+    // No defaults fetch, selection untouched.
+    expect(intercept.calls.some((c) => c.url === '/admin/api/ai/defaults')).toBe(false)
+    expect(useEditorStore.getState().agentActiveCredentialId).toBe('cred-picked')
+    expect(useEditorStore.getState().agentActiveModelId).toBe('model-picked')
+  })
+
+  it('leaves the selection empty when no default is configured', async () => {
+    freshAgentState()
+    useEditorStore.setState({
+      isAgentStreaming: false,
+      agentConversationId: null,
+      agentActiveCredentialId: null,
+      agentActiveModelId: null,
+    })
+
+    const intercept = captureFetchByRoute({
+      '/admin/api/ai/defaults': () => new Response(
+        JSON.stringify({ defaults: {} }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      ),
+    })
+
+    try {
+      await useEditorStore.getState().loadScopeDefault()
+    } finally {
+      intercept.restore()
+    }
+
+    expect(useEditorStore.getState().agentActiveCredentialId).toBeNull()
+    expect(useEditorStore.getState().agentActiveModelId).toBeNull()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// setAgentProvider — picking a model clears the sticky no-provider error
+// ---------------------------------------------------------------------------
+
+describe('setAgentProvider', () => {
+  it('clears a sticky no-provider error so the composer re-enables', async () => {
+    freshAgentState()
+    useEditorStore.setState({
+      isAgentStreaming: false,
+      agentConversationId: null,
+      agentActiveCredentialId: null,
+      agentActiveModelId: null,
+      agentError: 'No AI provider configured for the site editor.',
+    })
+
+    await useEditorStore.getState().setAgentProvider('cred-9', 'model-9')
+
+    expect(useEditorStore.getState().agentActiveCredentialId).toBe('cred-9')
+    expect(useEditorStore.getState().agentActiveModelId).toBe('model-9')
+    expect(useEditorStore.getState().agentError).toBeNull()
+  })
+})
