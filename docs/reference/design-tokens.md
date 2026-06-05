@@ -328,7 +328,19 @@ Three global tokens cover the layered surfaces that float above the editor:
 --tooltip-z-index:   10001;
 ```
 
-`--tooltip-z-index` is deliberately the highest token so tooltips are never occluded by the surface their trigger lives on. The body slash menu (`BodySlashMenu.module.css`) uses a raw z-index of `10000` — one step below `--tooltip-z-index` — because it predates tokenisation; see the inline comment in `globals.css`. `--spotlight-z-index` is also reused by the module inserter dialog.
+`--tooltip-z-index` is deliberately the highest token so tooltips are never occluded by the surface their trigger lives on. `--spotlight-z-index` is reused by several modal-level surfaces that need to sit above the editor chrome.
+
+**Global modal layer** (all raw values in the shared admin stacking context):
+
+| Value | What occupies it |
+|-------|-----------------|
+| 9000  | Spotlight backdrop (`--spotlight-z-index`); Settings modal backdrop; ModuleInserterDialog backdrop |
+| 9001  | Settings dialog wrapper (`--spotlight-z-index + 1`) |
+| 9050  | MediaPickerModal backdrop (`calc(--spotlight-z-index + 50)`) — sits above Settings because the picker can be opened from inside Settings (e.g. Settings → General → Favicon → Browse library…) |
+| 10000 | BodySlashMenu — predates tokenisation; see inline comment in `BodySlashMenu.module.css` |
+| 10001 | Tooltips (`--tooltip-z-index`); `AdminContextMenuGuard` |
+
+The gap between 9001 (Settings dialog) and 9050 (MediaPickerModal) is intentional headroom for any future sub-dialogs inside Settings. The gap between 9050 and 10000 (BodySlashMenu) keeps the slash menu above all modal layers. Do not add new raw values into these ranges without updating this table.
 
 The visual editor uses additional raw z-index values that are **not** tokenised. They fall into two independent stacking contexts:
 
@@ -340,6 +352,7 @@ The visual editor uses additional raw z-index values that are **not** tokenised.
 | 30    | Main toolbar |
 | 50    | Floating panels: PropertiesPanel, AgentPanel, DomPanel |
 | 55    | LeftSidebar, RightSidebar, PanelRail |
+| 70    | Media floating windows (FloatingWindow, MediaViewerWindow) |
 | 80    | CodeEditorPanel |
 | 201   | Toolbar popovers / dropdowns |
 | 400–401 | PreviewOverlay |
@@ -348,9 +361,10 @@ The visual editor uses additional raw z-index values that are **not** tokenised.
 
 | Value       | What occupies it |
 |-------------|-----------------|
-| 24–25       | CanvasModeToggle, CanvasNotch, CanvasContextSelector |
 | 50          | PluginCanvasOverlayLayer |
 | 51          | Selection ring, hover ring, selection toolbar |
+| 53          | CanvasModeToggle, CanvasNotch |
+| 60          | CanvasContextSelector |
 | 2147483647  | Drop-indicator layer inside iframe (must beat arbitrary module stacking contexts) |
 
 `CanvasRoot` declares `z-index: 0; position: relative` to establish the isolation. Without it, the canvas-internal z-index 51 would escape into the layout context and paint over floating panels at z-index 50. See [`docs/editor.md`](../editor.md) → "Canvas stacking context isolation" for the full explanation.
