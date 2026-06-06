@@ -14,7 +14,7 @@ The server is a single `Bun.serve` process that boots the DB, runs migrations, a
 - **Auth:** session cookie (`SESSION_COOKIE_NAME`) → `findUserBySessionHash` → `requireCapability(req, db, 'site.read')`. Every state-changing handler starts with one of these guards.
 - **DB:** one `DbClient` interface (`server/db/client.ts`) — tagged-template callable returning `{ rows, rowCount }`. Two adapters: `postgres.ts` (via `Bun.sql`) and `sqlite.ts` (via `bun:sqlite`). Selected by `DATABASE_URL`.
 - **Repositories** (`server/repositories/`) hold all SQL. Handlers never write SQL directly.
-- **Plugins:** `server/plugins/runtime.ts` activates installed plugins at boot; per-plugin code runs in QuickJS-WASM sandboxes (`server/plugins/quickjsHost.ts`, `modulePackVm.ts`).
+- **Plugins:** `server/plugins/runtime.ts` activates installed plugins at boot; per-plugin code runs in QuickJS-WASM sandboxes (`server/plugins/quickjs/vm.ts`, `modulePackVm.ts`).
 - **Published pages and content rows** are served by `tryServePublicRoute`, which delegates resolution + render to `server/publish/publicRouter.ts` (live render from the JSON snapshot stored in `data_row_versions.snapshot_json`). Uploads + admin SPA assets are served from disk by `tryServeUpload` and `tryServeStaticAsset`.
 
 ---
@@ -453,7 +453,7 @@ Plugins ship as zip packages with a `plugin.json` manifest. The host:
 
 1. **Installs** the package (unzips into `uploads/plugins/<id>/<version>/`) — `server/plugins/package.ts`.
 2. **Validates** the manifest and scans the bundled JS for forbidden sandbox-incompatible patterns — `assertSandboxSafe` in `package.ts` + `parsePluginManifest` in `src/core/plugins/manifest.ts`.
-3. **Activates** the plugin at boot or on user action — `server/plugins/runtime.ts`. Activation loads the server entrypoint into a per-plugin QuickJS-WASM VM (`server/plugins/quickjsHost.ts`) and runs its `activate(api)` lifecycle hook.
+3. **Activates** the plugin at boot or on user action — `server/plugins/runtime.ts`. Activation loads the server entrypoint into a per-plugin QuickJS-WASM VM (`server/plugins/quickjs/vm.ts`) and runs its `activate(api)` lifecycle hook.
 4. **Routes** plugin-registered HTTP routes through `/admin/api/cms/plugins/<id>/runtime/…` (handled by `handleRuntimeRoutes`).
 5. **Brokers** the SDK boundary — `api.cms.routes.*`, `api.cms.storage.*`, `api.cms.hooks.*`, `api.cms.loops.*`, `api.cms.settings.*`, `api.cms.schedule.*`. The SDK shape is defined in `src/core/plugin-sdk/`.
 

@@ -9,7 +9,7 @@ A plugin is a zip package containing a `plugin.json` manifest and one or more Ja
 ## TL;DR
 
 - **Package shape:** a zip containing `plugin.json` plus entrypoint bundles (`server/index.js`, `editor/index.js`, `admin/dashboard.js`, `modules/index.js`, `frontend/*.js`, optional `pack/site.json`).
-- **Runtime:** server entrypoint runs in **QuickJS-WASM** (`server/plugins/quickjsHost.ts`). Canvas module packs run in a separate QuickJS VM (`server/plugins/modulePackVm.ts`). No host APIs leak.
+- **Runtime:** server entrypoint runs in **QuickJS-WASM** (`server/plugins/quickjs/vm.ts`). Canvas module packs run in a separate QuickJS VM (`server/plugins/modulePackVm.ts`). No host APIs leak.
 - **SDK:** every API call goes through `api` — `api.plugin.*` for plugin metadata + logging, `api.cms.*` for routes, storage, hooks, loops, settings, schedule, pages.
 - **Lifecycle:** `install` → `activate` → (optionally `deactivate` / `migrate`) → `uninstall`. Each hook is async-capable and isolated; if one throws, the host rolls back and parks the plugin in `error`.
 - **Permissions:** declared in `plugin.json`, approved by the site owner at install time, enforced by the SDK at runtime. Outbound network also requires `networkAllowedHosts` allowlist.
@@ -677,7 +677,10 @@ Manifest:
   - `src/core/plugins/manifest.ts` — manifest parser + validator
   - `src/core/plugins/` — host-side runtime
   - `server/plugins/runtime.ts` — boot-time plugin activation
-  - `server/plugins/quickjsHost.ts` — server entrypoint sandbox
+  - `server/plugins/quickjs/vm.ts` — server entrypoint sandbox (QuickJS VM factory)
+  - `server/plugins/quickjs/bootstrap/src/` — bootstrap TypeScript source (authored, typed, lintable)
+  - `server/plugins/quickjs/bootstrap/generated/` — committed bootstrap artifacts (regenerate with `bun run bootstrap:sync`)
+  - `scripts/sync-plugin-bootstrap.ts` — bundler that writes the generated artifacts
   - `server/plugins/modulePackVm.ts` — module pack VM constructor
   - `src/core/plugins/modulePackLoader.ts` — module pack lifecycle coordinator (activate, deactivate, reset, VM tracking)
   - `server/plugins/package.ts` — install / `assertSandboxSafe`
@@ -696,5 +699,8 @@ Manifest:
   - `src/__tests__/architecture/plugin-schedule-invariants.test.ts`
   - `src/__tests__/architecture/no-plugin-tab-shells.test.ts`
   - `src/__tests__/architecture/sandbox-crypto-bridge.test.ts`
+  - `src/__tests__/architecture/plugin-bootstrap-fresh.test.ts` — generated bootstrap artifacts match source; fails if `bun run bootstrap:sync` is needed
   - `src/__tests__/plugins/gatedFetchSsrf.test.ts` — SSRF guards: allowlist, DNS rebinding, redirect re-validation, redirect cap
   - `src/__tests__/plugins/pluginModulePack.test.ts` — module pack activation, re-activation, deactivation, and VM disposal
+  - `src/__tests__/server/pluginVmPermissions.test.ts` — VM-side permission check: declared-but-not-granted permissions are denied at the VM boundary before host dispatch
+  - `src/__tests__/server/pluginVmLoopDispatch.test.ts` — loop fetch/preview dispatcher robustness (no-return fallbacks, async-preview detection)

@@ -268,7 +268,7 @@ Key properties:
 
 Plugins are zip packages containing a `plugin.json` manifest and bundled entrypoints. The host runs plugin code in a **QuickJS-WASM sandbox**:
 
-- `entrypoints.server` runs in `server/plugins/quickjsHost.ts`
+- `entrypoints.server` runs in `server/plugins/quickjs/vm.ts`
 - `entrypoints.modules` (canvas module packs) run in `server/plugins/modulePackVm.ts`
 - Author-facing API lives in `src/core/plugin-sdk/`
 - Host-side runtime (install, activate, deactivate, uninstall) lives in `src/core/plugins/`

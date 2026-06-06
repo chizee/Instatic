@@ -129,6 +129,7 @@ See [docs/features/spotlight.md](../features/spotlight.md).
 
 | Test                                          | What it enforces                                                                 |
 |-----------------------------------------------|----------------------------------------------------------------------------------|
+| `plugin-bootstrap-fresh.test.ts`              | Generated bootstrap artifacts in `bootstrap/generated/` match a fresh bundle of `bootstrap/src/`. Fails if `bun run bootstrap:sync` is needed. |
 | `plugin-sandbox-invariants.test.ts`           | No `node:`, `bun:`, `require(`, `process.binding` in plugin bundles. Sandbox-safe assertions.|
 | `plugin-boot-resilience.test.ts`              | One bad plugin doesn't bring the server down. Crashes are isolated.              |
 | `plugin-cms-content-surface.test.ts`          | All five `cms.content.*` permissions are wired across all sync-points (permission values, capability matrix, permission alias builder, SDK type surface, host-side dispatch). |

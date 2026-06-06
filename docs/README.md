@@ -221,7 +221,7 @@ Quick map from "where do I look for X?" to the canonical file:
 | Plugin SDK                       | `src/core/plugin-sdk/`                                   |
 | Plugin permission catalog        | `src/core/plugin-sdk/capabilities.ts`                    |
 | Plugin manifest parser           | `src/core/plugins/manifest.ts`                           |
-| Plugin sandbox host              | `server/plugins/quickjsHost.ts`, `server/plugins/modulePackVm.ts` |
+| Plugin sandbox host              | `server/plugins/quickjs/vm.ts`, `server/plugins/modulePackVm.ts` |
 | Publisher                        | `src/core/publisher/`                                    |
 | TypeBox helpers                  | `src/core/utils/typeboxHelpers.ts`                       |
 | Error message extraction         | `src/core/utils/errorMessage.ts`                         |
