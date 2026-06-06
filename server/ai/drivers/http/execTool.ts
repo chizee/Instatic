@@ -11,7 +11,8 @@
  * is untrusted no matter which provider produced it.
  */
 
-import { parseValue } from '@core/utils/typeboxHelpers'
+import { parseValue, safeParseValue } from '@core/utils/typeboxHelpers'
+import { AiToolOutputSchema } from '@core/ai'
 import type {
   AiBrowserBridge,
   AiTool,
@@ -68,9 +69,13 @@ export async function executeAiTool(
  * `AiToolOutput` envelope so the model always sees a consistent `{ ok, data }`
  * shape, whether the tool ran server-side or in the browser.
  */
-function normaliseToolOutput(result: unknown): AiToolOutput {
-  if (result && typeof result === 'object' && 'ok' in result) {
-    return result as AiToolOutput
+export function normaliseToolOutput(result: unknown): AiToolOutput {
+  // The handler's return is untyped (`unknown`). Validate against the canonical
+  // envelope rather than duck-typing `'ok' in result` — a value like `{ ok: 3 }`
+  // would pass the duck-type and then read as truthy-but-not-boolean downstream.
+  const parsed = safeParseValue(AiToolOutputSchema, result)
+  if (parsed.ok) {
+    return parsed.value
   }
   return { ok: true, data: result }
 }

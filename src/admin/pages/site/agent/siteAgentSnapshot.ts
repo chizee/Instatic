@@ -11,16 +11,39 @@
  * bounds the per-turn payload on multi-page sites.
  */
 
-import type { Page, SiteDocument } from '@core/page-tree'
+import { Type, type Static } from '@core/utils/typeboxHelpers'
+import { PageSchema, SiteShellSchema, type Page, type SiteDocument } from '@core/page-tree'
+import { VisualComponentSchema } from '@core/visualComponents'
 
-export interface SiteAgentSnapshot {
+/**
+ * In-memory site document validated as a single value: the persisted shell
+ * (`SiteShellSchema`) plus the pages and visual components the adapter assembles
+ * onto it. Mirrors the `SiteDocument` type from `@core/page-tree`, but as a
+ * runtime-checkable schema so the snapshot boundary can validate it.
+ */
+const SiteDocumentSchema = Type.Composite([
+  SiteShellSchema,
+  Type.Object({
+    pages: Type.Array(PageSchema),
+    visualComponents: Type.Array(VisualComponentSchema),
+  }),
+])
+
+/**
+ * The raw authoritative snapshot the browser posts each turn. This schema is
+ * the source of truth — `SiteAgentSnapshot` is its `Static` type, and the chat
+ * handler validates the untyped HTTP body against it before building a prompt.
+ */
+export const SiteAgentSnapshotSchema = Type.Object({
   /** Active page, full node map — the tree the agent reads and mutates. */
-  page: Page
+  page: PageSchema,
   /** Site document: styleRules/settings/breakpoints intact; non-active pages emptied. */
-  site: SiteDocument
-  selectedNodeId: string | null
-  activeBreakpointId: string
-}
+  site: SiteDocumentSchema,
+  selectedNodeId: Type.Union([Type.String(), Type.Null()]),
+  activeBreakpointId: Type.String(),
+})
+
+export type SiteAgentSnapshot = Static<typeof SiteAgentSnapshotSchema>
 
 export interface SiteAgentSnapshotOptions {
   selectedNodeId: string | null

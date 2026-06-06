@@ -19,7 +19,7 @@
  *   6. Streams NDJSON events back as the driver produces them.
  */
 
-import { Type } from '@core/utils/typeboxHelpers'
+import { Type, safeParseValue } from '@core/utils/typeboxHelpers'
 import { jsonResponse, readValidatedBody, badRequest } from '../../http'
 import { requireCapability } from '../../auth/authz'
 import type { DbClient } from '../../db/client'
@@ -39,6 +39,7 @@ import { resolveDriver } from '../drivers'
 import { selectToolsForScope } from '../tools'
 import {
   buildSiteSystemPrompt,
+  SiteAgentSnapshotSchema,
   type SiteAgentSnapshot,
 } from '../tools/site'
 import {
@@ -304,14 +305,23 @@ async function handleAiChat(
 // Helpers
 // ---------------------------------------------------------------------------
 
-function buildSystemPromptForScope(
+export function buildSystemPromptForScope(
   scope: ToolScope,
   snapshot: unknown,
 ): string[] {
   if (scope === 'site') {
-    // Snapshot type validation lives at the boundary that produced it
-    // (the editor's renderEvidence + Phase 3 will add schema validation).
-    return buildSiteSystemPrompt((snapshot ?? emptySiteAgentSnapshot()) as SiteAgentSnapshot)
+    if (snapshot === undefined || snapshot === null) {
+      return buildSiteSystemPrompt(emptySiteAgentSnapshot())
+    }
+    // The snapshot comes straight off the untyped HTTP body — validate it
+    // before handing it to the prompt builder, and fall back to an empty
+    // snapshot (rather than crashing the stream) when it's malformed.
+    const result = safeParseValue(SiteAgentSnapshotSchema, snapshot)
+    if (!result.ok) {
+      console.error('[ai/chat] invalid site snapshot, using empty fallback:', result.errors)
+      return buildSiteSystemPrompt(emptySiteAgentSnapshot())
+    }
+    return buildSiteSystemPrompt(result.value)
   }
   if (scope === 'content') {
     return buildContentSystemPrompt((snapshot ?? emptyContentSnapshot()) as ContentSnapshot)

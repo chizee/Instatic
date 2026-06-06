@@ -12,6 +12,7 @@
  * produced server-side by `render.ts` from the registry + posted site.
  */
 
+export { SiteAgentSnapshotSchema } from '@site/agent/siteAgentSnapshot'
 export type { SiteAgentSnapshot } from '@site/agent/siteAgentSnapshot'
 
 /**
