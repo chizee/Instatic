@@ -157,7 +157,7 @@ This is the single source of truth for slug derivation used by all admin write p
 |--------------------------------------------------|-----------------------------------------------------------------------|
 | `server/repositories/data/tables.ts`             | CRUD on `data_tables`: list (system tables first: pages → posts → components, then custom by `created_at`), get, create, update, delete (system-protected) |
 | `server/repositories/data/rows/read.ts`          | Hydrated read queries: `listDataRows`, `getDataRow`, `getDataRowBySlug`, `listDataAuthorOptions` |
-| `server/repositories/data/rows/mutations.ts`     | Single-row writes: create, save draft, soft-delete, move to table, update status / author |
+| `server/repositories/data/rows/mutations.ts`     | Single-row writes: create, save draft, soft-delete, move to table, update status / author. `softDeleteDataRow` returns the narrow `DeletedRowSummary` (not a full `DataRow`) — the row's `deleted_at is null` filter makes re-reading impossible, and callers only need `id / tableId / slug / status / deletedAt`. |
 | `server/repositories/data/rows/bulk.ts`          | Transactional batch writes: `createDataRowMany`, `saveDataRowDraftMany`, `softDeleteDataRowMany` |
 | `server/repositories/data/rows/filter.ts`        | Operator-object filter querying with pagination (`listDataRowsWithFilter`) — used by the plugin content surface |
 | `server/repositories/data/rows/search.ts`        | Cross-table slug search (`searchDataRows`) — used by the spotlight content provider |
@@ -167,7 +167,7 @@ This is the single source of truth for slug derivation used by all admin write p
 | `server/repositories/data/rows/index.ts`         | Barrel for the `rows/` directory                                     |
 | `server/repositories/data/publish.ts`            | Publish / unpublish / schedule a row; write `data_row_versions`       |
 | `server/repositories/data/templateSeeding.ts`    | Seed default entry template for new postType tables                   |
-| `server/repositories/data/shared.ts`             | Shared helpers: `userRefAt` (user-ref join extraction), `toIso` / `toIsoOrNull` (date coercion), `UserJoinColumns` |
+| `server/repositories/data/shared.ts`             | Shared helpers: `userRefAt` (typed accessor per prefix — unknown prefix is a compile error), `toIso` / `toIsoOrNull` (date coercion), `UserJoinColumns` (non-optional columns — all four joins are always present via LEFT JOIN, `null` when no user matched) |
 | `server/repositories/data/index.ts`              | Barrel for the whole `data/` directory                               |
 
 All repository functions are dialect-naive ANSI SQL. JSON columns end in `_json`; the SQLite adapter auto-parses on read. See [docs/reference/database-dialects.md](../reference/database-dialects.md).
@@ -345,7 +345,7 @@ Events are emitted from `server/publish/contentEvents.ts`, which also exports `a
 - [docs/features/site-transfer.md](site-transfer.md) — export / import bundles round-trip every table + row
 - [docs/reference/database-dialects.md](../reference/database-dialects.md) — `_json` column convention + migration parity
 - Source-of-truth files:
-  - `src/core/data/schemas.ts` — `DataTableSchema`, `DataRowSchema`, `DataField` union, status enum
+  - `src/core/data/schemas.ts` — `DataTableSchema`, `DataRowSchema`, `DataField` union, status enum, `DeletedRowSummary` / `DeletedRowSummarySchema` (narrow type returned by `softDeleteDataRow`)
   - `src/core/data/cells.ts` — typed cell readers + `slugForTable` (slug derivation)
   - `src/core/data/fields.ts` — field normalization, built-in field detection
   - `src/core/data/pageFromRow.ts` — Page ↔ row
