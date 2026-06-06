@@ -3,9 +3,11 @@
  *
  * Everything outside `src/core/framework/` imports from `@core/framework`.
  * Internal files within this module import from each other via relative paths.
+ *
+ * The persisted data schemas live in `@core/framework-schema` (a pure leaf the
+ * page tree also depends on); import those from there, not from this barrel.
  */
 
-export * from './schemas'
 export * from './scale'
 export * from './scaleModule'
 export * from './preferences'

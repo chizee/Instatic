@@ -97,18 +97,6 @@ export type { BaseNode } from './baseNode'
 
 export type { NodeTree } from './treeSchema'
 
-export type {
-  FrameworkColorToken,
-  FrameworkColorUtilityType,
-  FrameworkPreferencesSettings,
-  FrameworkScaleManualSize,
-  FrameworkScaleMode,
-  FrameworkSpacingClassGenerator,
-  FrameworkSpacingGroup,
-  FrameworkTypographyClassGenerator,
-  FrameworkTypographyGroup,
-} from '@core/framework'
-
 export {
   createNode,
   insertNode,

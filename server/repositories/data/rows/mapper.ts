@@ -23,7 +23,7 @@ import { userRefAt, toIso, toIsoOrNull, type UserJoinColumns } from '../shared'
 // Input shapes (shared by the single-row and bulk write modules)
 // ---------------------------------------------------------------------------
 
-export interface CreateDataRowInput {
+export interface InsertDataRowInput {
   id?: string
   tableId: string
   cells: DataRowCells
@@ -35,7 +35,7 @@ export interface CreateDataRowInput {
   slug: string
 }
 
-export interface SaveDataRowDraftInput {
+export interface UpdateDataRowDraftInput {
   cells: DataRowCells
   slug: string
 }

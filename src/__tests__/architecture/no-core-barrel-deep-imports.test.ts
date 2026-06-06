@@ -8,6 +8,7 @@
  *   - `@core/visualComponents`
  *   - `@core/publisher`
  *   - `@core/framework`
+ *   - `@core/framework-schema`
  *   - `@core/fonts`
  *
  * Per the barrel convention (CLAUDE.md → "Barrel imports"): everything OUTSIDE
@@ -33,6 +34,7 @@ const BARRELLED_MODULES = [
   'visualComponents',
   'publisher',
   'framework',
+  'framework-schema',
   'fonts',
 ]
 
@@ -41,7 +43,8 @@ const SCAN_ROOTS = [join(ROOT, 'src'), join(ROOT, 'server')]
 
 // A module never deep-imports itself, so its own directory is exempt (its
 // internal files legitimately use relative paths, not deep `@core/<self>`).
-const OWN_MODULE_DIRS = BARRELLED_MODULES.map((m) => join(ROOT, 'src', 'core', m))
+// Trailing separator so `framework` does not prefix-match `framework-schema`.
+const OWN_MODULE_DIRS = BARRELLED_MODULES.map((m) => join(ROOT, 'src', 'core', m) + '/')
 
 function collectFiles(dir: string): string[] {
   const exts = ['.ts', '.tsx', '.mts', '.cts']

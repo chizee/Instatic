@@ -59,6 +59,17 @@
   ],
 
   "ignoreExports": [
+    // CSS-modules class names are scoped/hashed at build time, not real ES
+    // exports. Fallow surfaces each class as an "export", so identical class
+    // names across different *.module.css files (e.g. `container`, `divider`,
+    // `size-md`) get flagged as duplicate exports even though the collisions
+    // are inert — CSS modules never share an import target. Exclude every
+    // CSS-module file from duplicate-export grouping.
+    {
+      "file": "**/*.module.css",
+      "exports": ["*"]
+    },
+
     {
       "file": "src/admin/pages/site/code-editor/CodeEditorPanel.module.css",
       "exports": ["cm-editor"]

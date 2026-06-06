@@ -3,12 +3,12 @@ import {
   DEFAULT_MODULE_INSERTER_PREFERENCE,
   getUserPreference,
   setUserPreference,
+  type ModuleInserterItemRef,
 } from '@core/persistence/userPreferences'
 import { getErrorMessage } from '@core/utils/errorMessage'
 import {
   dedupeModuleInserterRefs,
   recentKey,
-  type ModuleInserterItemRef,
 } from './moduleInserterModel'
 
 interface ModuleInserterPreferenceApi {

@@ -1,9 +1,9 @@
 import { Type, type Static } from '@sinclair/typebox'
 import { parseJsonWithFallback } from '@core/utils/jsonValidate'
+import type { ModuleInserterItemRef } from '@core/persistence/userPreferences'
 import {
   recentKey,
   type ModuleInserterItemKind,
-  type ModuleInserterItemRef,
 } from './moduleInserterModel'
 
 export const MODULE_INSERTER_STORAGE_KEY = 'instatic-module-inserter-v1'

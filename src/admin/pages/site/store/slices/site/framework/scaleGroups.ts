@@ -14,18 +14,16 @@
  */
 
 import { nanoid } from 'nanoid'
-import type {
-  FrameworkSpacingGroup,
-  FrameworkTypographyGroup,
-  SiteDocument,
-} from '@core/page-tree'
+import type { SiteDocument } from '@core/page-tree'
 import type {
   FrameworkScaleManualSize,
   FrameworkSpacingClassGenerator,
+  FrameworkSpacingGroup,
   FrameworkSpacingSettings,
   FrameworkTypographyClassGenerator,
+  FrameworkTypographyGroup,
   FrameworkTypographySettings,
-} from '@core/framework'
+} from '@core/framework-schema'
 import { reconcileFrameworkClasses } from './reconcile'
 import { nextOrderValue } from './shared'
 import type {

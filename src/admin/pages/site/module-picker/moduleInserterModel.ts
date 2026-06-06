@@ -1,7 +1,7 @@
 import type { AnyModuleDefinition } from '@core/module-engine'
 import {
   DEFAULT_MODULE_INSERTER_PREFERENCE,
-  type ModuleInserterItemRef as PersistedModuleInserterItemRef,
+  type ModuleInserterItemRef,
 } from '@core/persistence/userPreferences'
 import type { VisualComponent } from '@core/visualComponents'
 import {
@@ -22,7 +22,6 @@ export type ModuleInserterSectionId =
   | 'community'
   | 'recent'
 export type ModuleInserterItemKind = 'module' | 'layout' | 'component' | 'community'
-export type ModuleInserterItemRef = PersistedModuleInserterItemRef
 export type ModuleInserterRecentRef = ModuleInserterItemRef
 
 export interface RegistryModuleForInserter {
