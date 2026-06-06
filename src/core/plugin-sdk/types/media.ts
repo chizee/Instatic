@@ -125,6 +125,17 @@ export interface MediaStorageVerifyResult {
   hint?: string
 }
 
+/**
+ * A plugin-registered storage backend (S3, R2, GCS, Azure, …).
+ *
+ * v1 dispatch ceiling: the QuickJS host invokes each method below with AT MOST
+ * 2 positional arguments — `__runMediaAdapterCall` in
+ * `server/plugins/quickjs/bootstrap/src/pluginRuntime.ts` spreads
+ * `args[0], args[1]` only. Every method here fits that today (`getReadUrl`
+ * takes the most, at 2). A future method needing a 3rd argument MUST widen that
+ * runner in the same change, or the 3rd arg will silently arrive as
+ * `undefined` inside the VM. Prefer a single options object over a 3rd param.
+ */
 export interface MediaStorageAdapter {
   /**
    * Adapter id — MUST be `<pluginId>.<rest>`. Surfaced in the admin

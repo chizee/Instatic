@@ -39,7 +39,7 @@ describe('plugin schedule invariants', () => {
   })
 
   it('schedule handler storage lives inside the VM, not on the host', async () => {
-    const apiSource = await read('server/plugins/quickjs/bootstrap/api.ts')
+    const apiSource = await read('server/plugins/quickjs/bootstrap/src/pluginRuntime.ts')
     const vmSource = await read('server/plugins/quickjs/vm.ts')
     // The bootstrap registers `__plugin_handlers.schedules` (in-VM map).
     // The host has metadata only — never the function itself.

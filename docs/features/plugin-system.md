@@ -27,8 +27,10 @@ A plugin is a zip package containing a `plugin.json` manifest and one or more Ja
 | Manifest schema + parser       | `src/core/plugins/manifest.ts`            |
 | Admin-page route helpers       | `src/core/plugins/manifestAdminPages.ts`  |
 | Host-side plugin runtime       | `src/core/plugins/`                       |
-| Sandbox host (server entrypoint)| `server/plugins/quickjsHost.ts`          |
+| Sandbox host (server entrypoint)| `server/plugins/quickjs/vm.ts`           |
 | Sandbox host (module pack VMs) | `server/plugins/modulePackVm.ts`          |
+| VM bootstrap source (typed)    | `server/plugins/quickjs/bootstrap/src/`   |
+| VM bootstrap generated artifacts | `server/plugins/quickjs/bootstrap/generated/` (run `bun run bootstrap:sync`) |
 | Gated outbound fetch + SSRF guards | `server/plugins/host/network.ts`       |
 | Plugin asset path containment      | `server/util/pathWithin.ts`            |
 | Plugin lifecycle (boot, install, activate, uninstall) | `server/plugins/runtime.ts`, `package.ts` |
@@ -202,6 +204,39 @@ These produce a build-time error and a runtime error if attempted:
 3. **Install handler** (`server/plugins/package.ts → assertSandboxSafe`) scans **again** when the zip is uploaded — defense in depth in case the dev skipped `lint`.
 
 Sandbox invariants are gated by `src/__tests__/architecture/plugin-sandbox-invariants.test.ts`.
+
+### The VM bootstrap (and how to regenerate it)
+
+Before any plugin code runs, the host evaluates a **bootstrap** program inside the
+VM: Web-Platform polyfills (URL, TextEncoder, console, AbortController, timers,
+crypto.subtle, fetch) plus the SDK factory `__buildApi()` and the `__run*`
+dispatchers the host calls to drive plugin code. QuickJS has no module loader, so
+this bootstrap must reach the VM as a single source **string** — but that string
+is a build artifact, not the authoring surface.
+
+- **Authored** as real, typed, lintable TypeScript under
+  `server/plugins/quickjs/bootstrap/src/` — `pluginRuntime.ts` (full plugin VM),
+  `modulePackRuntime.ts` (canvas module-pack VM), and the shared host⇄VM JSON
+  marshaling in `boundary.ts`. Host-injected globals (`__hostCall`, `__plugin_meta`,
+  …) are declared in `globals.d.ts`.
+- **Bundled** to committed IIFE-string artifacts under
+  `server/plugins/quickjs/bootstrap/generated/` by `scripts/sync-plugin-bootstrap.ts`
+  (via `Bun.build`). The shared `boundary.ts` is inlined into both — one
+  source-level definition, no divergent inline copies.
+- **Consumed** by `bootstrap/index.ts` (concatenated after the polyfill shims for
+  the full-plugin VM) and `modulePackVm.ts` (module-pack VM).
+
+**Regenerate after editing anything under `bootstrap/src/`:**
+
+```sh
+bun run bootstrap:sync     # rewrite the generated artifacts
+bun run bootstrap:check    # CI-style drift check (no writes)
+```
+
+The architecture gate `src/__tests__/architecture/plugin-bootstrap-fresh.test.ts`
+re-bundles in memory and fails if the committed artifact drifts from its source —
+the same pattern as `vendor-icons-fresh.test.ts` for vendored icons. The eval
+boundary is unavoidable; the authoring surface is not.
 
 ### VM lifecycle and disposal
 
@@ -465,6 +500,23 @@ The DNS SSRF guard in `performGatedFetch` remains the load-bearing defense; the 
 ## Permissions
 
 Permissions are requested in `plugin.json` and approved by the site owner at install time. Granted permissions are stored on the plugin row. Every SDK call checks the **granted** permission set, not just the request.
+
+**One authority, three checkpoints.** The declared `permissions` array (what the
+plugin *asked for*) is used only by the install/consent UI. Enforcement always
+validates against `grantedPermissions` (what the operator *approved*), at three
+independent layers that agree on that single authority:
+
+| Layer | Check | Where |
+|-------|-------|-------|
+| VM (sandbox) | `assertPermission` against `__plugin_meta.grantedPermissions` | `server/plugins/quickjs/bootstrap/src/pluginRuntime.ts` |
+| Host (dispatch) | `assertHostPluginPermission` against `manifest.grantedPermissions` | `server/plugins/host/registry.ts` |
+| Editor (SDK) | `assertPluginPermission` against `manifest.grantedPermissions` | `src/core/plugins/runtime.ts` |
+
+The VM-side check throws **synchronously** inside the sandbox, so a plugin that
+declares a permission it was denied is rejected before any host dispatch is even
+attempted; the host check is the authoritative backstop (defense in depth). A
+declared-but-not-granted permission being denied at the VM boundary is pinned by
+`src/__tests__/server/pluginVmPermissions.test.ts`.
 
 Risk levels:
 

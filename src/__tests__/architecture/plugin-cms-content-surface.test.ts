@@ -89,8 +89,8 @@ describe('cms.content plugin API surface', () => {
     expect(source).toContain("'cms.content.republishAll'")
   })
 
-  it('quickjs BOOTSTRAP_SOURCE exposes api.cms.content.{tables,table,tree,...}', async () => {
-    const source = await read('server/plugins/quickjs/bootstrap/api.ts')
+  it('quickjs plugin runtime exposes api.cms.content.{tables,table,tree,...}', async () => {
+    const source = await read('server/plugins/quickjs/bootstrap/src/buildApi.ts')
     expect(source).toContain('content: {')
     expect(source).toContain("'cms.content.tables.list'")
     expect(source).toContain("'cms.content.entries.list'")

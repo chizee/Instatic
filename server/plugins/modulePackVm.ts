@@ -29,6 +29,7 @@
  */
 
 import { getQuickJS, shouldInterruptAfterDeadline, type QuickJSContext, type QuickJSWASMModule } from 'quickjs-emscripten'
+import { MODULE_PACK_BOOTSTRAP_SOURCE } from './quickjs/bootstrap/generated/modulePackBootstrap'
 
 // ---------------------------------------------------------------------------
 // Resource limits — defense against runaway module-pack code.
@@ -140,100 +141,20 @@ function ensureModulePackIifeForm(source: string): string {
 }
 
 // ---------------------------------------------------------------------------
-// Bootstrap source — initializes the pack and exposes invocation entries.
+// Bootstrap source — initializes the pack and exposes invocation entries
+// (__initPack, __renderModule, __previewModule + a silent console stub).
+//
+// Authored as real TypeScript in `quickjs/bootstrap/src/modulePackRuntime.ts`
+// and bundled to the committed string `MODULE_PACK_BOOTSTRAP_SOURCE` by
+// `scripts/sync-plugin-bootstrap.ts` (regenerate with `bun run bootstrap:sync`).
+// The shared host⇄VM JSON marshaling (`bootstrap/src/boundary.ts`) is inlined
+// into both this and the full-plugin bootstrap — one source-level definition.
+//
+// The leading `'use strict';` makes the whole evaluated program strict,
+// matching the original inline bootstrap.
 // ---------------------------------------------------------------------------
 
-const BOOTSTRAP_SOURCE = `
-'use strict';
-
-// Minimal console (just routes to throw — module render() must not need logs).
-// Plugins that do need diagnostics should use api.plugin.log via the server
-// entrypoint, not console inside a render.
-globalThis.console = {
-  log: function () {}, info: function () {}, warn: function () {},
-  error: function () {}, debug: function () {}, trace: function () {},
-};
-
-/**
- * Resolve the pack's default export to a flat array of module definitions.
- * The pack can default-export either an array or a function that returns
- * one (the latter pattern lets the pack author parameterize by pluginId).
- */
-globalThis.__initPack = function initPack(pluginId) {
-  const entry = globalThis.__module_pack;
-  const value = typeof entry === 'function' ? entry({ pluginId: pluginId }) : entry;
-  if (!Array.isArray(value)) {
-    throw new Error('Plugin "' + pluginId + '" module pack default export must be an array (or a function returning one)');
-  }
-  // Keyed by id so the host can call render(id, ...) without re-scanning.
-  const byId = {};
-  for (const def of value) {
-    if (!def || typeof def !== 'object' || typeof def.id !== 'string') {
-      throw new Error('Plugin "' + pluginId + '" module pack contains a non-object entry');
-    }
-    byId[def.id] = def;
-  }
-  globalThis.__modules = byId;
-  // Return a SERIALIZED snapshot — metadata only, no functions.
-  return value.map(function (def) {
-    // dependencies and editorRuntime are JSON-serializable shapes — copy
-    // them through so the host can wire deps into the site package.json
-    // and build the iframe sandbox's import map.
-    var deps = def.dependencies && typeof def.dependencies === 'object'
-      ? def.dependencies
-      : undefined;
-    var editorRuntime = def.editorRuntime && typeof def.editorRuntime === 'object'
-      ? def.editorRuntime
-      : undefined;
-    return {
-      id: def.id,
-      name: def.name,
-      description: def.description,
-      category: def.category,
-      version: def.version,
-      defaults: def.defaults || {},
-      schema: def.schema || {},
-      canHaveChildren: !!def.canHaveChildren,
-      htmlTag: typeof def.htmlTag === 'string' ? def.htmlTag : undefined,
-      hasPreview: typeof def.preview === 'function',
-      dependencies: deps,
-      editorRuntime: editorRuntime,
-    };
-  });
-};
-
-globalThis.__renderModule = function renderModule(moduleId, propsJson, childrenJson) {
-  const def = globalThis.__modules && globalThis.__modules[moduleId];
-  if (!def) throw new Error('Module not found: ' + moduleId);
-  if (typeof def.render !== 'function') {
-    throw new Error('Module "' + moduleId + '" has no render() function');
-  }
-  const props = JSON.parse(propsJson);
-  const children = JSON.parse(childrenJson);
-  const out = def.render(props, children);
-  return JSON.stringify({
-    html: typeof out === 'object' && out && typeof out.html === 'string' ? out.html : '',
-    css: typeof out === 'object' && out && typeof out.css === 'string' ? out.css : undefined,
-  });
-};
-
-globalThis.__previewModule = function previewModule(moduleId, propsJson, childrenJson) {
-  const def = globalThis.__modules && globalThis.__modules[moduleId];
-  if (!def) throw new Error('Module not found: ' + moduleId);
-  // Fall back to render() when preview is not provided — matches the SDK contract.
-  const fn = typeof def.preview === 'function' ? def.preview : def.render;
-  if (typeof fn !== 'function') {
-    throw new Error('Module "' + moduleId + '" has no render() or preview() function');
-  }
-  const props = JSON.parse(propsJson);
-  const children = JSON.parse(childrenJson);
-  const out = fn(props, children);
-  return JSON.stringify({
-    html: typeof out === 'object' && out && typeof out.html === 'string' ? out.html : '',
-    css: typeof out === 'object' && out && typeof out.css === 'string' ? out.css : undefined,
-  });
-};
-`
+const BOOTSTRAP_SOURCE = `'use strict';\n` + MODULE_PACK_BOOTSTRAP_SOURCE
 
 // ---------------------------------------------------------------------------
 // VM construction

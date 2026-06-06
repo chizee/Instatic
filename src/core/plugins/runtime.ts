@@ -449,6 +449,14 @@ export function createEditorPluginApi(
           return requireEditorStore().getState()
         },
         transaction(mutate) {
+          // `editor.store.write` is a deliberately BROAD grant: it hands the
+          // plugin a mutable draft of the ENTIRE editor store, so any approved
+          // plugin can mutate any editor state inside the transaction. This
+          // coarse scope is an intentional choice — the editor store has no
+          // sub-resource permission model, and a finer-grained surface would
+          // be security theatre over a store the plugin can already read in
+          // full via `editor.store.read`. Operators gate the capability at
+          // install time; that single grant is the trust boundary.
           assertPluginPermission(manifest, 'editor.store.write')
           // The underlying editor store is created with the mutative middleware
           // (see `useEditorStore` in `@site/store/store`), so `setState`

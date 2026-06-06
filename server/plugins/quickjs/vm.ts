@@ -209,10 +209,18 @@ export async function createPluginVm(args: {
     hostFunctionHandles.push(logHandle)
 
     // 3. Wire meta + settings as VM globals.
+    //
+    //    `grantedPermissions` is the AUTHORITATIVE set the operator approved at
+    //    install time. The VM-side `assertPermission` (bootstrap) validates
+    //    against THIS — not the declared `permissions` array — so the VM, the
+    //    host dispatcher (`assertHostPluginPermission`), and the editor SDK
+    //    (`assertPluginPermission`) all agree on one authority. The declared
+    //    `permissions` array is consumed only by the host's install/consent UI
+    //    and intentionally never enters the VM.
     const metaHandle = jsToHandle(ctx, {
       id: args.env.pluginId,
       version: args.env.manifestVersion,
-      permissions: args.env.grantedPermissions,
+      grantedPermissions: args.env.grantedPermissions,
       assetBasePath: args.env.assetBasePath,
     })
     ctx.setProp(ctx.global, '__plugin_meta', metaHandle)
