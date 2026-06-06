@@ -37,7 +37,7 @@ afterEach(() => {
 function resetStore() {
   localStorage.clear()
   __resetModuleInserterPreferenceForTests()
-  globalThis.fetch = mock(async () => jsonResponse({ error: 'Preference not set' }, 404)) as typeof fetch
+  globalThis.fetch = mock(async () => jsonResponse({ value: null })) as typeof fetch
   useEditorStore.setState({
     site: null,
     activePageId: null,

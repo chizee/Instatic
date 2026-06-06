@@ -64,8 +64,8 @@ function installAmbientFetch() {
       })
     }
     if (url.endsWith('/admin/api/cms/me/preferences/module-inserter')) {
-      return new Response(JSON.stringify({ error: 'no saved preference' }), {
-        status: 404,
+      return new Response(JSON.stringify({ value: null }), {
+        status: 200,
         headers: { 'content-type': 'application/json' },
       })
     }

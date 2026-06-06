@@ -5,7 +5,7 @@
  *
  *   GET    /admin/api/cms/me/preferences/:key
  *     → 200 { value }          — stored preference
- *     → 404 { error }          — never set (caller falls back to default)
+ *     → 200 { value: null }    — never set (caller falls back to default)
  *
  *   PUT    /admin/api/cms/me/preferences/:key
  *     body: { value }
@@ -73,7 +73,12 @@ export async function handleUserPreferencesRoutes(
   if (req.method === 'GET') {
     const stored = await getUserPreferenceRow(db, user.id, key)
     if (stored === null) {
-      return jsonResponse({ error: 'Preference not set' }, { status: 404 })
+      // Not set yet → `{ value: null }`, NOT a 404. These prefs are all
+      // optional (the client falls back to a default), so a 404 here is
+      // just console noise that reads like a real failure. `null` is the
+      // unambiguous "unset" signal — every pref value schema is an object,
+      // never null.
+      return jsonResponse({ value: null })
     }
     // Re-validate the stored value before returning — corruption in the
     // DB row (manual edit, version skew after a schema rename) shows up

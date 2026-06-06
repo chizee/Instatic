@@ -62,10 +62,14 @@ Stored in the `user_preferences` table — one row per `(user_id, key)`. Keys ar
 ### Endpoint
 
 ```text
-GET    /admin/api/cms/me/preferences/:key       → value
-PATCH  /admin/api/cms/me/preferences/:key       → save value
+GET    /admin/api/cms/me/preferences/:key       → { value } | { value: null } when unset
+PUT    /admin/api/cms/me/preferences/:key       → save value
 DELETE /admin/api/cms/me/preferences/:key       → reset
 ```
+
+An unset preference returns `200 { value: null }` (not a 404) — these prefs
+are all optional and the client falls back to its own default, so a 404 would
+just be console noise that reads like a real failure.
 
 Handler: `server/handlers/cms/userPreferences.ts`. Capability: any authenticated user can manage their own preferences.
 

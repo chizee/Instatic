@@ -20,7 +20,8 @@
  *   • User preferences — per user, private to them. ← this file
  *
  * Wire format: `/admin/api/cms/me/preferences/:key`
- *   • GET    → `{ value: T } | 404 (not yet set, client falls back to default)`
+ *   • GET    → `{ value: T }` or `{ value: null }` (not yet set — client
+ *              falls back to its default)
  *   • PUT    → `{ value: T }` upserts
  *   • DELETE → resets to default
  *
@@ -165,10 +166,10 @@ const BASE_PATH = '/admin/api/cms/me/preferences'
 
 /**
  * Fetch a single user preference. Returns `null` when the user hasn't set
- * the preference yet (404 from the server) — callers fall back to their
- * own default in that case. Network / parse failures surface as thrown
- * errors so consumers can show a real error state rather than silently
- * applying an invalid default.
+ * the preference yet (`{ value: null }` from the server) — callers fall
+ * back to their own default in that case. Network / parse failures surface
+ * as thrown errors so consumers can show a real error state rather than
+ * silently applying an invalid default.
  */
 export async function getUserPreference<K extends UserPreferenceKey>(
   key: K,
@@ -178,12 +179,14 @@ export async function getUserPreference<K extends UserPreferenceKey>(
     credentials: 'same-origin',
     headers: { Accept: 'application/json' },
   })
-  if (res.status === 404) return null
   const envelope = await readEnvelope(
     res,
     PreferenceEnvelopeSchema,
     `Failed to load user preference "${key}"`,
   )
+  // `value: null` is the server's "never set" signal — every pref value
+  // schema is an object, never null, so this is unambiguous.
+  if (envelope.value === null) return null
   return parseValue(USER_PREFERENCE_SCHEMAS[key], envelope.value) as UserPreferenceValue<K>
 }
 
@@ -224,7 +227,7 @@ export async function deleteUserPreference<K extends UserPreferenceKey>(
     method: 'DELETE',
     credentials: 'same-origin',
   })
-  if (!res.ok && res.status !== 404) {
+  if (!res.ok) {
     throw new Error(await responseErrorMessage(res, `Failed to reset user preference "${key}"`))
   }
 }
