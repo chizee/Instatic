@@ -1,6 +1,4 @@
 import { jsx as _jsx } from "react/jsx-runtime";
-// Authored in-house: four horizontal bars all full-width, the universal
-// "justify" / "align both" glyph.
 export function TextAlignJustifyIcon({ size = 24, color = 'currentColor', className, style }) {
-    return (_jsx("svg", { width: size, height: size, viewBox: "0 0 24 24", fill: color, xmlns: "http://www.w3.org/2000/svg", className: className, style: style, children: _jsx("path", { d: "M21 7H3V5h18v2Zm0 4H3V9h18v2Zm0 4H3v-2h18v2Zm0 4H3v-2h18v2Z" }) }));
+    return (_jsx("svg", { width: size, height: size, viewBox: "0 0 24 24", fill: color, xmlns: "http://www.w3.org/2000/svg", className: className, style: style, children: _jsx("path", { d: "M22 19H2v-2h20v2Zm0-6H2v-2h20v2Zm0-6H2V5h20v2Z" }) }));
 }
