@@ -192,7 +192,7 @@ import { Button } from '@ui/components/Button'
 | `menuItem`    | Style override for dropdown menu rows                               |
 | `navItem`     | Style override for top-level nav items                              |
 | `dangerHover` | Ghost buttons only: hover brightens the foreground without adding a background box — use for inline remove/close controls on tinted chips where a colored background would clash with the chip tint |
-| `tooltip`     | Wraps with `Tooltip` — works even when disabled                     |
+| `tooltip`     | Wraps with `Tooltip` — works even when disabled. Auto-suppressed while `aria-expanded={true}` (open dropdown/menu) so the tooltip never overlays the open popup. |
 
 `type="button"` is the default — Button never accidentally submits a form. Pass `type="submit"` explicitly when needed.
 
