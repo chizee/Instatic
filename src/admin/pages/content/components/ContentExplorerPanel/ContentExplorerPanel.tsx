@@ -60,17 +60,27 @@ interface ContentExplorerPanelProps {
   getFeaturedMediaAssetForEntry: (entry: DataRow) => CmsMediaAsset | null
   onSelectCollection: (tableId: string) => void
   onSelectEntry: (entry: DataRow) => void
-  onCreateCollection: () => void
-  onCreateEntry: () => void
-  onUpdateCollection: (collection: DataTable, input: UpdateDataTableInput) => void | Promise<void>
-  onDeleteCollection: (collection: DataTable) => void | Promise<void>
-  onRenameEntry: (entry: DataRow, input: ContentItemRenamePayload) => void | Promise<void>
-  onPublishEntry: (entry: DataRow) => void | Promise<void>
-  onConvertEntryToDraft: (entry: DataRow) => void | Promise<void>
-  onDeleteEntry: (entry: DataRow) => void | Promise<void>
-  onDuplicateEntry: (entry: DataRow) => void | Promise<void>
-  onMoveEntryToCollection: (entry: DataRow, tableId: string) => void | Promise<void>
+  /**
+   * The collection + entry mutation surface, grouped into one object instead
+   * of a dozen props-drilled `onXxx` callbacks (mirrors how `useMediaWorkspace`
+   * exposes its flat mutation surface). Selection and close stay as their own
+   * props because they're navigation, not mutations.
+   */
+  entryActions: ContentEntryActions
   onClose: () => void
+}
+
+export interface ContentEntryActions {
+  createCollection: () => void
+  updateCollection: (collection: DataTable, input: UpdateDataTableInput) => void | Promise<void>
+  deleteCollection: (collection: DataTable) => void | Promise<void>
+  createEntry: () => void
+  renameEntry: (entry: DataRow, input: ContentItemRenamePayload) => void | Promise<void>
+  publishEntry: (entry: DataRow) => void | Promise<void>
+  convertEntryToDraft: (entry: DataRow) => void | Promise<void>
+  deleteEntry: (entry: DataRow) => void | Promise<void>
+  duplicateEntry: (entry: DataRow) => void | Promise<void>
+  moveEntryToCollection: (entry: DataRow, tableId: string) => void | Promise<void>
 }
 
 function keyboardMenuPosition(element: HTMLElement) {
@@ -103,18 +113,21 @@ export function ContentExplorerPanel({
   getFeaturedMediaAssetForEntry,
   onSelectCollection,
   onSelectEntry,
-  onCreateCollection,
-  onCreateEntry,
-  onUpdateCollection,
-  onDeleteCollection,
-  onRenameEntry,
-  onPublishEntry,
-  onConvertEntryToDraft,
-  onDeleteEntry,
-  onDuplicateEntry,
-  onMoveEntryToCollection,
+  entryActions,
   onClose,
 }: ContentExplorerPanelProps) {
+  const {
+    createCollection,
+    updateCollection,
+    deleteCollection,
+    createEntry,
+    renameEntry,
+    publishEntry,
+    convertEntryToDraft,
+    deleteEntry,
+    duplicateEntry,
+    moveEntryToCollection,
+  } = entryActions
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
   const [renameTarget, setRenameTarget] = useState<ContentExplorerContextTarget | null>(null)
   const [settingsTarget, setSettingsTarget] = useState<DataTable | null>(null)
@@ -165,7 +178,7 @@ export function ContentExplorerPanel({
         label: collection.name,
         icon: <BookOpenSolidIcon size={13} />,
         action: () => {
-          void onMoveEntryToCollection(target.entry, collection.id)
+          void moveEntryToCollection(target.entry, collection.id)
           setContextMenu(null)
         },
       })),
@@ -192,7 +205,7 @@ export function ContentExplorerPanel({
         label: 'Publish',
         icon: <UploadIcon size={13} />,
         action: () => {
-          void onPublishEntry(target.entry)
+          void publishEntry(target.entry)
           setContextMenu(null)
         },
       })
@@ -221,7 +234,7 @@ export function ContentExplorerPanel({
           label: 'Convert to draft',
           icon: <FileTextSolidIcon size={13} />,
           action: () => {
-            void onConvertEntryToDraft(target.entry)
+            void convertEntryToDraft(target.entry)
             setContextMenu(null)
           },
         })
@@ -233,7 +246,7 @@ export function ContentExplorerPanel({
         label: 'Duplicate',
         icon: <CopySolidIcon size={13} />,
         action: () => {
-          void onDuplicateEntry(target.entry)
+          void duplicateEntry(target.entry)
           setContextMenu(null)
         },
       })
@@ -255,12 +268,12 @@ export function ContentExplorerPanel({
     if (!renameTarget) return
 
     if (renameTarget.kind === 'collection') {
-      await onUpdateCollection(renameTarget.collection, {
+      await updateCollection(renameTarget.collection, {
         name: payload.title,
         slug: payload.slug,
       })
     } else {
-      await onRenameEntry(renameTarget.entry, payload)
+      await renameEntry(renameTarget.entry, payload)
     }
     setRenameTarget(null)
   }
@@ -268,9 +281,9 @@ export function ContentExplorerPanel({
   async function handleDelete(target: ContentExplorerContextTarget) {
     setContextMenu(null)
     if (target.kind === 'collection') {
-      await onDeleteCollection(target.collection)
+      await deleteCollection(target.collection)
     } else {
-      await onDeleteEntry(target.entry)
+      await deleteEntry(target.entry)
     }
   }
 
@@ -298,7 +311,7 @@ export function ContentExplorerPanel({
                   variant="ghost"
                   size="xs"
                   iconOnly
-                  onClick={onCreateCollection}
+                  onClick={createCollection}
                   aria-label="New collection"
                   tooltip="New collection"
                 >
@@ -357,7 +370,7 @@ export function ContentExplorerPanel({
                 variant="ghost"
                 size="xs"
                 iconOnly
-                onClick={onCreateEntry}
+                onClick={createEntry}
                 disabled={!selectedCollectionId || !canCreateEntry}
                 aria-label={newEntryLabel}
                 tooltip={newEntryLabel}
@@ -435,7 +448,7 @@ export function ContentExplorerPanel({
           collection={settingsTarget}
           onCancel={() => setSettingsTarget(null)}
           onSave={async (input) => {
-            await onUpdateCollection(settingsTarget, input)
+            await updateCollection(settingsTarget, input)
             setSettingsTarget(null)
           }}
         />

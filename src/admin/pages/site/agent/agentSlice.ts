@@ -18,7 +18,6 @@
 import { nanoid } from 'nanoid'
 import type { EditorStoreSliceCreator } from '@site/store/types'
 import type { AiToolOutput } from '@core/ai'
-import { safeParseJson } from '@core/utils/jsonValidate'
 import { ApiError } from '@core/http'
 import {
   listConversations,
@@ -32,14 +31,14 @@ import {
   fetchScopeDefault,
   rehydrateMessages,
 } from './agentApi'
-import { processStreamEvent, ServerStreamEventSchema } from './streamEvents'
+import { readNdjsonStream } from './ndjsonStream'
+import { processStreamEvent, ServerStreamEventSchema, type EditorStoreSet } from './streamEvents'
 import type {
   AgentBridgeRuntime,
   AgentMessage,
   AgentRequestBody,
   AgentTextStreamSink,
   AgentToolScope,
-  ServerStreamEvent,
 } from './types'
 
 // ---------------------------------------------------------------------------
@@ -181,6 +180,104 @@ declare module '@site/store/types' {
   interface EditorStore extends AgentSlice {}
 }
 
+// `get` as the slice creator hands it to its actions. The helpers below only
+// read AgentSlice keys, so a narrow getter is sufficient.
+type AgentSliceGet = Parameters<EditorStoreSliceCreator<AgentSlice>>[1]
+
+interface ResolvedCredentials {
+  credentialId: string
+  modelId: string
+}
+
+/**
+ * Resolve the `(credentialId, modelId)` to use: the staged picker selection if
+ * present, otherwise the per-scope default fetched from the server. Shared by
+ * `loadScopeDefault` (panel open) and `ensureConversationId` (first send) so the
+ * default is fetched at most once — whichever runs first stages the values and
+ * the other reuses them, never double-fetching.
+ */
+async function resolveScopeCredentials(
+  get: AgentSliceGet,
+  config: AgentSliceConfig,
+): Promise<ResolvedCredentials | null> {
+  const credentialId = get().agentActiveCredentialId
+  const modelId = get().agentActiveModelId
+  if (credentialId && modelId) return { credentialId, modelId }
+  return fetchScopeDefault(config.scope)
+}
+
+/**
+ * Ensure a conversation row exists before streaming. Returns the active row id
+ * if one is set; otherwise resolves credentials (staged or scope default),
+ * creates the row, stages the resolved provider, and returns the new id.
+ * Returns null when no provider is configured — the caller surfaces the
+ * actionable "set up a provider" error.
+ */
+async function ensureConversationId(
+  get: AgentSliceGet,
+  set: EditorStoreSet,
+  config: AgentSliceConfig,
+): Promise<string | null> {
+  const existing = get().agentConversationId
+  if (existing) return existing
+
+  const creds = await resolveScopeCredentials(get, config)
+  if (!creds) return null
+
+  const conv = await createConversationForScope(config.scope, creds.credentialId, creds.modelId)
+  set((state) => {
+    state.agentConversationId = conv.id
+    state.agentActiveCredentialId = creds.credentialId
+    state.agentActiveModelId = creds.modelId
+  })
+  return conv.id
+}
+
+// The canonical conversation-reset key-set, in ONE place. clearAgentMessages,
+// startNewAgentConversation, and deleteAgentConversation all reset through here
+// so they can't drift apart again (agentContextTokens was omitted from one copy
+// once already; agentError from another). A factory (not a shared constant) so
+// each reset gets a fresh `agentMessages` array.
+type ConversationResetKeys =
+  | 'agentMessages'
+  | 'agentError'
+  | 'agentConversationId'
+  | 'agentActiveCredentialId'
+  | 'agentActiveModelId'
+  | 'agentContextTokens'
+
+function conversationResetState(): Pick<AgentSlice, ConversationResetKeys> {
+  return {
+    agentMessages: [],
+    agentError: null,
+    agentConversationId: null,
+    agentActiveCredentialId: null,
+    agentActiveModelId: null,
+    agentContextTokens: null,
+  }
+}
+
+/**
+ * Surface a terminal send error in a SINGLE draft mutation (F10): set
+ * `agentError` and add the assistant placeholder block together so the panel
+ * renders once, not twice. The placeholder only lands if the assistant message
+ * is still empty — i.e. no streamed text/tool blocks arrived before the failure.
+ */
+function surfaceAssistantError(
+  set: EditorStoreSet,
+  assistantId: string,
+  error: string,
+  placeholder: string,
+): void {
+  set((state) => {
+    state.agentError = error
+    const msg = state.agentMessages.find((m) => m.id === assistantId)
+    if (msg && msg.blocks.length === 0) {
+      msg.blocks.push({ kind: 'text', text: placeholder })
+    }
+  })
+}
+
 /**
  * Slice factory — site editor + content workspace each call this with their
  * own scope/snapshot/dispatcher config. Returns a Zustand state creator the
@@ -289,27 +386,13 @@ export function createAgentSlice(
     },
 
     clearAgentMessages() {
-      set({
-        agentMessages: [],
-        agentError: null,
-        agentConversationId: null,
-        agentActiveCredentialId: null,
-        agentActiveModelId: null,
-        agentContextTokens: null,
-      })
+      set(conversationResetState())
     },
 
     startNewAgentConversation() {
-      // Same shape as clearAgentMessages — kept as a separate action for
+      // Same reset as clearAgentMessages — kept as a distinct action only for
       // intent clarity (the UI's "+ New chat" button calls this).
-      set({
-        agentMessages: [],
-        agentError: null,
-        agentConversationId: null,
-        agentActiveCredentialId: null,
-        agentActiveModelId: null,
-        agentContextTokens: null,
-      })
+      get().clearAgentMessages()
     },
 
     async loadAgentConversations() {
@@ -347,12 +430,11 @@ export function createAgentSlice(
         await deleteConversation(id)
         set((state) => {
           state.agentConversations = state.agentConversations.filter((c) => c.id !== id)
+          // Deleting the active conversation resets it through the same key-set
+          // as clearAgentMessages — including agentError, so a stuck 502/error
+          // banner doesn't survive the delete.
           if (state.agentConversationId === id) {
-            state.agentConversationId = null
-            state.agentMessages = []
-            state.agentActiveCredentialId = null
-            state.agentActiveModelId = null
-            state.agentContextTokens = null
+            Object.assign(state, conversationResetState())
           }
         })
       } catch (err) {
@@ -389,15 +471,15 @@ export function createAgentSlice(
       // conversation's provider or an explicit user pick.
       if (get().agentConversationId) return
       if (get().agentActiveCredentialId && get().agentActiveModelId) return
-      const scopeDefault = await fetchScopeDefault(config.scope)
+      const creds = await resolveScopeCredentials(get, config)
       // No default configured for this scope: leave the picker empty (shows
       // its "Choose a model" placeholder) and let the user pick one. The
       // send-time path still surfaces the actionable no-provider error if they
       // send without choosing.
-      if (!scopeDefault) return
+      if (!creds) return
       set({
-        agentActiveCredentialId: scopeDefault.credentialId,
-        agentActiveModelId: scopeDefault.modelId,
+        agentActiveCredentialId: creds.credentialId,
+        agentActiveModelId: creds.modelId,
         agentError: null,
       })
     },
@@ -434,54 +516,21 @@ export function createAgentSlice(
       try {
         const snapshot = config.buildSnapshot()
 
-        // Ensure we have a conversation row before streaming. Created lazily
-        // from the staged picker values OR the scope default. If neither, we
-        // surface a clear actionable error.
-        let conversationId = get().agentConversationId
+        // Lazily create the conversation row (staged picker values or scope
+        // default). Null means no provider is configured for this scope.
+        const conversationId = await ensureConversationId(get, set, config)
         if (!conversationId) {
-          const staged = {
-            credentialId: get().agentActiveCredentialId,
-            modelId: get().agentActiveModelId,
-          }
-          let credentialId = staged.credentialId
-          let modelId = staged.modelId
-          if (!credentialId || !modelId) {
-            const scopeDefault = await fetchScopeDefault(config.scope)
-            if (!scopeDefault) {
-              set({
-                agentError:
-                  config.noProviderMessage
-                  ?? `No AI provider configured for the "${config.scope}" scope. Open /admin/ai/providers to add a credential, then /admin/ai/defaults to pick one.`,
-              })
-              set((state) => {
-                const msg = state.agentMessages.find((m) => m.id === assistantId)
-                if (msg && msg.blocks.length === 0) {
-                  msg.blocks.push({ kind: 'text', text: '_(no AI provider configured)_' })
-                }
-              })
-              return
-            }
-            credentialId = scopeDefault.credentialId
-            modelId = scopeDefault.modelId
-          }
-          const conv = await createConversationForScope(
-            config.scope,
-            credentialId,
-            modelId,
+          surfaceAssistantError(
+            set,
+            assistantId,
+            config.noProviderMessage
+              ?? `No AI provider configured for the "${config.scope}" scope. Open /admin/ai/providers to add a credential, then /admin/ai/defaults to pick one.`,
+            '_(no AI provider configured)_',
           )
-          conversationId = conv.id
-          set({
-            agentConversationId: conversationId,
-            agentActiveCredentialId: credentialId,
-            agentActiveModelId: modelId,
-          })
+          return
         }
 
-        const body: AgentRequestBody = {
-          conversationId,
-          prompt: content,
-          snapshot,
-        }
+        const body: AgentRequestBody = { conversationId, prompt: content, snapshot }
         const res = await fetch(`/admin/api/ai/chat/${config.scope}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -492,13 +541,12 @@ export function createAgentSlice(
         if (!res.ok) {
           if (res.status === 502) {
             console.error('[AgentSlice] 502 — agent server unreachable')
-            set({ agentError: 'AI server is not running. Start it with: bun run dev' })
-            set((state) => {
-              const msg = state.agentMessages.find((m) => m.id === assistantId)
-              if (msg && msg.blocks.length === 0) {
-                msg.blocks.push({ kind: 'text', text: '_(agent error)_' })
-              }
-            })
+            surfaceAssistantError(
+              set,
+              assistantId,
+              'AI server is not running. Start it with: bun run dev',
+              '_(agent error)_',
+            )
             return
           }
           throw new Error(`Agent request failed: ${res.status} ${res.statusText}`)
@@ -506,35 +554,17 @@ export function createAgentSlice(
 
         if (!res.body) throw new Error('Agent response has no body')
 
-        const reader = res.body.getReader()
-        const decoder = new TextDecoder()
-        let lineBuffer = ''
-
-        while (true) {
-          const { done, value } = await reader.read()
-          if (done) break
-
-          lineBuffer += decoder.decode(value, { stream: true })
-          const lines = lineBuffer.split('\n')
-          lineBuffer = lines.pop() ?? ''
-
-          for (const line of lines) {
-            const trimmed = line.trim()
-            if (!trimmed) continue
-            const parsed = safeParseJson(trimmed, ServerStreamEventSchema)
-            if (!parsed.ok) continue
-            const event = parsed.value as ServerStreamEvent
-            await processStreamEvent(
-              event,
-              assistantId,
-              textSink,
-              set,
-              bridge,
-              _abortController?.signal ?? null,
-              config.dispatchTool,
-              config.buildSnapshot,
-            )
-          }
+        for await (const event of readNdjsonStream(res.body.getReader(), ServerStreamEventSchema)) {
+          await processStreamEvent(
+            event,
+            assistantId,
+            textSink,
+            set,
+            bridge,
+            _abortController?.signal ?? null,
+            config.dispatchTool,
+            config.buildSnapshot,
+          )
         }
 
         flushPendingText()
@@ -553,13 +583,7 @@ export function createAgentSlice(
           // server-classified driver errors.
           const detail = err instanceof Error ? err.message : String(err)
           console.error('[AgentSlice] sendAgentMessage error:', err)
-          set({ agentError: `Agent request failed: ${detail}` })
-          set((state) => {
-            const msg = state.agentMessages.find((m) => m.id === assistantId)
-            if (msg && msg.blocks.length === 0) {
-              msg.blocks.push({ kind: 'text', text: '_(agent error)_' })
-            }
-          })
+          surfaceAssistantError(set, assistantId, `Agent request failed: ${detail}`, '_(agent error)_')
         }
       } finally {
         _abortController = null

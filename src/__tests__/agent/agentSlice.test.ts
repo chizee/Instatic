@@ -8,6 +8,7 @@ import {
   type AgentMessage,
   type AgentToolCall,
 } from '@site/agent'
+import type { ConversationView } from '@admin/ai/api'
 import '@modules/base'
 
 // ---------------------------------------------------------------------------
@@ -32,6 +33,7 @@ function freshAgentState() {
     agentConversationId: null,
     agentActiveCredentialId: null,
     agentActiveModelId: null,
+    agentContextTokens: null,
     agentConversations: [],
     hasUnsavedChanges: false,
   })
@@ -501,6 +503,176 @@ describe('sendAgentMessage — request lifecycle', () => {
     expect(useEditorStore.getState().agentError).toContain('No AI provider configured')
     // Should NOT have reached the chat endpoint.
     expect(intercept.calls.some((c) => c.url === '/admin/api/ai/chat/site')).toBe(false)
+  })
+})
+
+describe('conversation reset key-set', () => {
+  // All three reset paths must clear the SAME six keys — agentContextTokens and
+  // agentError have each silently drifted out of one copy in the past.
+  const RESET_SNAPSHOT = {
+    agentMessages: [],
+    agentError: null,
+    agentConversationId: null,
+    agentActiveCredentialId: null,
+    agentActiveModelId: null,
+    agentContextTokens: null,
+  }
+
+  function seedDirtyConversation() {
+    freshAgentState()
+    useEditorStore.setState({
+      agentMessages: [{ id: 'm1', role: 'user', blocks: [{ kind: 'text', text: 'hi' }], timestamp: 1 }],
+      agentError: 'AI server is not running. Start it with: bun run dev',
+      agentConversationId: 'conv-dirty',
+      agentActiveCredentialId: 'cred-1',
+      agentActiveModelId: 'model-1',
+      agentContextTokens: 4096,
+    })
+  }
+
+  function pickResetKeys() {
+    const s = useEditorStore.getState()
+    return {
+      agentMessages: s.agentMessages,
+      agentError: s.agentError,
+      agentConversationId: s.agentConversationId,
+      agentActiveCredentialId: s.agentActiveCredentialId,
+      agentActiveModelId: s.agentActiveModelId,
+      agentContextTokens: s.agentContextTokens,
+    }
+  }
+
+  it('startNewAgentConversation resets the full six-key set (incl. agentContextTokens)', () => {
+    seedDirtyConversation()
+    useEditorStore.getState().startNewAgentConversation()
+    expect(pickResetKeys()).toEqual(RESET_SNAPSHOT)
+  })
+
+  it('startNewAgentConversation matches clearAgentMessages exactly', () => {
+    seedDirtyConversation()
+    useEditorStore.getState().clearAgentMessages()
+    const afterClear = pickResetKeys()
+
+    seedDirtyConversation()
+    useEditorStore.getState().startNewAgentConversation()
+    const afterNew = pickResetKeys()
+
+    expect(afterNew).toEqual(afterClear)
+  })
+
+  it('deleteAgentConversation clears a stuck error banner on the active conversation', async () => {
+    seedDirtyConversation()
+    useEditorStore.setState({
+      agentConversations: [{ id: 'conv-dirty' } as ConversationView],
+    })
+
+    const intercept = captureFetchByRoute({
+      '/admin/api/ai/conversations/conv-dirty': () =>
+        new Response(null, { status: 204 }),
+    })
+
+    try {
+      await useEditorStore.getState().deleteAgentConversation('conv-dirty')
+    } finally {
+      intercept.restore()
+    }
+
+    // The whole reset key-set — agentError included — is cleared, so no stale
+    // 502/error banner survives the delete.
+    expect(pickResetKeys()).toEqual(RESET_SNAPSHOT)
+    expect(useEditorStore.getState().agentConversations).toHaveLength(0)
+  })
+})
+
+describe('sendAgentMessage — streaming + error surfacing', () => {
+  it('dispatches streamed events and surfaces a mid-stream error event once', async () => {
+    freshAgentState()
+    useEditorStore.setState({ isAgentStreaming: false, agentMessages: [] })
+
+    const intercept = captureFetchByRoute({
+      '/admin/api/ai/defaults': defaultsResponse,
+      '/admin/api/ai/conversations': () => conversationCreateResponse('conv-mid'),
+      '/admin/api/ai/chat/site': () => ndjsonResponse([
+        { type: 'bridgeReady', bridgeId: 'b-1' },
+        { type: 'text', text: 'Working…' },
+        { type: 'error', message: 'Provider rate limit exceeded.' },
+        { type: 'done' },
+      ]),
+    })
+
+    try {
+      await useEditorStore.getState().sendAgentMessage('Go')
+    } finally {
+      intercept.restore()
+    }
+
+    // Text event dispatched into the assistant message.
+    const assistant = useEditorStore.getState().agentMessages.find((m) => m.role === 'assistant')!
+    expect(assistant.blocks.some((b) => b.kind === 'text' && b.text.includes('Working…'))).toBe(true)
+    // The error event's message is surfaced verbatim (once).
+    expect(useEditorStore.getState().agentError).toBe('Provider rate limit exceeded.')
+    // Streaming flag resolved cleanly in the finally block.
+    expect(useEditorStore.getState().isAgentStreaming).toBe(false)
+  })
+
+  it('surfaces a non-ok chat response once — single agentError + single placeholder block', async () => {
+    freshAgentState()
+    useEditorStore.setState({ isAgentStreaming: false, agentMessages: [] })
+
+    const intercept = captureFetchByRoute({
+      '/admin/api/ai/defaults': defaultsResponse,
+      '/admin/api/ai/conversations': () => conversationCreateResponse('conv-err'),
+      '/admin/api/ai/chat/site': () => new Response('boom', { status: 500 }),
+    })
+
+    try {
+      await useEditorStore.getState().sendAgentMessage('Do a thing')
+    } finally {
+      intercept.restore()
+    }
+
+    expect(useEditorStore.getState().agentError).toContain('Agent request failed')
+    const assistant = useEditorStore.getState().agentMessages.find((m) => m.role === 'assistant')!
+    // Collapsed double-set (F10): exactly one placeholder block, not two renders.
+    expect(assistant.blocks).toHaveLength(1)
+    expect(assistant.blocks[0]).toMatchObject({ kind: 'text', text: '_(agent error)_' })
+    expect(useEditorStore.getState().isAgentStreaming).toBe(false)
+  })
+
+  it('reuses the loadScopeDefault-staged credential on send without re-fetching defaults', async () => {
+    freshAgentState()
+    useEditorStore.setState({
+      isAgentStreaming: false,
+      agentMessages: [],
+      agentConversationId: null,
+      agentActiveCredentialId: null,
+      agentActiveModelId: null,
+    })
+
+    const intercept = captureFetchByRoute({
+      '/admin/api/ai/defaults': defaultsResponse,
+      '/admin/api/ai/conversations': () => conversationCreateResponse('conv-staged'),
+      '/admin/api/ai/chat/site': () => ndjsonResponse([
+        { type: 'bridgeReady', bridgeId: 'b-1' },
+        { type: 'done' },
+      ]),
+    })
+
+    try {
+      // Panel-open path stages the default…
+      await useEditorStore.getState().loadScopeDefault()
+      // …first send must reuse it, NOT fetch the default a second time.
+      await useEditorStore.getState().sendAgentMessage('Hi')
+    } finally {
+      intercept.restore()
+    }
+
+    expect(intercept.calls.filter((c) => c.url === '/admin/api/ai/defaults')).toHaveLength(1)
+    const convCalls = intercept.calls.filter((c) => c.url === '/admin/api/ai/conversations')
+    expect(convCalls).toHaveLength(1)
+    const body = JSON.parse(convCalls[0].body) as { credentialId: string; modelId: string }
+    expect(body.credentialId).toBe('cred-1')
+    expect(body.modelId).toBe('claude-sonnet-4-6')
   })
 })
 

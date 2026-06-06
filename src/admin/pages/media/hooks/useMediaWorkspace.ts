@@ -140,8 +140,10 @@ export function useMediaWorkspace(): UseMediaWorkspaceResult {
   const [tag, setTag] = useState('')
   const [sort, setSort] = useState<MediaSort>('newest')
 
-  const folderById = new Map<string, CmsMediaFolder>()
-  for (const folder of folders) folderById.set(folder.id, folder)
+  // Pure expression so the React Compiler memoizes it keyed on `folders` —
+  // the previous pre-declared-then-mutated Map defeated auto-memoization and
+  // rebuilt on every render.
+  const folderById = new Map(folders.map((folder) => [folder.id, folder]))
 
   const folderTree = buildFolderTree(folders)
 
@@ -287,6 +289,21 @@ export function useMediaWorkspace(): UseMediaWorkspaceResult {
   // Each mutation updates the local cache optimistically (when safe) so the UI
   // feels instant; on server reject we surface the error and reload to recover.
 
+  // Shared mutation envelope: clear the error, run the op, and on throw surface
+  // the failure under `label` (the cache update lives inside `fn`). Returns the
+  // op's value, or null on failure — so every mutation collapses to one call
+  // instead of re-implementing the setError(null)/try/catch dance. Genuinely
+  // different flows (moveAssetsToFolder, which reloads on error) stay bespoke.
+  const assetMut = async <T>(label: string, fn: () => Promise<T>): Promise<T | null> => {
+    setError(null)
+    try {
+      return await fn()
+    } catch (err) {
+      setError(errorMessage(err, label))
+      return null
+    }
+  }
+
   const replaceAsset = (next: CmsMediaAsset) => {
     setAssets((current) => current.map((asset) => asset.id === next.id ? next : asset))
   }
@@ -331,21 +348,15 @@ export function useMediaWorkspace(): UseMediaWorkspaceResult {
     uploadQueue.enqueue(files, targetFolder)
   }
 
-  const renameAsset = async (assetId: string, filename: string) => {
-    setError(null)
-    try {
+  const renameAsset = (assetId: string, filename: string) =>
+    assetMut('Could not rename asset', async () => {
       const next = await renameCmsMediaAsset(assetId, filename)
       replaceAsset(next)
       return next
-    } catch (err) {
-      setError(errorMessage(err, 'Could not rename asset'))
-      return null
-    }
-  }
+    })
 
-  const updateAsset = async (assetId: string, input: UpdateCmsMediaAssetInput) => {
-    setError(null)
-    try {
+  const updateAsset = (assetId: string, input: UpdateCmsMediaAssetInput) =>
+    assetMut('Could not update asset', async () => {
       const next = await updateCmsMediaAsset(assetId, input)
       replaceAsset(next)
       // Metadata edits (alt text especially) feed the canvas preview's
@@ -353,15 +364,10 @@ export function useMediaWorkspace(): UseMediaWorkspaceResult {
       // shows the just-saved value instead of the stale row.
       refreshCmsMediaAssetCache()
       return next
-    } catch (err) {
-      setError(errorMessage(err, 'Could not update asset'))
-      return null
-    }
-  }
+    })
 
-  const replaceAssetFile = async (assetId: string, file: File) => {
-    setError(null)
-    try {
+  const replaceAssetFile = (assetId: string, file: File) =>
+    assetMut('Could not replace file', async () => {
       const next = await replaceCmsMediaAssetFile(assetId, file)
       replaceAsset(next)
       // Variants / blurhash / dimensions all change on replace — invalidate
@@ -369,64 +375,44 @@ export function useMediaWorkspace(): UseMediaWorkspaceResult {
       // their stale rows on next render.
       refreshCmsMediaAssetCache()
       return next
-    } catch (err) {
-      setError(errorMessage(err, 'Could not replace file'))
-      return null
-    }
-  }
+    })
 
-  const trashAsset = async (assetId: string) => {
-    setError(null)
-    try {
+  const trashAsset = async (assetId: string): Promise<void> => {
+    await assetMut('Could not move asset to trash', async () => {
       // Soft-delete moves the asset out of the active list view; the response
       // carries the soft-deleted row but we never want it in the active set,
       // so just remove it from `assets`. Switching to the Trash panel will
       // reload from the server.
       await deleteCmsMediaAsset(assetId)
       removeAsset(assetId)
-    } catch (err) {
-      setError(errorMessage(err, 'Could not move asset to trash'))
-    }
+    })
   }
 
-  const restoreAsset = async (assetId: string) => {
-    setError(null)
-    try {
+  const restoreAsset = (assetId: string) =>
+    assetMut('Could not restore asset', async () => {
       await restoreCmsMediaAsset(assetId)
       // The asset is now active; if we're on the Trash view, remove it from
       // the visible list. The next active-view load picks it back up.
       removeAsset(assetId)
       return null
-    } catch (err) {
-      setError(errorMessage(err, 'Could not restore asset'))
-      return null
-    }
-  }
+    })
 
-  const purgeAsset = async (assetId: string) => {
-    setError(null)
-    try {
+  const purgeAsset = async (assetId: string): Promise<void> => {
+    await assetMut('Could not delete asset permanently', async () => {
       await purgeCmsMediaAsset(assetId)
       removeAsset(assetId)
-    } catch (err) {
-      setError(errorMessage(err, 'Could not delete asset permanently'))
-    }
+    })
   }
 
-  const setAssetFolders = async (
+  const setAssetFolders = (
     assetId: string,
     input: { add?: string[]; remove?: string[] },
-  ) => {
-    setError(null)
-    try {
+  ) =>
+    assetMut('Could not update folders', async () => {
       const next = await setCmsMediaAssetFolders(assetId, input)
       replaceAsset(next)
       return next
-    } catch (err) {
-      setError(errorMessage(err, 'Could not update folders'))
-      return null
-    }
-  }
+    })
 
   const moveAssetsToFolder = async (assetIds: string[], targetFolderId: string | null) => {
     const uniqueIds = Array.from(new Set(assetIds.map((id) => id.trim()).filter(Boolean)))
@@ -469,58 +455,40 @@ export function useMediaWorkspace(): UseMediaWorkspaceResult {
 
   // ── Folder mutations ───────────────────────────────────────────────────────
 
-  const createFolder = async (name: string, parentId: string | null) => {
-    setError(null)
-    try {
+  const createFolder = (name: string, parentId: string | null) =>
+    assetMut('Could not create folder', async () => {
       const folder = await createCmsMediaFolder({ name, parentId })
       setFolders((current) => [...current, folder])
       return folder
-    } catch (err) {
-      setError(errorMessage(err, 'Could not create folder'))
-      return null
-    }
-  }
+    })
 
   const replaceFolder = (next: CmsMediaFolder) => {
     setFolders((current) => current.map((folder) => folder.id === next.id ? next : folder))
   }
 
-  const renameFolder = async (folderId: string, name: string) => {
-    setError(null)
-    try {
+  const renameFolder = (folderId: string, name: string) =>
+    assetMut('Could not rename folder', async () => {
       const next = await updateCmsMediaFolder(folderId, { name })
       replaceFolder(next)
       return next
-    } catch (err) {
-      setError(errorMessage(err, 'Could not rename folder'))
-      return null
-    }
-  }
+    })
 
-  const moveFolder = async (folderId: string, parentId: string | null) => {
-    setError(null)
-    try {
+  const moveFolder = (folderId: string, parentId: string | null) =>
+    assetMut('Could not move folder', async () => {
       const next = await updateCmsMediaFolder(folderId, { parentId })
       replaceFolder(next)
       return next
-    } catch (err) {
-      setError(errorMessage(err, 'Could not move folder'))
-      return null
-    }
-  }
+    })
 
-  const deleteFolder = async (folderId: string) => {
-    setError(null)
-    try {
+  const deleteFolder = async (folderId: string): Promise<void> => {
+    await assetMut('Could not delete folder', async () => {
       await deleteCmsMediaFolder(folderId)
       setFolders((current) => current.filter((folder) => folder.id !== folderId))
       // Deleting a folder unassigns every asset in it (via FK cascade). Reload
       // so the asset folder_ids reflect the new reality without a stale UI.
       void refresh()
       if (folderSelection === folderId) setFolderSelectionState(FOLDER_ALL)
-    } catch (err) {
-      setError(errorMessage(err, 'Could not delete folder'))
-    }
+    })
   }
 
   return {

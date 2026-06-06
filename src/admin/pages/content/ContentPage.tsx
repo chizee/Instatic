@@ -39,6 +39,7 @@ const MediaPickerModal = lazy(() =>
     (m) => ({ default: m.MediaPickerModal }),
   ),
 )
+import { runEntryOp, type EntryOpDeps, type EntryOpOptions } from './utils/entryOp'
 import { useContentEntryDraft } from './hooks/useContentEntryDraft'
 import { useContentMediaPicker } from './hooks/useContentMediaPicker'
 import { useContentWorkspace } from './hooks/useContentWorkspace'
@@ -154,109 +155,88 @@ export function ContentPage() {
   // return. Specific actions (selecting an entry, opening a row) still
   // open the inspector through their own handlers.
 
-  async function handleCreateEntry() {
-    if (!canCreateEntries) {
-      workspace.setError('Your role cannot create content entries')
-      return
-    }
-    draft.setSaveMessage('saving')
-    workspace.setError(null)
-    try {
-      const entry = await workspace.createUntitledEntry()
+  // Bind the save-state machine to this page's setters once. Every entry
+  // handler runs through `withEntryOp`, which owns the
+  // permission-check → saving → try → apply → saved/error sequence so a
+  // handler can never leave the toolbar stuck on "Saving…".
+  const entryOpDeps: EntryOpDeps = {
+    setSaveMessage: draft.setSaveMessage,
+    setError: workspace.setError,
+  }
+  function withEntryOp<T>(fn: () => Promise<T>, options: EntryOpOptions<T>) {
+    return runEntryOp(entryOpDeps, fn, options)
+  }
+  const SAVE_PHASE = { pending: 'saving', done: 'saved' } as const
+
+  function handleCreateEntry() {
+    return withEntryOp(() => workspace.createUntitledEntry(), {
+      permitted: canCreateEntries,
+      permMsg: 'Your role cannot create content entries',
+      fallback: 'Could not create entry',
+      phase: SAVE_PHASE,
       // `createUntitledEntry` hands us an entry whose title is empty so the
-      // editor's title field renders as a placeholder rather than
-      // pre-filling "Untitled" (the server-side fallback that the sidebar
-      // list still shows). The user can type their real title immediately.
-      draft.applySelectedEntry(entry)
-      draft.setSaveMessage('saved')
-      setFocusTitleSignal((n) => n + 1)
-    } catch (err) {
-      draft.setSaveMessage('error')
-      workspace.setError(err instanceof Error ? err.message : 'Could not create entry')
-    }
+      // editor's title field renders as a placeholder rather than pre-filling
+      // "Untitled" (the server-side fallback the sidebar list still shows).
+      apply: (entry) => {
+        draft.applySelectedEntry(entry)
+        setFocusTitleSignal((n) => n + 1)
+      },
+    })
   }
 
-  async function handleMoveEntryCollection(tableId: string) {
-    if (!canEditSelectedEntry) {
-      workspace.setError('Your role cannot move this entry')
-      return
-    }
-    draft.setSaveMessage('saving')
-    workspace.setError(null)
-    try {
-      const entry = await workspace.moveSelectedEntryToCollection(tableId)
-      if (entry) draft.applySelectedEntry(entry)
-      draft.setSaveMessage('saved')
-    } catch (err) {
-      draft.setSaveMessage('error')
-      workspace.setError(err instanceof Error ? err.message : 'Could not move entry')
-    }
+  function handleMoveEntryCollection(tableId: string) {
+    return withEntryOp(() => workspace.moveSelectedEntryToCollection(tableId), {
+      permitted: canEditSelectedEntry,
+      permMsg: 'Your role cannot move this entry',
+      fallback: 'Could not move entry',
+      phase: SAVE_PHASE,
+      apply: (entry) => { if (entry) draft.applySelectedEntry(entry) },
+    })
   }
 
-  async function handleUpdateEntryAuthor(authorUserId: string) {
+  function handleUpdateEntryAuthor(authorUserId: string) {
     const entry = workspace.selectedEntry
-    if (!entry || entry.authorUserId === authorUserId) return
-    if (!canReassignAuthor) {
-      workspace.setError('Your role cannot reassign authors')
-      return
-    }
-    draft.setSaveMessage('saving')
-    workspace.setError(null)
-    try {
-      const updatedEntry = await workspace.updateEntryAuthor(entry, authorUserId)
-      draft.applySelectedEntry(updatedEntry)
-      draft.setSaveMessage('saved')
-    } catch (err) {
-      draft.setSaveMessage('error')
-      workspace.setError(err instanceof Error ? err.message : 'Could not update author')
-    }
+    if (!entry || entry.authorUserId === authorUserId) return Promise.resolve()
+    return withEntryOp(() => workspace.updateEntryAuthor(entry, authorUserId), {
+      permitted: canReassignAuthor,
+      permMsg: 'Your role cannot reassign authors',
+      fallback: 'Could not update author',
+      phase: SAVE_PHASE,
+      apply: (updatedEntry) => draft.applySelectedEntry(updatedEntry),
+    })
   }
 
-  async function handleUpdateCollection(
+  function handleUpdateCollection(
     collection: DataTable,
     input: UpdateDataTableInput,
   ) {
-    if (!canManageCollections) {
-      workspace.setError('Your role cannot manage content collections')
-      return
-    }
-    workspace.setError(null)
-    try {
-      await workspace.updateCollection(collection.id, input)
-    } catch (err) {
-      workspace.setError(err instanceof Error ? err.message : 'Could not update collection')
-      throw err
-    }
+    return withEntryOp(() => workspace.updateCollection(collection.id, input), {
+      permitted: canManageCollections,
+      permMsg: 'Your role cannot manage content collections',
+      fallback: 'Could not update collection',
+      rethrow: true,
+    })
   }
 
-  async function handleDeleteCollection(collection: DataTable) {
-    if (!canManageCollections) {
-      workspace.setError('Your role cannot manage content collections')
-      return
-    }
-    workspace.setError(null)
-    try {
-      await workspace.deleteCollection(collection.id)
-      if (workspace.selectedCollectionId === collection.id) {
-        draft.applySelectedEntry(null)
-      }
-    } catch (err) {
-      workspace.setError(err instanceof Error ? err.message : 'Could not delete collection')
-      throw err
-    }
+  function handleDeleteCollection(collection: DataTable) {
+    return withEntryOp(() => workspace.deleteCollection(collection.id), {
+      permitted: canManageCollections,
+      permMsg: 'Your role cannot manage content collections',
+      fallback: 'Could not delete collection',
+      rethrow: true,
+      apply: () => {
+        if (workspace.selectedCollectionId === collection.id) {
+          draft.applySelectedEntry(null)
+        }
+      },
+    })
   }
 
-  async function handleRenameEntry(
+  function handleRenameEntry(
     entry: DataRow,
     input: { title: string; slug: string },
   ) {
-    if (!canEditContentEntry(permissionUser, entry)) {
-      workspace.setError('Your role cannot edit this entry')
-      return
-    }
-    draft.setSaveMessage('saving')
-    workspace.setError(null)
-    try {
+    return withEntryOp(() => {
       const entrySnapshot = workspace.selectedEntry?.id === entry.id
         ? {
             ...entry,
@@ -269,48 +249,40 @@ export function ContentPage() {
             },
           }
         : entry
-      const updatedEntry = await workspace.renameEntry(entrySnapshot, input)
-      if (workspace.selectedEntry?.id === entry.id) {
-        draft.applySelectedEntry(updatedEntry)
-      }
-      draft.setSaveMessage('saved')
-    } catch (err) {
-      draft.setSaveMessage('error')
-      workspace.setError(err instanceof Error ? err.message : 'Could not rename entry')
-      throw err
-    }
+      return workspace.renameEntry(entrySnapshot, input)
+    }, {
+      permitted: canEditContentEntry(permissionUser, entry),
+      permMsg: 'Your role cannot edit this entry',
+      fallback: 'Could not rename entry',
+      phase: SAVE_PHASE,
+      rethrow: true,
+      apply: (updatedEntry) => {
+        if (workspace.selectedEntry?.id === entry.id) {
+          draft.applySelectedEntry(updatedEntry)
+        }
+      },
+    })
   }
 
-  async function handleDeleteEntry(entry: DataRow) {
-    if (!canEditContentEntry(permissionUser, entry)) {
-      workspace.setError('Your role cannot delete this entry')
-      return
-    }
-    workspace.setError(null)
-    try {
-      const nextEntry = await workspace.deleteEntry(entry)
-      if (workspace.selectedEntry?.id === entry.id) {
-        draft.applySelectedEntry(nextEntry)
-      }
-    } catch (err) {
-      workspace.setError(err instanceof Error ? err.message : 'Could not delete entry')
-      throw err
-    }
+  function handleDeleteEntry(entry: DataRow) {
+    return withEntryOp(() => workspace.deleteEntry(entry), {
+      permitted: canEditContentEntry(permissionUser, entry),
+      permMsg: 'Your role cannot delete this entry',
+      fallback: 'Could not delete entry',
+      rethrow: true,
+      apply: (nextEntry) => {
+        if (workspace.selectedEntry?.id === entry.id) {
+          draft.applySelectedEntry(nextEntry)
+        }
+      },
+    })
   }
 
-  async function handleDuplicateEntry(entry: DataRow) {
-    if (!canCreateEntries) {
-      workspace.setError('Your role cannot create content entries')
-      return
-    }
-    draft.setSaveMessage('saving')
-    workspace.setError(null)
-    try {
-      // If duplicating the currently-edited entry, persist the in-memory
-      // draft first so the duplicate captures the latest unsaved edits.
-      // Otherwise we'd silently copy the last-saved version of the body
-      // which is confusing — the user clicked duplicate on the row they're
-      // visibly editing.
+  function handleDuplicateEntry(entry: DataRow) {
+    return withEntryOp(() => {
+      // If duplicating the currently-edited entry, capture the in-memory draft
+      // so the duplicate reflects the latest unsaved edits instead of the
+      // last-saved body — the user clicked duplicate on the row they can see.
       const source = workspace.selectedEntry?.id === entry.id
         ? {
             ...entry,
@@ -324,32 +296,30 @@ export function ContentPage() {
             },
           }
         : entry
-      const duplicated = await workspace.duplicateEntry(source)
-      draft.applySelectedEntry(duplicated)
-      draft.setSaveMessage('saved')
-    } catch (err) {
-      draft.setSaveMessage('error')
-      workspace.setError(err instanceof Error ? err.message : 'Could not duplicate entry')
-      throw err
-    }
+      return workspace.duplicateEntry(source)
+    }, {
+      permitted: canCreateEntries,
+      permMsg: 'Your role cannot create content entries',
+      fallback: 'Could not duplicate entry',
+      phase: SAVE_PHASE,
+      rethrow: true,
+      apply: (duplicated) => draft.applySelectedEntry(duplicated),
+    })
   }
 
-  async function handleMoveEntryToCollection(entry: DataRow, tableId: string) {
-    if (entry.tableId === tableId) return
-    if (!canEditContentEntry(permissionUser, entry)) {
-      workspace.setError('Your role cannot move this entry')
-      return
-    }
-    workspace.setError(null)
-    try {
-      const updatedEntry = await workspace.moveEntryToCollection(entry, tableId)
-      if (workspace.selectedEntry?.id === entry.id) {
-        draft.applySelectedEntry(updatedEntry)
-      }
-    } catch (err) {
-      workspace.setError(err instanceof Error ? err.message : 'Could not move entry')
-      throw err
-    }
+  function handleMoveEntryToCollection(entry: DataRow, tableId: string) {
+    if (entry.tableId === tableId) return Promise.resolve()
+    return withEntryOp(() => workspace.moveEntryToCollection(entry, tableId), {
+      permitted: canEditContentEntry(permissionUser, entry),
+      permMsg: 'Your role cannot move this entry',
+      fallback: 'Could not move entry',
+      rethrow: true,
+      apply: (updatedEntry) => {
+        if (workspace.selectedEntry?.id === entry.id) {
+          draft.applySelectedEntry(updatedEntry)
+        }
+      },
+    })
   }
 
   async function handlePublishEntry(entry: DataRow) {
@@ -362,27 +332,19 @@ export function ContentPage() {
       if (canEditContentEntry(permissionUser, entry)) {
         await draft.handlePublish()
       } else {
-        draft.setSaveMessage('publishing')
-        workspace.setError(null)
-        try {
-          const published = await workspace.publishEntry(entry)
-          draft.applySelectedEntry(published)
-          draft.setSaveMessage('published')
-        } catch (err) {
-          draft.setSaveMessage('error')
-          workspace.setError(err instanceof Error ? err.message : 'Could not publish entry')
-        }
+        await withEntryOp(() => workspace.publishEntry(entry), {
+          fallback: 'Could not publish entry',
+          phase: { pending: 'publishing', done: 'published' },
+          apply: (published) => draft.applySelectedEntry(published),
+        })
       }
       return
     }
 
-    workspace.setError(null)
-    try {
-      await workspace.publishEntry(entry)
-    } catch (err) {
-      workspace.setError(err instanceof Error ? err.message : 'Could not publish entry')
-      throw err
-    }
+    await withEntryOp(() => workspace.publishEntry(entry), {
+      fallback: 'Could not publish entry',
+      rethrow: true,
+    })
   }
 
   async function handleStatusChange(status: DataRowStatus) {
@@ -412,13 +374,10 @@ export function ContentPage() {
       return
     }
 
-    workspace.setError(null)
-    try {
-      await workspace.updateEntryStatus(entry, 'draft')
-    } catch (err) {
-      workspace.setError(err instanceof Error ? err.message : 'Could not convert entry to draft')
-      throw err
-    }
+    await withEntryOp(() => workspace.updateEntryStatus(entry, 'draft'), {
+      fallback: 'Could not convert entry to draft',
+      rethrow: true,
+    })
   }
 
   function handleSelectEntry(entry: Parameters<typeof workspace.selectEntry>[0]) {
@@ -494,16 +453,18 @@ export function ContentPage() {
                 getFeaturedMediaAssetForEntry={mediaPicker.getFeaturedMediaAssetForEntry}
                 onSelectCollection={workspace.selectCollection}
                 onSelectEntry={handleSelectEntry}
-                onCreateCollection={() => setCollectionDialogOpen(true)}
-                onCreateEntry={() => void handleCreateEntry()}
-                onUpdateCollection={handleUpdateCollection}
-                onDeleteCollection={handleDeleteCollection}
-                onRenameEntry={handleRenameEntry}
-                onPublishEntry={handlePublishEntry}
-                onConvertEntryToDraft={handleConvertEntryToDraft}
-                onDeleteEntry={handleDeleteEntry}
-                onDuplicateEntry={handleDuplicateEntry}
-                onMoveEntryToCollection={handleMoveEntryToCollection}
+                entryActions={{
+                  createCollection: () => setCollectionDialogOpen(true),
+                  updateCollection: handleUpdateCollection,
+                  deleteCollection: handleDeleteCollection,
+                  createEntry: () => void handleCreateEntry(),
+                  renameEntry: handleRenameEntry,
+                  publishEntry: handlePublishEntry,
+                  convertEntryToDraft: handleConvertEntryToDraft,
+                  deleteEntry: handleDeleteEntry,
+                  duplicateEntry: handleDuplicateEntry,
+                  moveEntryToCollection: handleMoveEntryToCollection,
+                }}
                 onClose={() => setActiveContentPanel(null)}
               />
             )}

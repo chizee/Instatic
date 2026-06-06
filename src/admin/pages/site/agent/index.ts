@@ -14,8 +14,9 @@ export type { AgentSlice, AgentSliceConfig } from './agentSlice'
 // Site-editor wiring (scope, snapshot, dispatcher) handed to the factory.
 export { siteAgentSliceConfig } from './agentSliceConfig.site'
 
-// Stream protocol — schema + per-event reducer.
+// Stream protocol — schema + per-event reducer + NDJSON reader.
 export { processStreamEvent, ServerStreamEventSchema } from './streamEvents'
+export { readNdjsonStream } from './ndjsonStream'
 
 // Site-specific snapshot builder — emits the raw authoritative tree the server
 // renders into the agent's HTML read surface.
