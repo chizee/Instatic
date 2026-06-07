@@ -1,17 +1,18 @@
 /**
- * Architecture gate: every plugin content handler must enforce both the
- * permission grant AND the manifest's `contentAccess[]` allowlist.
+ * Architecture gate: every plugin content RPC must enforce both the permission
+ * grant AND the manifest's `contentAccess[]` allowlist.
  *
- * The shape we lock:
- *   - Every `handleContent*` function calls `assertHostPluginPermission` so
- *     the kernel-of-correctness permission check fires before any repo call.
- *   - Every per-table handler (anything that takes a `tableSlug` arg) also
- *     calls `assertContentTableAccess` for the targeted slug + mode.
+ * The shape we lock (after permission enforcement was centralized):
+ *   - The `cms.content.*` permission grant is enforced CENTRALLY in
+ *     apiDispatch.ts (driven by `TARGET_PERMISSIONS`) before any handler runs,
+ *     so every content target carries a `cms.content.*` permission in the map.
+ *   - Every per-table handler (anything that takes a `tableSlug` arg) still
+ *     calls `assertContentTableAccess` for the targeted slug + mode — the
+ *     per-table check the central permission gate cannot express.
  *
- * The matrix of (permission, mode) per handler is documented in the
- * handler header comment; this test enforces only the presence of the two
- * helper calls — finer-grained mode coverage is checked by the per-handler
- * unit tests.
+ * The matrix of (permission, mode) per handler is documented in the handler
+ * header comment; this test enforces presence of the central pairing + the
+ * per-table helper — finer-grained mode coverage is in the per-handler tests.
  */
 
 import { describe, expect, it } from 'bun:test'
@@ -43,14 +44,20 @@ function extractContentHandlers(source: string): Array<{ name: string; body: str
 }
 
 describe('plugin content handlers — access enforced', () => {
-  it('every handleContent* function calls assertHostPluginPermission', async () => {
-    const source = await read('server/plugins/host/handlers/content.ts')
-    const handlers = extractContentHandlers(source)
-    expect(handlers.length).toBeGreaterThan(15) // 20 RPCs, sanity
-    for (const { name, body } of handlers) {
+  it('every cms.content.* target is centrally gated by a cms.content.* permission', async () => {
+    // Permission enforcement is centralized in apiDispatch.ts and driven by
+    // TARGET_PERMISSIONS. Lock that (a) the central assert call is present and
+    // (b) every content target carries a cms.content.* permission in the map.
+    const dispatch = await read('server/plugins/host/apiDispatch.ts')
+    expect(dispatch).toContain('assertHostPluginPermission(entry, requiredPermission)')
+
+    const targets = await read('server/plugins/protocol/targets.ts')
+    const pairs = [...targets.matchAll(/'(cms\.content\.[a-zA-Z.]+)':\s*'([a-z][a-zA-Z.]+)'/g)]
+    expect(pairs.length).toBeGreaterThan(15) // ~20 content RPCs, sanity
+    for (const [, target, permission] of pairs) {
       expect(
-        body.includes('assertHostPluginPermission('),
-        `Handler "${name}" must call assertHostPluginPermission`,
+        permission.startsWith('cms.content.'),
+        `Content target "${target}" must map to a cms.content.* permission, got "${permission}"`,
       ).toBe(true)
     }
   })

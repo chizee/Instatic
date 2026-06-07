@@ -3,7 +3,8 @@
  * cms.media.registerUrlTransformer, and cms.media.registerVariantDelegate
  * api-calls.
  *
- * Each handler is gated by its own permission:
+ * Each target is gated by its own permission, enforced centrally in
+ * apiDispatch.ts (via TARGET_PERMISSIONS) before these handlers run:
  *   - `media.storage.adapter` for storage adapter registration
  *   - `media.url.transform` for URL transformer registration
  *   - `media.variant.delegate` for variant delegate registration
@@ -18,23 +19,17 @@ import type { MediaAssetRole, MediaStorageServingMode } from '@core/plugin-sdk'
 import { hookBus } from '@core/plugins/hookBus'
 import { mediaStorageRegistry } from '@core/plugins/mediaStorageRegistry'
 import { mediaVariantDelegateRegistry } from '@core/plugins/mediaVariantDelegateRegistry'
-import type {
-  RegisterStorageAdapterApiCall,
-  RegisterUrlTransformerApiCall,
-  RegisterVariantDelegateApiCall,
-} from '../../protocol/apiCallSchema'
+import type { ApiCallFor } from '../../protocol/apiCallSchema'
 import type { DbClient } from '../../../db/client'
-import { assertHostPluginPermission } from '../registry'
 import { replyApiOk } from '../apiReplies'
 import { buildAdapterShim, runMediaUrlTransformerInWorker } from '../media'
 import type { HostPluginRecord } from '../types'
 
 export async function handleMediaRegisterStorageAdapter(
-  msg: RegisterStorageAdapterApiCall,
+  msg: ApiCallFor<'cms.media.registerStorageAdapter'>,
   entry: HostPluginRecord,
   _db: DbClient,
 ): Promise<void> {
-  assertHostPluginPermission(entry, 'media.storage.adapter')
   const [arg] = msg.args
   // Schema-validated, so the cast is for the union narrowing the
   // SDK exposes. servingMode + roles are already validated as the
@@ -59,11 +54,10 @@ export async function handleMediaRegisterStorageAdapter(
 }
 
 export async function handleMediaRegisterUrlTransformer(
-  msg: RegisterUrlTransformerApiCall,
+  msg: ApiCallFor<'cms.media.registerUrlTransformer'>,
   entry: HostPluginRecord,
   _db: DbClient,
 ): Promise<void> {
-  assertHostPluginPermission(entry, 'media.url.transform')
   const [{ transformerId }] = msg.args
   entry.mediaUrlTransformers.push({ pluginId: msg.pluginId, transformerId })
   // URL transformers ride the existing hook bus filter pipeline so
@@ -88,11 +82,10 @@ export async function handleMediaRegisterUrlTransformer(
 }
 
 export async function handleMediaRegisterVariantDelegate(
-  msg: RegisterVariantDelegateApiCall,
-  entry: HostPluginRecord,
+  msg: ApiCallFor<'cms.media.registerVariantDelegate'>,
+  _entry: HostPluginRecord,
   _db: DbClient,
 ): Promise<void> {
-  assertHostPluginPermission(entry, 'media.variant.delegate')
   const [arg] = msg.args
   // Persist in the in-memory registry so the admin UI's
   // "Pick a delegate" picker sees it. Election (which delegate

@@ -42,7 +42,7 @@ async function read(relative: string): Promise<string> {
 
 describe('sandbox crypto bridge', () => {
   it('worker protocol exposes crypto.digest and crypto.signHmac', async () => {
-    const targetsSource = await read('server/plugins/protocol/targets.ts')
+    const targetsSource = await read('server/plugins/protocol/apiCallSchema.ts')
     const cryptoSource = await read('server/plugins/protocol/schemas/crypto.ts')
     expect(targetsSource).toContain("'crypto.digest'")
     expect(targetsSource).toContain("'crypto.signHmac'")

@@ -8,15 +8,22 @@
  * converts any unhandled throw into a structured error reply so correlation
  * ids are never leaked.
  *
- * SECURITY: Each handler that grants privileged access calls
- * `assertHostPluginPermission` as the kernel-of-correctness check. The
- * VM-side bootstrap performs the same check synchronously (defense-in-depth),
- * but the host check is the authoritative one.
+ * SECURITY: permission enforcement is CENTRALIZED here. Before any handler
+ * runs, the dispatcher looks up the target's required permission in the single
+ * `TARGET_PERMISSIONS` map and calls `assertHostPluginPermission` — the
+ * kernel-of-correctness check. The VM-side bootstrap drives its synchronous
+ * defense-in-depth check from the SAME map (bundled in via `bootstrap:sync`),
+ * so the two layers can never assert different permissions. Handlers keep only
+ * the checks a static target→permission map cannot express (the conditional
+ * `cms.routes.public` grant; the per-table `contentAccess[]` allowlist).
+ *
+ * Permission authority is `grantedPermissions`, never the declared array.
  */
 
-import type { ValidatedApiCall } from '../protocol/apiCallSchema'
+import type { AllowedApiTarget, ValidatedApiCall } from '../protocol/apiCallSchema'
+import { TARGET_PERMISSIONS } from '../protocol/targets'
 import type { DbClient } from '../../db/client'
-import { hostPlugins, getDbForApi } from './registry'
+import { hostPlugins, getDbForApi, assertHostPluginPermission } from './registry'
 import { replyApiError } from './apiReplies'
 import type { HostPluginRecord } from './types'
 import { handleRoutesRegister } from './handlers/routes'
@@ -51,13 +58,19 @@ import {
   handleContentTreeReplace,
 } from './handlers/content'
 
-type ApiTarget = ValidatedApiCall['target']
-type HostApiHandler<TTarget extends ApiTarget> = (
+type HostApiHandler<TTarget extends AllowedApiTarget> = (
   msg: Extract<ValidatedApiCall, { target: TTarget }>,
   entry: HostPluginRecord,
   db: DbClient,
 ) => Promise<void>
-type HostApiHandlerTable = { [Target in ApiTarget]: HostApiHandler<Target> }
+/**
+ * One handler per target, keyed by the SSOT target union. Because
+ * `AllowedApiTarget = keyof typeof ApiCallSchemas`, a schema added without a
+ * handler (or a handler for a target with no schema) is now a COMPILE error
+ * at the `satisfies HostApiHandlerTable` below — not a runtime
+ * "is not a function".
+ */
+type HostApiHandlerTable = { [Target in AllowedApiTarget]: HostApiHandler<Target> }
 type AnyHostApiHandler = (
   msg: ValidatedApiCall,
   entry: HostPluginRecord,
@@ -119,6 +132,18 @@ export async function dispatchApiCall(msg: ValidatedApiCall): Promise<void> {
   }
 
   try {
+    // Centralized permission enforcement — one lookup in the single
+    // target→permission map, applied before the handler runs. Targets absent
+    // from the map (settings.replace, network.abort, crypto.*) are
+    // intentionally ungated. Conditional/per-table checks remain in handlers.
+    const requiredPermission = TARGET_PERMISSIONS[msg.target as keyof typeof TARGET_PERMISSIONS]
+    if (requiredPermission) {
+      assertHostPluginPermission(entry, requiredPermission)
+    }
+    // The `satisfies HostApiHandlerTable` typing guarantees a handler exists
+    // for every target; this cast only bridges TypeScript's correlated-union
+    // limitation (it can't tie `apiHandlers[msg.target]` to `msg`'s narrowed
+    // shape), it does NOT mask a missing handler.
     const handler = apiHandlers[msg.target] as AnyHostApiHandler
     await handler(msg, entry, db)
   } catch (err) {

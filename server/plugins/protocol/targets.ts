@@ -1,95 +1,88 @@
 /**
- * Allowlist of API targets the host accepts from a worker.
+ * Target → required-permission map — the SINGLE source pairing each plugin
+ * RPC target with the permission it requires.
  *
- * `ALLOWED_API_TARGETS` is the canonical list of dotted RPC names. Anything
- * not in this list is rejected before any host-side side effect. The
- * architecture test `plugin-sandbox-invariants.test.ts` locks the exact
- * contents of this array — do not add targets without updating that test.
+ * BOTH enforcement layers read this one table:
+ *   - HOST: `host/apiDispatch.ts` looks up `TARGET_PERMISSIONS[target]` and
+ *     calls `assertHostPluginPermission` before invoking the handler. This is
+ *     the kernel-of-correctness check.
+ *   - VM:   the QuickJS bootstrap (`quickjs/bootstrap/src/buildApi.ts`) imports
+ *     this same map (it is bundled into the VM artifact by `bootstrap:sync`)
+ *     and drives its synchronous defense-in-depth `assertPermission` from it.
+ *
+ * Because there is now ONE source instead of two parallel inline copies, a
+ * handler can no longer assert a DIFFERENT permission than the VM advertises —
+ * the privilege-drift gap a type checker never caught is closed.
+ *
+ * Permission authority: both layers validate against the operator-approved
+ * `grantedPermissions` set, NEVER the declared `permissions` array.
+ *
+ * Targets deliberately ABSENT from this map require NO permission and are
+ * intentionally ungated:
+ *   - `cms.settings.replace` — any active plugin may update its own settings.
+ *   - `network.abort`        — a plugin without `network.outbound` can never
+ *                              mint a live abortId, so the lookup just no-ops.
+ *   - `crypto.digest` / `crypto.signHmac` — pure computation, no I/O, no
+ *                              privilege escalation (same model as `Math`/`JSON`).
+ *
+ * Conditional/extra checks that CANNOT live in a static target→permission map
+ * stay in their handlers (host + VM both keep them):
+ *   - `cms.routes.register` with `access.kind === 'public'` additionally
+ *     requires `cms.routes.public` (surfaced in the install consent dialog).
+ *   - `cms.content.*` handlers additionally enforce the manifest's
+ *     `contentAccess[]` allowlist via `assertContentTableAccess`.
+ *
+ * NOTE: this module is bundled into the QuickJS VM via `buildApi.ts`. Keep its
+ * runtime surface a PURE DATA literal — only `import type` is allowed, so the
+ * bundler never drags TypeBox (or anything else) into the sandbox artifact.
  */
 
-const ALLOWED_API_TARGETS = [
-  // Routes — recorded but not actually invoked from worker (worker is the
-  // origin of registration; main is the consumer). Host stores route
-  // handler ids per pluginId+method+path.
-  'cms.routes.register',
+import type { PluginPermission } from '@core/plugin-sdk'
+import type { AllowedApiTarget } from './apiCallSchema'
+
+export const TARGET_PERMISSIONS = {
+  // Routes — base permission. Public-access routes also require
+  // `cms.routes.public`, asserted conditionally in the route handler/shim.
+  'cms.routes.register': 'cms.routes',
   // Hooks
-  'cms.hooks.on',
-  'cms.hooks.filter',
-  'cms.hooks.emit',
+  'cms.hooks.on': 'cms.hooks',
+  'cms.hooks.filter': 'cms.hooks',
+  'cms.hooks.emit': 'cms.hooks',
   // Loops
-  'cms.loops.registerSource',
+  'cms.loops.registerSource': 'loops.register',
   // Storage
-  'cms.storage.list',
-  'cms.storage.create',
-  'cms.storage.update',
-  'cms.storage.delete',
-  // Settings (read is local to worker via settings cache; replace is RPC)
-  'cms.settings.replace',
-  // Network — gated by `network.outbound` permission + manifest's
-  // `networkAllowedHosts`. Host validates the URL host BEFORE making the
-  // outbound request.
-  'network.fetch',
-  // Companion to network.fetch: cancels an in-flight request when the
-  // plugin's AbortSignal fires. Cheap no-op if the host has already
-  // returned for that abortId (e.g. the response landed first).
-  'network.abort',
-  // Scheduled jobs — gated by `cms.schedule`. Plugin calls register/cancel
-  // during activate; the host upserts a row in `plugin_schedules` and the
-  // scheduler tick (server/plugins/scheduler.ts) fires the registered
-  // handler on cadence.
-  'cms.schedule.register',
-  'cms.schedule.cancel',
-  // Media subsystem — three independent surfaces.
-  //   • registerStorageAdapter — declares an exclusive storage backend the
-  //     admin can elect per asset role. Bytes never cross the sandbox;
-  //     the adapter only signs upload plans + handles delete/verify.
-  //   • registerUrlTransformer — chained pure path → path rewriter.
-  //   • registerVariantDelegate — replaces local variant ladder with a
-  //     URL template (image-transform CDNs).
-  'cms.media.registerStorageAdapter',
-  'cms.media.registerUrlTransformer',
-  'cms.media.registerVariantDelegate',
-  // CMS content — read/write/publish/delete content tables.
-  // Gated by `cms.content.read` / `cms.content.write` / `cms.content.publish`
-  // / `cms.content.delete` / `cms.content.tables.manage` plus the manifest's
-  // `contentAccess[]` allowlist. The host enforces both as the
-  // kernel-of-correctness check.
-  'cms.content.tables.list',
-  'cms.content.tables.get',
-  'cms.content.tables.create',
-  'cms.content.entries.list',
-  'cms.content.entries.get',
-  'cms.content.entries.getBySlug',
-  'cms.content.entries.create',
-  'cms.content.entries.update',
-  'cms.content.entries.delete',
-  'cms.content.entries.publish',
-  'cms.content.entries.moveTable',
-  'cms.content.entries.createMany',
-  'cms.content.entries.updateMany',
-  'cms.content.entries.deleteMany',
-  'cms.content.tree.read',
-  'cms.content.tree.mutate',
-  'cms.content.tree.replace',
-  'cms.content.search',
-  'cms.content.snapshot',
-  'cms.content.republishAll',
-  // ── Crypto primitives ────────────────────────────────────────────────
-  // SHA-256 / HMAC-SHA256 are needed for AWS Sigv4, OAuth1.0a, JWT signing,
-  // S3 presigned URL generation, etc. — the kind of work storage / auth
-  // plugins do routinely. Without these the plugin would have to vendor
-  // a pure-JS HMAC implementation; not impossible but error-prone enough
-  // that we expose a thin host bridge instead. No permission gate — these
-  // are pure computation, no I/O, no privilege escalation (same shape as
-  // `Math` or `JSON`).
-  'crypto.digest',
-  'crypto.signHmac',
-] as const
-
-export type AllowedApiTarget = typeof ALLOWED_API_TARGETS[number]
-
-export function isAllowedApiTarget(target: string): target is AllowedApiTarget {
-  return (ALLOWED_API_TARGETS as readonly string[]).includes(target)
-}
-
-export { ALLOWED_API_TARGETS }
+  'cms.storage.list': 'cms.storage',
+  'cms.storage.create': 'cms.storage',
+  'cms.storage.update': 'cms.storage',
+  'cms.storage.delete': 'cms.storage',
+  // Network — outbound HTTP (allowlist enforced separately in host/network.ts).
+  'network.fetch': 'network.outbound',
+  // Scheduled jobs
+  'cms.schedule.register': 'cms.schedule',
+  'cms.schedule.cancel': 'cms.schedule',
+  // Media subsystem — three independent surfaces, each its own permission.
+  'cms.media.registerStorageAdapter': 'media.storage.adapter',
+  'cms.media.registerUrlTransformer': 'media.url.transform',
+  'cms.media.registerVariantDelegate': 'media.variant.delegate',
+  // CMS content — read / write / publish / delete / tables.manage.
+  'cms.content.tables.list': 'cms.content.read',
+  'cms.content.tables.get': 'cms.content.read',
+  'cms.content.tables.create': 'cms.content.tables.manage',
+  'cms.content.entries.list': 'cms.content.read',
+  'cms.content.entries.get': 'cms.content.read',
+  'cms.content.entries.getBySlug': 'cms.content.read',
+  'cms.content.entries.create': 'cms.content.write',
+  'cms.content.entries.update': 'cms.content.write',
+  'cms.content.entries.delete': 'cms.content.delete',
+  'cms.content.entries.publish': 'cms.content.publish',
+  'cms.content.entries.moveTable': 'cms.content.write',
+  'cms.content.entries.createMany': 'cms.content.write',
+  'cms.content.entries.updateMany': 'cms.content.write',
+  'cms.content.entries.deleteMany': 'cms.content.delete',
+  'cms.content.tree.read': 'cms.content.read',
+  'cms.content.tree.mutate': 'cms.content.write',
+  'cms.content.tree.replace': 'cms.content.write',
+  'cms.content.search': 'cms.content.read',
+  'cms.content.snapshot': 'cms.content.read',
+  'cms.content.republishAll': 'cms.content.publish',
+} satisfies Partial<Record<AllowedApiTarget, PluginPermission>>

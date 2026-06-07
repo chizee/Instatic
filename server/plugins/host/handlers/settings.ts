@@ -12,13 +12,13 @@ import type { PluginSettingDefinition } from '@core/plugin-sdk'
 import { validatePluginSettingsRecord } from '@core/plugin-sdk'
 import { hookBus } from '@core/plugins/hookBus'
 import { setPluginSettings } from '../../../repositories/plugins'
-import type { SettingsReplaceApiCall } from '../../protocol/apiCallSchema'
+import type { ApiCallFor } from '../../protocol/apiCallSchema'
 import type { DbClient } from '../../../db/client'
 import { replyApiOk } from '../apiReplies'
 import type { HostPluginRecord } from '../types'
 
 export async function handleSettingsReplace(
-  msg: SettingsReplaceApiCall,
+  msg: ApiCallFor<'cms.settings.replace'>,
   entry: HostPluginRecord,
   db: DbClient,
 ): Promise<void> {

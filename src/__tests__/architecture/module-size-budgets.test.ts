@@ -104,7 +104,7 @@ const GRANDFATHERED: Record<string, number> = {
   // maintain inline — the maintenance is intrinsic to each mutation and has no
   // separate module to extract to. See docs/reference/page-tree.md (parentId).
   'src/core/page-tree/mutations.ts': 940,
-  'server/plugins/host/handlers/content.ts': 848,
+  'server/plugins/host/handlers/content.ts': 786,
   'src/core/siteImport/cssToStyleRules.ts': 829,
   'src/admin/pages/site/panels/TypographyPanel/FontsSection/AddGoogleFontDialog.tsx': 750,
   'src/core/markdown/markdownDocument.ts': 748,

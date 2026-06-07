@@ -105,18 +105,22 @@ describe('plugin sandbox invariants', () => {
   })
 
   it('the network.outbound permission is fail-closed without an allowlist', async () => {
-    // host/network.ts owns the allowlist check; host/handlers/network.ts owns
-    // the permission gate; host/apiDispatch.ts owns the dispatch table entry.
+    // host/network.ts owns the allowlist check; host/apiDispatch.ts owns the
+    // dispatch table entry AND (since the permission model was centralized)
+    // the permission gate, driven by protocol/targets.ts:TARGET_PERMISSIONS.
     const networkSource = await read('server/plugins/host/network.ts')
     const dispatchSource = await read('server/plugins/host/apiDispatch.ts')
-    const networkHandlerSource = await read('server/plugins/host/handlers/network.ts')
+    const targetsSource = await read('server/plugins/protocol/targets.ts')
     expect(networkSource).toContain('hostMatchesAllowlist')
     expect(networkSource).toContain('networkAllowedHosts')
     // The dispatch table entry must be present in apiDispatch.ts.
     expect(dispatchSource).toContain("'network.fetch':")
-    // The permission gate must be present in the handler.
-    // Missing either gate would be a security bug.
-    expect(networkHandlerSource).toContain("assertHostPluginPermission(entry, 'network.outbound')")
+    // The permission gate is now CENTRAL: apiDispatch looks up the required
+    // permission and asserts it before any handler runs. Missing either the
+    // central assert call or the network.fetch→network.outbound pairing would
+    // be a security bug.
+    expect(dispatchSource).toContain('assertHostPluginPermission(entry, requiredPermission)')
+    expect(targetsSource).toContain("'network.fetch': 'network.outbound'")
   })
 
   it('BOOTSTRAP_SOURCE provides URL, URLSearchParams, TextEncoder, TextDecoder globals', async () => {
@@ -136,22 +140,24 @@ describe('plugin sandbox invariants', () => {
   })
 
   it('worker protocol allows only the documented api-call targets', async () => {
-    // ALLOWED_API_TARGETS is the canonical list of dotted RPC names the
-    // host accepts from the worker. Anything not in this list is rejected
-    // before any side effect. Locking the list down prevents accidental
-    // surface expansion.
+    // `ApiCallSchemas` (in apiCallSchema.ts) is the SINGLE SOURCE of the
+    // accepted dotted RPC names — `ALLOWED_API_TARGETS` / `isAllowedApiTarget`
+    // / `ValidatedApiCall` are all derived from its keys. Anything not in this
+    // record is rejected before any side effect. Locking the key set down
+    // prevents accidental surface expansion.
     //
-    // The regex accepts either `export const ALLOWED_API_TARGETS` or a
-    // module-private `const ALLOWED_API_TARGETS` — the constant is internal
-    // to the protocol module today (consumers reach it via parseApiCall),
-    // but the test cares about the *contents* not the visibility.
-    const source = await read('server/plugins/protocol/targets.ts')
-    const allowedListMatch = source.match(
-      /(?:export\s+)?const ALLOWED_API_TARGETS = \[([\s\S]*?)\] as const/,
+    // The keys are extracted from the source record (each line is
+    // `'<target>': apiCallSchema('<target>', …)`) so the gate stays stable
+    // without evaluating the module.
+    const source = await read('server/plugins/protocol/apiCallSchema.ts')
+    const recordMatch = source.match(
+      /export const ApiCallSchemas = \{([\s\S]*?)\n\} satisfies Record/,
     )
-    expect(allowedListMatch).not.toBeNull()
-    const listBody = allowedListMatch![1]
-    const literals = (listBody.match(/'[a-z][a-zA-Z.]+'/g) ?? []).map((s) => s.slice(1, -1)).sort()
+    expect(recordMatch).not.toBeNull()
+    const recordBody = recordMatch![1]
+    const literals = (recordBody.match(/^\s*'([a-z][a-zA-Z.]+)':/gm) ?? [])
+      .map((s) => s.trim().replace(/':$/, '').replace(/^'/, ''))
+      .sort()
     expect(literals).toEqual([
       'cms.content.entries.create',
       'cms.content.entries.createMany',

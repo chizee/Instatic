@@ -8,7 +8,16 @@
  * Host-injected globals (`__hostCall`, `__log`, `__plugin_meta`,
  * `__plugin_settings`) are declared in `globals.d.ts`. `__nextId` is the
  * factory's private id minter and lives here with its only caller.
+ *
+ * `TARGET_PERMISSIONS` is imported from the protocol layer — the SAME map the
+ * host dispatcher enforces. It is a pure-data literal (type-only imports), so
+ * `bootstrap:sync` inlines just the object into the VM artifact; no TypeBox or
+ * other host code crosses into the sandbox. Driving the VM's `assertPermission`
+ * from this one table is what guarantees the VM and host can never assert
+ * different permissions for the same target.
  */
+
+import { TARGET_PERMISSIONS } from '../../../protocol/targets'
 
 // ------- the api object plugins receive -------
 globalThis.__buildApi = function buildApi() {
@@ -25,6 +34,14 @@ globalThis.__buildApi = function buildApi() {
     if (meta.grantedPermissions.indexOf(perm) < 0) {
       throw new Error('Plugin "' + meta.id + '" requires permission "' + perm + '"')
     }
+  }
+
+  // Assert the permission an RPC target requires, looked up in the SAME
+  // target→permission map the host dispatcher uses. Targets absent from the
+  // map (settings.replace, network.abort, crypto.*) require none and no-op.
+  function assertTargetPermission(target: string) {
+    const perm = (TARGET_PERMISSIONS as Record<string, string | undefined>)[target]
+    if (perm) assertPermission(perm)
   }
 
   function call(target: string, args: unknown[]) {
@@ -54,7 +71,7 @@ globalThis.__buildApi = function buildApi() {
   //       sees the warning at install time.
   function makeRoute(method: string) {
     return function (path: unknown, capability: unknown, handler: unknown) {
-      assertPermission('cms.routes')
+      assertTargetPermission('cms.routes.register')
       if (typeof handler !== 'function') throw new TypeError('Route handler must be a function')
       const routeKey = method + ':' + normalizePath(path)
       globalThis.__plugin_handlers.routes[routeKey] = handler as BootstrapFn
@@ -68,7 +85,7 @@ globalThis.__buildApi = function buildApi() {
   }
   function registerAuthenticated(method: string) {
     return function (path: unknown, handler: unknown) {
-      assertPermission('cms.routes')
+      assertTargetPermission('cms.routes.register')
       if (typeof handler !== 'function') throw new TypeError('Route handler must be a function')
       const routeKey = method + ':' + normalizePath(path)
       globalThis.__plugin_handlers.routes[routeKey] = handler as BootstrapFn
@@ -82,7 +99,8 @@ globalThis.__buildApi = function buildApi() {
   }
   function registerPublic(method: string) {
     return function (path: unknown, handler: unknown) {
-      assertPermission('cms.routes')
+      assertTargetPermission('cms.routes.register')
+      // Conditional extra grant — not expressible in the static map.
       assertPermission('cms.routes.public')
       if (typeof handler !== 'function') throw new TypeError('Route handler must be a function')
       const routeKey = method + ':' + normalizePath(path)
@@ -97,26 +115,26 @@ globalThis.__buildApi = function buildApi() {
   }
 
   function on(event: unknown, listener: unknown) {
-    assertPermission('cms.hooks')
+    assertTargetPermission('cms.hooks.on')
     if (typeof listener !== 'function') throw new TypeError('Hook listener must be a function')
     const listenerId = __nextId('listener')
     globalThis.__plugin_handlers.listeners[listenerId] = listener as BootstrapFn
     return call('cms.hooks.on', [{ event: String(event), listenerId: listenerId }])
   }
   function filter(name: unknown, handler: unknown) {
-    assertPermission('cms.hooks')
+    assertTargetPermission('cms.hooks.filter')
     if (typeof handler !== 'function') throw new TypeError('Hook filter must be a function')
     const filterId = __nextId('filter')
     globalThis.__plugin_handlers.filters[filterId] = handler as BootstrapFn
     return call('cms.hooks.filter', [{ name: String(name), filterId: filterId }])
   }
   function emit(event: unknown, payload: unknown) {
-    assertPermission('cms.hooks')
+    assertTargetPermission('cms.hooks.emit')
     return call('cms.hooks.emit', [{ event: String(event), payload: payload === undefined ? null : payload }])
   }
 
   function registerSource(source: PluginInput) {
-    assertPermission('loops.register')
+    assertTargetPermission('cms.loops.registerSource')
     if (!source || typeof source !== 'object') throw new TypeError('Loop source must be an object')
     if (typeof source.fetch !== 'function') throw new TypeError('Loop source.fetch must be a function')
     const sourceId = String(source.id)
@@ -138,7 +156,9 @@ globalThis.__buildApi = function buildApi() {
   }
 
   function collection(resourceId: unknown) {
-    assertPermission('cms.storage')
+    // All four cms.storage.* targets share the cms.storage permission; assert
+    // once up front via the map (same behavior as before, no inline literal).
+    assertTargetPermission('cms.storage.list')
     return {
       list: function (options: unknown) { return call('cms.storage.list', [String(resourceId), options ?? {}]) },
       create: function (data: unknown) { return call('cms.storage.create', [String(resourceId), data]) },
@@ -163,7 +183,7 @@ globalThis.__buildApi = function buildApi() {
   }
 
   function scheduleRegister(def: PluginInput) {
-    assertPermission('cms.schedule')
+    assertTargetPermission('cms.schedule.register')
     if (!def || typeof def !== 'object') throw new TypeError('schedule.register: argument must be an object')
     if (typeof def.id !== 'string' || def.id.length === 0) throw new TypeError("schedule.register: 'id' is required")
     if (typeof def.handler !== 'function') throw new TypeError("schedule.register: 'handler' must be a function")
@@ -187,7 +207,7 @@ globalThis.__buildApi = function buildApi() {
   }
 
   function scheduleCancel(id: unknown) {
-    assertPermission('cms.schedule')
+    assertTargetPermission('cms.schedule.cancel')
     const scheduleId = String(id)
     delete globalThis.__plugin_handlers.schedules[namespaceScheduleId(scheduleId)]
     return call('cms.schedule.cancel', [{ scheduleId: scheduleId }])
@@ -225,7 +245,7 @@ globalThis.__buildApi = function buildApi() {
   // actually needs to upload/delete/transform a path.
 
   function registerStorageAdapter(adapter: PluginInput) {
-    assertPermission('media.storage.adapter')
+    assertTargetPermission('cms.media.registerStorageAdapter')
     if (!adapter || typeof adapter !== 'object') throw new TypeError('registerStorageAdapter: adapter must be an object')
     if (typeof adapter.id !== 'string' || !adapter.id) throw new TypeError("registerStorageAdapter: 'id' is required")
     if (adapter.id.indexOf(meta.id + '.') !== 0) {
@@ -278,7 +298,7 @@ globalThis.__buildApi = function buildApi() {
   }
 
   function registerUrlTransformer(fn: unknown) {
-    assertPermission('media.url.transform')
+    assertTargetPermission('cms.media.registerUrlTransformer')
     if (typeof fn !== 'function') throw new TypeError('registerUrlTransformer: argument must be a function')
     const transformerId = __nextId('mediaUrlT')
     globalThis.__plugin_handlers.mediaUrlTransformers[transformerId] = fn as BootstrapFn
@@ -286,7 +306,7 @@ globalThis.__buildApi = function buildApi() {
   }
 
   function registerVariantDelegate(delegate: PluginInput) {
-    assertPermission('media.variant.delegate')
+    assertTargetPermission('cms.media.registerVariantDelegate')
     if (!delegate || typeof delegate !== 'object') throw new TypeError('registerVariantDelegate: argument must be an object')
     if (typeof delegate.id !== 'string' || !delegate.id) throw new TypeError("registerVariantDelegate: 'id' is required")
     if (delegate.id.indexOf(meta.id + '.') !== 0) {
@@ -376,15 +396,15 @@ globalThis.__buildApi = function buildApi() {
         // Schema introspection
         tables: {
           list: function () {
-            assertPermission('cms.content.read')
+            assertTargetPermission('cms.content.tables.list')
             return call('cms.content.tables.list', [])
           },
           get: function (slug: unknown) {
-            assertPermission('cms.content.read')
+            assertTargetPermission('cms.content.tables.get')
             return call('cms.content.tables.get', [String(slug)])
           },
           create: function (input: unknown) {
-            assertPermission('cms.content.tables.manage')
+            assertTargetPermission('cms.content.tables.create')
             return call('cms.content.tables.create', [input])
           },
         },
@@ -393,47 +413,47 @@ globalThis.__buildApi = function buildApi() {
           const s = String(slug)
           return {
             list: function (options: unknown) {
-              assertPermission('cms.content.read')
+              assertTargetPermission('cms.content.entries.list')
               return call('cms.content.entries.list', [s, options || {}])
             },
             get: function (entryId: unknown) {
-              assertPermission('cms.content.read')
+              assertTargetPermission('cms.content.entries.get')
               return call('cms.content.entries.get', [s, String(entryId)])
             },
             getBySlug: function (entrySlug: unknown) {
-              assertPermission('cms.content.read')
+              assertTargetPermission('cms.content.entries.getBySlug')
               return call('cms.content.entries.getBySlug', [s, String(entrySlug)])
             },
             create: function (input: unknown) {
-              assertPermission('cms.content.write')
+              assertTargetPermission('cms.content.entries.create')
               return call('cms.content.entries.create', [s, input])
             },
             update: function (entryId: unknown, patch: unknown) {
-              assertPermission('cms.content.write')
+              assertTargetPermission('cms.content.entries.update')
               return call('cms.content.entries.update', [s, String(entryId), patch])
             },
             'delete': function (entryId: unknown) {
-              assertPermission('cms.content.delete')
+              assertTargetPermission('cms.content.entries.delete')
               return call('cms.content.entries.delete', [s, String(entryId)])
             },
             publish: function (entryId: unknown, options: unknown) {
-              assertPermission('cms.content.publish')
+              assertTargetPermission('cms.content.entries.publish')
               return call('cms.content.entries.publish', [s, String(entryId), options || {}])
             },
             moveToTable: function (entryId: unknown, targetSlug: unknown) {
-              assertPermission('cms.content.write')
+              assertTargetPermission('cms.content.entries.moveTable')
               return call('cms.content.entries.moveTable', [s, String(entryId), String(targetSlug)])
             },
             createMany: function (inputs: unknown) {
-              assertPermission('cms.content.write')
+              assertTargetPermission('cms.content.entries.createMany')
               return call('cms.content.entries.createMany', [s, inputs])
             },
             updateMany: function (updates: unknown) {
-              assertPermission('cms.content.write')
+              assertTargetPermission('cms.content.entries.updateMany')
               return call('cms.content.entries.updateMany', [s, updates])
             },
             deleteMany: function (entryIds: unknown) {
-              assertPermission('cms.content.delete')
+              assertTargetPermission('cms.content.entries.deleteMany')
               return call('cms.content.entries.deleteMany', [s, entryIds])
             },
           }
@@ -444,30 +464,30 @@ globalThis.__buildApi = function buildApi() {
           const f = String(fieldId)
           return {
             read: function () {
-              assertPermission('cms.content.read')
+              assertTargetPermission('cms.content.tree.read')
               return call('cms.content.tree.read', [e, f])
             },
             mutate: function (operations: unknown) {
-              assertPermission('cms.content.write')
+              assertTargetPermission('cms.content.tree.mutate')
               return call('cms.content.tree.mutate', [e, f, operations])
             },
             replace: function (tree: unknown) {
-              assertPermission('cms.content.write')
+              assertTargetPermission('cms.content.tree.replace')
               return call('cms.content.tree.replace', [e, f, tree])
             },
           }
         },
         // Cross-table
         search: function (query: unknown, limit: unknown) {
-          assertPermission('cms.content.read')
+          assertTargetPermission('cms.content.search')
           return call('cms.content.search', [String(query), Number(limit || 50)])
         },
         getPublishedSnapshot: function (entryId: unknown) {
-          assertPermission('cms.content.read')
+          assertTargetPermission('cms.content.snapshot')
           return call('cms.content.snapshot', [String(entryId)])
         },
         republishAll: function () {
-          assertPermission('cms.content.publish')
+          assertTargetPermission('cms.content.republishAll')
           return call('cms.content.republishAll', [])
         },
       },

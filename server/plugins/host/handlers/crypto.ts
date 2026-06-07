@@ -10,14 +10,14 @@
  * vendored npm crypto library.
  */
 
-import type { CryptoDigestApiCall, CryptoSignHmacApiCall } from '../../protocol/apiCallSchema'
+import type { ApiCallFor } from '../../protocol/apiCallSchema'
 import type { DbClient } from '../../../db/client'
 import { replyApiOk } from '../apiReplies'
 import { bytesToBase64, base64ToFreshArrayBuffer } from '../network'
 import type { HostPluginRecord } from '../types'
 
 export async function handleCryptoDigest(
-  msg: CryptoDigestApiCall,
+  msg: ApiCallFor<'crypto.digest'>,
   _entry: HostPluginRecord,
   _db: DbClient,
 ): Promise<void> {
@@ -28,7 +28,7 @@ export async function handleCryptoDigest(
 }
 
 export async function handleCryptoSignHmac(
-  msg: CryptoSignHmacApiCall,
+  msg: ApiCallFor<'crypto.signHmac'>,
   _entry: HostPluginRecord,
   _db: DbClient,
 ): Promise<void> {

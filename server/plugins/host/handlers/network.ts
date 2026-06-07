@@ -2,7 +2,9 @@
  * Outbound network handlers — implements network.fetch and network.abort
  * api-calls.
  *
- * `network.fetch` is gated by the `network.outbound` permission and delegates
+ * `network.fetch` is gated by the `network.outbound` permission — enforced
+ * centrally in apiDispatch.ts (via TARGET_PERMISSIONS) before this handler
+ * runs — and delegates
  * the actual gated fetch (including the allowlist check against
  * `manifest.networkAllowedHosts`) to `host/network.ts`. The allowlist check
  * is fail-closed: if `networkAllowedHosts` is empty or missing, all outbound
@@ -14,26 +16,24 @@
  * permission on the teardown path.
  */
 
-import type { NetworkFetchApiCall, NetworkAbortApiCall } from '../../protocol/apiCallSchema'
+import type { ApiCallFor } from '../../protocol/apiCallSchema'
 import type { DbClient } from '../../../db/client'
-import { assertHostPluginPermission } from '../registry'
 import { replyApiOk } from '../apiReplies'
 import { performGatedFetch } from '../network'
 import type { HostPluginRecord } from '../types'
 
 export async function handleNetworkFetch(
-  msg: NetworkFetchApiCall,
+  msg: ApiCallFor<'network.fetch'>,
   entry: HostPluginRecord,
   _db: DbClient,
 ): Promise<void> {
-  assertHostPluginPermission(entry, 'network.outbound')
   const [urlString, init] = msg.args
   const result = await performGatedFetch(entry, urlString, init)
   replyApiOk(msg.pluginId, msg.correlationId, result as unknown)
 }
 
 export async function handleNetworkAbort(
-  msg: NetworkAbortApiCall,
+  msg: ApiCallFor<'network.abort'>,
   entry: HostPluginRecord,
   _db: DbClient,
 ): Promise<void> {

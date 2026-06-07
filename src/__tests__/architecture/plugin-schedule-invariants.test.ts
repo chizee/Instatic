@@ -29,13 +29,16 @@ describe('plugin schedule invariants', () => {
 
   it('cms.schedule.register / cancel api targets are gated by the cms.schedule permission', async () => {
     const dispatchSource = await read('server/plugins/host/apiDispatch.ts')
-    const scheduleHandlerSource = await read('server/plugins/host/handlers/schedule.ts')
+    const targetsSource = await read('server/plugins/protocol/targets.ts')
     // Both dispatch table entries must be present in apiDispatch.ts.
     expect(dispatchSource).toContain("'cms.schedule.register':")
     expect(dispatchSource).toContain("'cms.schedule.cancel':")
-    // Both handlers must call assertHostPluginPermission with the
-    // 'cms.schedule' permission before any side effect.
-    expect(scheduleHandlerSource).toContain("assertHostPluginPermission(entry, 'cms.schedule')")
+    // Permission enforcement is centralized: apiDispatch asserts the required
+    // permission before any handler runs, and both schedule targets are paired
+    // with 'cms.schedule' in the single TARGET_PERMISSIONS map.
+    expect(dispatchSource).toContain('assertHostPluginPermission(entry, requiredPermission)')
+    expect(targetsSource).toContain("'cms.schedule.register': 'cms.schedule'")
+    expect(targetsSource).toContain("'cms.schedule.cancel': 'cms.schedule'")
   })
 
   it('schedule handler storage lives inside the VM, not on the host', async () => {

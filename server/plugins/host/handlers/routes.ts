@@ -9,18 +9,20 @@
  */
 
 import { isCoreCapability } from '../../../auth/capabilities'
-import type { RouteRegistrationApiCall } from '../../protocol/apiCallSchema'
+import type { ApiCallFor } from '../../protocol/apiCallSchema'
 import type { DbClient } from '../../../db/client'
 import { assertHostPluginPermission } from '../registry'
 import { replyApiOk } from '../apiReplies'
 import type { HostPluginRecord, HostRouteAccess } from '../types'
 
 export async function handleRoutesRegister(
-  msg: RouteRegistrationApiCall,
+  msg: ApiCallFor<'cms.routes.register'>,
   entry: HostPluginRecord,
   _db: DbClient,
 ): Promise<void> {
-  assertHostPluginPermission(entry, 'cms.routes')
+  // Base `cms.routes` permission is enforced centrally in apiDispatch.ts (via
+  // TARGET_PERMISSIONS). Only the conditional `cms.routes.public` grant for
+  // anonymous-callable routes stays here — it can't live in a static map.
   const [arg] = msg.args
 
   let access: HostRouteAccess

@@ -65,8 +65,8 @@ describe('cms.content plugin API surface', () => {
     expect(source).toContain("cmsContentTablesManage: 'cms.content.tables.manage'")
   })
 
-  it('cms.content RPC targets are in ALLOWED_API_TARGETS', async () => {
-    const source = await read('server/plugins/protocol/targets.ts')
+  it('cms.content RPC targets are in the ApiCallSchemas record (SSOT)', async () => {
+    const source = await read('server/plugins/protocol/apiCallSchema.ts')
     expect(source).toContain("'cms.content.tables.list'")
     expect(source).toContain("'cms.content.tables.get'")
     expect(source).toContain("'cms.content.tables.create'")
@@ -107,7 +107,7 @@ describe('cms.content plugin API surface', () => {
   })
 
   it('legacy cms.pages.* surface is gone', async () => {
-    const targets = await read('server/plugins/protocol/targets.ts')
+    const targets = await read('server/plugins/protocol/apiCallSchema.ts')
     expect(targets).not.toContain("'cms.pages.list'")
     expect(targets).not.toContain("'cms.pages.republish'")
     expect(targets).not.toContain("'cms.pages.republishAll'")

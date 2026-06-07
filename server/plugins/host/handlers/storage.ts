@@ -2,7 +2,8 @@
  * Plugin storage (data_rows) handlers — implements cms.storage.{list,create,
  * update,delete} api-calls.
  *
- * All four are gated by the `cms.storage` permission. Data is written to the
+ * All four are gated by the `cms.storage` permission, enforced centrally in
+ * apiDispatch.ts (via TARGET_PERMISSIONS) before these handlers run. Data is written to the
  * `data_rows` table scoped to the plugin id + resource id. Record data is
  * validated against the plugin's resource schema when a matching resource
  * definition is found in the manifest.
@@ -17,34 +18,26 @@ import {
   listPluginRecords,
   updatePluginRecord,
 } from '../../../repositories/plugins'
-import type {
-  StorageListApiCall,
-  StorageCreateApiCall,
-  StorageUpdateApiCall,
-  StorageDeleteApiCall,
-} from '../../protocol/apiCallSchema'
+import type { ApiCallFor } from '../../protocol/apiCallSchema'
 import type { DbClient } from '../../../db/client'
-import { assertHostPluginPermission } from '../registry'
 import { replyApiOk } from '../apiReplies'
 import type { HostPluginRecord } from '../types'
 
 export async function handleStorageList(
-  msg: StorageListApiCall,
-  entry: HostPluginRecord,
+  msg: ApiCallFor<'cms.storage.list'>,
+  _entry: HostPluginRecord,
   db: DbClient,
 ): Promise<void> {
-  assertHostPluginPermission(entry, 'cms.storage')
   const [resourceId, options] = msg.args
   const result = await listPluginRecords(db, msg.pluginId, resourceId, options)
   replyApiOk(msg.pluginId, msg.correlationId, result as unknown)
 }
 
 export async function handleStorageCreate(
-  msg: StorageCreateApiCall,
+  msg: ApiCallFor<'cms.storage.create'>,
   entry: HostPluginRecord,
   db: DbClient,
 ): Promise<void> {
-  assertHostPluginPermission(entry, 'cms.storage')
   const [resourceId, data] = msg.args
   const resource = findPluginResource(entry.manifest, resourceId)
   const cleanedData = resource ? validatePluginRecordData(resource, data) : data
@@ -58,11 +51,10 @@ export async function handleStorageCreate(
 }
 
 export async function handleStorageUpdate(
-  msg: StorageUpdateApiCall,
+  msg: ApiCallFor<'cms.storage.update'>,
   entry: HostPluginRecord,
   db: DbClient,
 ): Promise<void> {
-  assertHostPluginPermission(entry, 'cms.storage')
   const [resourceId, recordId, data] = msg.args
   const resource = findPluginResource(entry.manifest, resourceId)
   const cleanedData = resource ? validatePluginRecordData(resource, data) : data
@@ -76,11 +68,10 @@ export async function handleStorageUpdate(
 }
 
 export async function handleStorageDelete(
-  msg: StorageDeleteApiCall,
-  entry: HostPluginRecord,
+  msg: ApiCallFor<'cms.storage.delete'>,
+  _entry: HostPluginRecord,
   db: DbClient,
 ): Promise<void> {
-  assertHostPluginPermission(entry, 'cms.storage')
   const [resourceId, recordId] = msg.args
   const ok = await deletePluginRecord(db, {
     id: recordId,

@@ -1,12 +1,22 @@
 /**
- * Typed api-call schemas — maps every `AllowedApiTarget` to its validated
- * request shape (TypeBox), and exports `Static<>` convenience types for
- * callers that need to pattern-match on the narrowed api-call objects.
+ * Typed api-call schemas — the SINGLE SOURCE OF TRUTH for the set of RPC
+ * targets the host accepts from a plugin worker.
+ *
+ * `ApiCallSchemas` maps every target to its validated request shape (TypeBox).
+ * Everything else is DERIVED from this record so the enumeration can never
+ * drift out of lockstep:
+ *   - `AllowedApiTarget`  = `keyof typeof ApiCallSchemas`
+ *   - `ALLOWED_API_TARGETS` / `isAllowedApiTarget` = the record's own keys
+ *   - `ValidatedApiCall`  = the discriminated union of every schema's `Static<>`
+ *   - per-handler param types = `ApiCallFor<'target'>` (`Extract` on the union)
+ *
+ * Add a target by adding ONE entry to `ApiCallSchemas`; the handler table in
+ * `host/apiDispatch.ts` is then compile-forced to grow a matching handler, and
+ * `protocol/targets.ts` pairs it with its required permission.
  */
 
 import { Type, type Static, type TSchema } from '@sinclair/typebox'
 import { StorageListOptionsSchema } from '@core/plugin-sdk/storageSchemas'
-import { type AllowedApiTarget } from './targets'
 import { RouteRegistrationArgSchema } from './schemas/routes'
 import { HookListenerArgSchema, HookFilterArgSchema, HookEmitArgSchema } from './schemas/hooks'
 import { LoopSourceDescriptorSchema } from './schemas/loops'
@@ -46,7 +56,7 @@ import {
 // Generic schema builder
 // ---------------------------------------------------------------------------
 
-export function apiCallSchema<TTarget extends AllowedApiTarget, TArgs extends TSchema>(
+export function apiCallSchema<TTarget extends string, TArgs extends TSchema>(
   target: TTarget,
   args: TArgs,
 ) {
@@ -132,89 +142,37 @@ export const ApiCallSchemas = {
   'cms.content.republishAll': apiCallSchema('cms.content.republishAll', ContentRepublishAllArgsSchema),
   'crypto.digest': apiCallSchema('crypto.digest', Type.Tuple([CryptoDigestArgSchema])),
   'crypto.signHmac': apiCallSchema('crypto.signHmac', Type.Tuple([CryptoSignHmacArgSchema])),
-} satisfies Record<AllowedApiTarget, TSchema>
+} satisfies Record<string, TSchema>
 
 // ---------------------------------------------------------------------------
-// Static types per target
+// Derived target set + validated-call union — ALL of this comes from the
+// `ApiCallSchemas` record above, so there is exactly one list to maintain.
 // ---------------------------------------------------------------------------
 
-export type RouteRegistrationApiCall = Static<typeof ApiCallSchemas['cms.routes.register']>
-export type HookOnApiCall = Static<typeof ApiCallSchemas['cms.hooks.on']>
-export type HookFilterApiCall = Static<typeof ApiCallSchemas['cms.hooks.filter']>
-export type HookEmitApiCall = Static<typeof ApiCallSchemas['cms.hooks.emit']>
-export type LoopSourceRegisterApiCall = Static<typeof ApiCallSchemas['cms.loops.registerSource']>
-export type StorageListApiCall = Static<typeof ApiCallSchemas['cms.storage.list']>
-export type StorageCreateApiCall = Static<typeof ApiCallSchemas['cms.storage.create']>
-export type StorageUpdateApiCall = Static<typeof ApiCallSchemas['cms.storage.update']>
-export type StorageDeleteApiCall = Static<typeof ApiCallSchemas['cms.storage.delete']>
-export type SettingsReplaceApiCall = Static<typeof ApiCallSchemas['cms.settings.replace']>
-export type NetworkFetchApiCall = Static<typeof ApiCallSchemas['network.fetch']>
-export type NetworkAbortApiCall = Static<typeof ApiCallSchemas['network.abort']>
-export type ScheduleRegisterApiCall = Static<typeof ApiCallSchemas['cms.schedule.register']>
-export type ScheduleCancelApiCall = Static<typeof ApiCallSchemas['cms.schedule.cancel']>
-export type RegisterStorageAdapterApiCall = Static<typeof ApiCallSchemas['cms.media.registerStorageAdapter']>
-export type RegisterUrlTransformerApiCall = Static<typeof ApiCallSchemas['cms.media.registerUrlTransformer']>
-export type RegisterVariantDelegateApiCall = Static<typeof ApiCallSchemas['cms.media.registerVariantDelegate']>
-export type CryptoDigestApiCall = Static<typeof ApiCallSchemas['crypto.digest']>
-export type CryptoSignHmacApiCall = Static<typeof ApiCallSchemas['crypto.signHmac']>
-export type ContentTablesListApiCall = Static<typeof ApiCallSchemas['cms.content.tables.list']>
-export type ContentTablesGetApiCall = Static<typeof ApiCallSchemas['cms.content.tables.get']>
-export type ContentTablesCreateApiCall = Static<typeof ApiCallSchemas['cms.content.tables.create']>
-export type ContentEntriesListApiCall = Static<typeof ApiCallSchemas['cms.content.entries.list']>
-export type ContentEntriesGetApiCall = Static<typeof ApiCallSchemas['cms.content.entries.get']>
-export type ContentEntriesGetBySlugApiCall = Static<typeof ApiCallSchemas['cms.content.entries.getBySlug']>
-export type ContentEntriesCreateApiCall = Static<typeof ApiCallSchemas['cms.content.entries.create']>
-export type ContentEntriesUpdateApiCall = Static<typeof ApiCallSchemas['cms.content.entries.update']>
-export type ContentEntriesDeleteApiCall = Static<typeof ApiCallSchemas['cms.content.entries.delete']>
-export type ContentEntriesPublishApiCall = Static<typeof ApiCallSchemas['cms.content.entries.publish']>
-export type ContentEntriesMoveTableApiCall = Static<typeof ApiCallSchemas['cms.content.entries.moveTable']>
-export type ContentEntriesCreateManyApiCall = Static<typeof ApiCallSchemas['cms.content.entries.createMany']>
-export type ContentEntriesUpdateManyApiCall = Static<typeof ApiCallSchemas['cms.content.entries.updateMany']>
-export type ContentEntriesDeleteManyApiCall = Static<typeof ApiCallSchemas['cms.content.entries.deleteMany']>
-export type ContentTreeReadApiCall = Static<typeof ApiCallSchemas['cms.content.tree.read']>
-export type ContentTreeMutateApiCall = Static<typeof ApiCallSchemas['cms.content.tree.mutate']>
-export type ContentTreeReplaceApiCall = Static<typeof ApiCallSchemas['cms.content.tree.replace']>
-export type ContentSearchApiCall = Static<typeof ApiCallSchemas['cms.content.search']>
-export type ContentSnapshotApiCall = Static<typeof ApiCallSchemas['cms.content.snapshot']>
-export type ContentRepublishAllApiCall = Static<typeof ApiCallSchemas['cms.content.republishAll']>
+/** The union of every accepted RPC target, derived from the schema record. */
+export type AllowedApiTarget = keyof typeof ApiCallSchemas
 
-export type ValidatedApiCall =
-  | RouteRegistrationApiCall
-  | HookOnApiCall
-  | HookFilterApiCall
-  | HookEmitApiCall
-  | LoopSourceRegisterApiCall
-  | StorageListApiCall
-  | StorageCreateApiCall
-  | StorageUpdateApiCall
-  | StorageDeleteApiCall
-  | SettingsReplaceApiCall
-  | NetworkFetchApiCall
-  | NetworkAbortApiCall
-  | ScheduleRegisterApiCall
-  | ScheduleCancelApiCall
-  | RegisterStorageAdapterApiCall
-  | RegisterUrlTransformerApiCall
-  | RegisterVariantDelegateApiCall
-  | CryptoDigestApiCall
-  | CryptoSignHmacApiCall
-  | ContentTablesListApiCall
-  | ContentTablesGetApiCall
-  | ContentTablesCreateApiCall
-  | ContentEntriesListApiCall
-  | ContentEntriesGetApiCall
-  | ContentEntriesGetBySlugApiCall
-  | ContentEntriesCreateApiCall
-  | ContentEntriesUpdateApiCall
-  | ContentEntriesDeleteApiCall
-  | ContentEntriesPublishApiCall
-  | ContentEntriesMoveTableApiCall
-  | ContentEntriesCreateManyApiCall
-  | ContentEntriesUpdateManyApiCall
-  | ContentEntriesDeleteManyApiCall
-  | ContentTreeReadApiCall
-  | ContentTreeMutateApiCall
-  | ContentTreeReplaceApiCall
-  | ContentSearchApiCall
-  | ContentSnapshotApiCall
-  | ContentRepublishAllApiCall
+/** Runtime allowlist of dotted RPC names — the record's own keys. */
+export const ALLOWED_API_TARGETS = Object.keys(ApiCallSchemas) as AllowedApiTarget[]
+
+/**
+ * Typed guard backed by the record. Uses `Object.hasOwn` (NOT `key in obj`)
+ * so inherited `Object.prototype` members (`'toString'`, `'constructor'`, …)
+ * can never masquerade as a valid target and reach `ApiCallSchemas[target]`.
+ */
+export function isAllowedApiTarget(target: string): target is AllowedApiTarget {
+  return Object.hasOwn(ApiCallSchemas, target)
+}
+
+/**
+ * The discriminated union of every validated api-call, derived from the
+ * schemas. `Static<>` distributes over the union of schema value types, so
+ * this is a `target`-discriminated union with no hand-written members.
+ */
+export type ValidatedApiCall = Static<(typeof ApiCallSchemas)[keyof typeof ApiCallSchemas]>
+
+/** Narrow the union to the call for a single target — replaces the old aliases. */
+export type ApiCallFor<TTarget extends AllowedApiTarget> = Extract<
+  ValidatedApiCall,
+  { target: TTarget }
+>

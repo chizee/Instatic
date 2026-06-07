@@ -2,24 +2,23 @@
  * Hook bus handlers — implements cms.hooks.on, cms.hooks.filter, and
  * cms.hooks.emit api-calls.
  *
- * All three are gated by the `cms.hooks` permission. Listeners and filters
- * are thin shims that round-trip to the plugin's worker via the RPC layer.
+ * All three are gated by the `cms.hooks` permission, enforced centrally in
+ * apiDispatch.ts (via TARGET_PERMISSIONS) before these handlers run. Listeners
+ * and filters are thin shims that round-trip to the plugin's worker via the RPC layer.
  */
 
 import { hookBus } from '@core/plugins/hookBus'
-import type { HookOnApiCall, HookFilterApiCall, HookEmitApiCall } from '../../protocol/apiCallSchema'
+import type { ApiCallFor } from '../../protocol/apiCallSchema'
 import type { DbClient } from '../../../db/client'
-import { assertHostPluginPermission } from '../registry'
 import { replyApiOk } from '../apiReplies'
 import { runHookListenerInWorker, runHookFilterInWorker } from '../rpc'
 import type { HostPluginRecord } from '../types'
 
 export async function handleHooksOn(
-  msg: HookOnApiCall,
+  msg: ApiCallFor<'cms.hooks.on'>,
   entry: HostPluginRecord,
   _db: DbClient,
 ): Promise<void> {
-  assertHostPluginPermission(entry, 'cms.hooks')
   const [{ event, listenerId }] = msg.args
   entry.hookListeners.push({ pluginId: msg.pluginId, listenerId })
   // The hookBus listener is a thin shim that round-trips back to the worker.
@@ -30,11 +29,10 @@ export async function handleHooksOn(
 }
 
 export async function handleHooksFilter(
-  msg: HookFilterApiCall,
+  msg: ApiCallFor<'cms.hooks.filter'>,
   entry: HostPluginRecord,
   _db: DbClient,
 ): Promise<void> {
-  assertHostPluginPermission(entry, 'cms.hooks')
   const [{ name, filterId }] = msg.args
   entry.hookFilters.push({ pluginId: msg.pluginId, filterId })
   hookBus.filter(msg.pluginId, name, async (value: unknown, context: { pluginId: string } & Record<string, unknown>) => {
@@ -44,11 +42,10 @@ export async function handleHooksFilter(
 }
 
 export async function handleHooksEmit(
-  msg: HookEmitApiCall,
-  entry: HostPluginRecord,
+  msg: ApiCallFor<'cms.hooks.emit'>,
+  _entry: HostPluginRecord,
   _db: DbClient,
 ): Promise<void> {
-  assertHostPluginPermission(entry, 'cms.hooks')
   const [{ event, payload }] = msg.args
   await hookBus.emit(event, payload)
   replyApiOk(msg.pluginId, msg.correlationId)

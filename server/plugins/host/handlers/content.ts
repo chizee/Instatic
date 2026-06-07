@@ -2,44 +2,23 @@
  * CMS content handlers — implements every `cms.content.*` api-call.
  *
  * The handlers expose the host's content tables (`data_tables` + `data_rows`)
- * to plugins through a permissioned, per-table-allowlisted surface. Each
- * handler:
+ * to plugins through a permissioned, per-table-allowlisted surface. The
+ * `cms.content.*` permission family is enforced CENTRALLY in `apiDispatch.ts`
+ * (driven by `TARGET_PERMISSIONS`) before any handler runs, so each handler:
  *
- *   1. Calls `assertHostPluginPermission` — kernel-of-correctness for the
- *      `cms.content.*` permission family.
- *   2. Calls `assertContentTableAccess` — enforces the manifest's
- *      `contentAccess[]` allowlist for the targeted table + mode.
- *   3. Delegates to a repository function in `server/repositories/data/`.
- *   4. Emits the matching `content.entry.*` hook event so plugins can react.
- *   5. Replies via `replyApiOk` / lets the dispatcher's try/catch reply
+ *   1. Calls `assertContentTableAccess` — enforces the manifest's
+ *      `contentAccess[]` allowlist for the targeted table + mode (this is the
+ *      per-table check the central permission gate cannot express).
+ *   2. Delegates to a repository function in `server/repositories/data/`.
+ *   3. Emits the matching `content.entry.*` hook event so plugins can react.
+ *   4. Replies via `replyApiOk` / lets the dispatcher's try/catch reply
  *      `replyApiError` on throw.
  *
  * Pre-release rule (CLAUDE.md): no backward compatibility. The legacy
  * `cms.pages.*` surface is deleted in this same change set.
  */
 
-import type {
-  ContentEntriesCreateApiCall,
-  ContentEntriesCreateManyApiCall,
-  ContentEntriesDeleteApiCall,
-  ContentEntriesDeleteManyApiCall,
-  ContentEntriesGetApiCall,
-  ContentEntriesGetBySlugApiCall,
-  ContentEntriesListApiCall,
-  ContentEntriesMoveTableApiCall,
-  ContentEntriesPublishApiCall,
-  ContentEntriesUpdateApiCall,
-  ContentEntriesUpdateManyApiCall,
-  ContentRepublishAllApiCall,
-  ContentSearchApiCall,
-  ContentSnapshotApiCall,
-  ContentTablesCreateApiCall,
-  ContentTablesGetApiCall,
-  ContentTablesListApiCall,
-  ContentTreeMutateApiCall,
-  ContentTreeReadApiCall,
-  ContentTreeReplaceApiCall,
-} from '../../protocol/apiCallSchema'
+import type { ApiCallFor } from '../../protocol/apiCallSchema'
 import type {
   ContentEntry,
   ContentTableSchema as ContentTableSchemaShape,
@@ -71,10 +50,7 @@ import {
 import { republishAllPages } from '../../../publish/republish'
 import { applyContentEntryCellsFilter } from '../../../publish/contentEvents'
 import type { DbClient } from '../../../db/client'
-import {
-  assertContentTableAccess,
-  assertHostPluginPermission,
-} from '../registry'
+import { assertContentTableAccess } from '../registry'
 import { buildContentTableIdLookup, pluginContentFieldsToDataFields } from '../contentFieldMapping'
 import { replyApiOk } from '../apiReplies'
 import type { HostPluginRecord } from '../types'
@@ -269,11 +245,10 @@ function diffCells(
 // ---------------------------------------------------------------------------
 
 export async function handleContentTablesList(
-  msg: ContentTablesListApiCall,
+  msg: ApiCallFor<'cms.content.tables.list'>,
   entry: HostPluginRecord,
   db: DbClient,
 ): Promise<void> {
-  assertHostPluginPermission(entry, 'cms.content.read')
   const allowedSlugs = new Set((entry.manifest.contentAccess ?? []).map((e) => e.table))
   const tables = await listDataTablesWithCounts(db)
   const summaries: ContentTableSummary[] = tables
@@ -283,11 +258,10 @@ export async function handleContentTablesList(
 }
 
 export async function handleContentTablesGet(
-  msg: ContentTablesGetApiCall,
+  msg: ApiCallFor<'cms.content.tables.get'>,
   entry: HostPluginRecord,
   db: DbClient,
 ): Promise<void> {
-  assertHostPluginPermission(entry, 'cms.content.read')
   const [slug] = msg.args
   assertContentTableAccess(entry, slug, 'read')
   const table = await resolveTableBySlug(db, slug).catch(() => null)
@@ -307,11 +281,10 @@ export async function handleContentTablesGet(
 }
 
 export async function handleContentTablesCreate(
-  msg: ContentTablesCreateApiCall,
-  entry: HostPluginRecord,
+  msg: ApiCallFor<'cms.content.tables.create'>,
+  _entry: HostPluginRecord,
   db: DbClient,
 ): Promise<void> {
-  assertHostPluginPermission(entry, 'cms.content.tables.manage')
   const [input] = msg.args
   // System tables are seeded only; the underlying repository does not accept
   // a `system: true` flag from this entry point — defense-in-depth here too.
@@ -341,11 +314,10 @@ export async function handleContentTablesCreate(
 // ---------------------------------------------------------------------------
 
 export async function handleContentEntriesList(
-  msg: ContentEntriesListApiCall,
+  msg: ApiCallFor<'cms.content.entries.list'>,
   entry: HostPluginRecord,
   db: DbClient,
 ): Promise<void> {
-  assertHostPluginPermission(entry, 'cms.content.read')
   const [tableSlug, options] = msg.args
   assertContentTableAccess(entry, tableSlug, 'read')
   const table = await resolveTableBySlug(db, tableSlug)
@@ -357,11 +329,10 @@ export async function handleContentEntriesList(
 }
 
 export async function handleContentEntriesGet(
-  msg: ContentEntriesGetApiCall,
+  msg: ApiCallFor<'cms.content.entries.get'>,
   entry: HostPluginRecord,
   db: DbClient,
 ): Promise<void> {
-  assertHostPluginPermission(entry, 'cms.content.read')
   const [tableSlug, entryId] = msg.args
   assertContentTableAccess(entry, tableSlug, 'read')
   const table = await resolveTableBySlug(db, tableSlug)
@@ -374,11 +345,10 @@ export async function handleContentEntriesGet(
 }
 
 export async function handleContentEntriesGetBySlug(
-  msg: ContentEntriesGetBySlugApiCall,
+  msg: ApiCallFor<'cms.content.entries.getBySlug'>,
   entry: HostPluginRecord,
   db: DbClient,
 ): Promise<void> {
-  assertHostPluginPermission(entry, 'cms.content.read')
   const [tableSlug, slug] = msg.args
   assertContentTableAccess(entry, tableSlug, 'read')
   const table = await resolveTableBySlug(db, tableSlug)
@@ -387,11 +357,10 @@ export async function handleContentEntriesGetBySlug(
 }
 
 export async function handleContentEntriesCreate(
-  msg: ContentEntriesCreateApiCall,
+  msg: ApiCallFor<'cms.content.entries.create'>,
   entry: HostPluginRecord,
   db: DbClient,
 ): Promise<void> {
-  assertHostPluginPermission(entry, 'cms.content.write')
   const [tableSlug, input] = msg.args
   assertContentTableAccess(entry, tableSlug, 'write')
   const table = await resolveTableBySlug(db, tableSlug)
@@ -413,11 +382,10 @@ export async function handleContentEntriesCreate(
 }
 
 export async function handleContentEntriesUpdate(
-  msg: ContentEntriesUpdateApiCall,
+  msg: ApiCallFor<'cms.content.entries.update'>,
   entry: HostPluginRecord,
   db: DbClient,
 ): Promise<void> {
-  assertHostPluginPermission(entry, 'cms.content.write')
   const [tableSlug, entryId, patch] = msg.args
   assertContentTableAccess(entry, tableSlug, 'write')
   const table = await resolveTableBySlug(db, tableSlug)
@@ -452,11 +420,10 @@ export async function handleContentEntriesUpdate(
 }
 
 export async function handleContentEntriesDelete(
-  msg: ContentEntriesDeleteApiCall,
+  msg: ApiCallFor<'cms.content.entries.delete'>,
   entry: HostPluginRecord,
   db: DbClient,
 ): Promise<void> {
-  assertHostPluginPermission(entry, 'cms.content.delete')
   const [tableSlug, entryId] = msg.args
   assertContentTableAccess(entry, tableSlug, 'delete')
   const table = await resolveTableBySlug(db, tableSlug)
@@ -472,11 +439,10 @@ export async function handleContentEntriesDelete(
 }
 
 export async function handleContentEntriesPublish(
-  msg: ContentEntriesPublishApiCall,
+  msg: ApiCallFor<'cms.content.entries.publish'>,
   entry: HostPluginRecord,
   db: DbClient,
 ): Promise<void> {
-  assertHostPluginPermission(entry, 'cms.content.publish')
   const [tableSlug, entryId, options] = msg.args
   assertContentTableAccess(entry, tableSlug, 'publish')
   const table = await resolveTableBySlug(db, tableSlug)
@@ -500,11 +466,10 @@ export async function handleContentEntriesPublish(
 }
 
 export async function handleContentEntriesMoveTable(
-  msg: ContentEntriesMoveTableApiCall,
+  msg: ApiCallFor<'cms.content.entries.moveTable'>,
   entry: HostPluginRecord,
   db: DbClient,
 ): Promise<void> {
-  assertHostPluginPermission(entry, 'cms.content.write')
   const [tableSlug, entryId, targetSlug] = msg.args
   assertContentTableAccess(entry, tableSlug, 'write')
   assertContentTableAccess(entry, targetSlug, 'write')
@@ -524,11 +489,10 @@ export async function handleContentEntriesMoveTable(
 // ── Bulk ─────────────────────────────────────────────────────────────────
 
 export async function handleContentEntriesCreateMany(
-  msg: ContentEntriesCreateManyApiCall,
+  msg: ApiCallFor<'cms.content.entries.createMany'>,
   entry: HostPluginRecord,
   db: DbClient,
 ): Promise<void> {
-  assertHostPluginPermission(entry, 'cms.content.write')
   const [tableSlug, inputs] = msg.args
   assertContentTableAccess(entry, tableSlug, 'write')
   const table = await resolveTableBySlug(db, tableSlug)
@@ -549,11 +513,10 @@ export async function handleContentEntriesCreateMany(
 }
 
 export async function handleContentEntriesUpdateMany(
-  msg: ContentEntriesUpdateManyApiCall,
+  msg: ApiCallFor<'cms.content.entries.updateMany'>,
   entry: HostPluginRecord,
   db: DbClient,
 ): Promise<void> {
-  assertHostPluginPermission(entry, 'cms.content.write')
   const [tableSlug, updates] = msg.args
   assertContentTableAccess(entry, tableSlug, 'write')
   const table = await resolveTableBySlug(db, tableSlug)
@@ -595,11 +558,10 @@ export async function handleContentEntriesUpdateMany(
 }
 
 export async function handleContentEntriesDeleteMany(
-  msg: ContentEntriesDeleteManyApiCall,
+  msg: ApiCallFor<'cms.content.entries.deleteMany'>,
   entry: HostPluginRecord,
   db: DbClient,
 ): Promise<void> {
-  assertHostPluginPermission(entry, 'cms.content.delete')
   const [tableSlug, ids] = msg.args
   assertContentTableAccess(entry, tableSlug, 'delete')
   const table = await resolveTableBySlug(db, tableSlug)
@@ -646,11 +608,10 @@ async function resolvePageTreeField(
 }
 
 export async function handleContentTreeRead(
-  msg: ContentTreeReadApiCall,
+  msg: ApiCallFor<'cms.content.tree.read'>,
   entry: HostPluginRecord,
   db: DbClient,
 ): Promise<void> {
-  assertHostPluginPermission(entry, 'cms.content.read')
   const [entryId, fieldId] = msg.args
   const { row, table } = await resolvePageTreeField(db, entryId, fieldId)
   assertContentTableAccess(entry, table.slug, 'read')
@@ -659,11 +620,10 @@ export async function handleContentTreeRead(
 }
 
 export async function handleContentTreeMutate(
-  msg: ContentTreeMutateApiCall,
+  msg: ApiCallFor<'cms.content.tree.mutate'>,
   entry: HostPluginRecord,
   db: DbClient,
 ): Promise<void> {
-  assertHostPluginPermission(entry, 'cms.content.write')
   const [entryId, fieldId, operations] = msg.args
   const { row, table } = await resolvePageTreeField(db, entryId, fieldId)
   assertContentTableAccess(entry, table.slug, 'write')
@@ -706,11 +666,10 @@ export async function handleContentTreeMutate(
 }
 
 export async function handleContentTreeReplace(
-  msg: ContentTreeReplaceApiCall,
+  msg: ApiCallFor<'cms.content.tree.replace'>,
   entry: HostPluginRecord,
   db: DbClient,
 ): Promise<void> {
-  assertHostPluginPermission(entry, 'cms.content.write')
   const [entryId, fieldId, replacement] = msg.args
   const { row, table } = await resolvePageTreeField(db, entryId, fieldId)
   assertContentTableAccess(entry, table.slug, 'write')
@@ -742,11 +701,10 @@ export async function handleContentTreeReplace(
 // ---------------------------------------------------------------------------
 
 export async function handleContentSearch(
-  msg: ContentSearchApiCall,
+  msg: ApiCallFor<'cms.content.search'>,
   entry: HostPluginRecord,
   db: DbClient,
 ): Promise<void> {
-  assertHostPluginPermission(entry, 'cms.content.read')
   const [query, limit] = msg.args
   const allowedSlugs = new Set((entry.manifest.contentAccess ?? []).map((e) => e.table))
   const all = await searchDataRows(db, query, limit)
@@ -764,11 +722,10 @@ export async function handleContentSearch(
 }
 
 export async function handleContentSnapshot(
-  msg: ContentSnapshotApiCall,
+  msg: ApiCallFor<'cms.content.snapshot'>,
   entry: HostPluginRecord,
   db: DbClient,
 ): Promise<void> {
-  assertHostPluginPermission(entry, 'cms.content.read')
   const [entryId] = msg.args
   const row = await getDataRow(db, entryId)
   if (!row) {
@@ -816,11 +773,10 @@ export async function handleContentSnapshot(
 }
 
 export async function handleContentRepublishAll(
-  msg: ContentRepublishAllApiCall,
-  entry: HostPluginRecord,
+  msg: ApiCallFor<'cms.content.republishAll'>,
+  _entry: HostPluginRecord,
   _db: DbClient,
 ): Promise<void> {
-  assertHostPluginPermission(entry, 'cms.content.publish')
   // `republishAll` operates on the host's full published-pages set —
   // the per-table access check would over-constrain a callee that only
   // wants to flush the publish pipeline. The kernel-of-correctness

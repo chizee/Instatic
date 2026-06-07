@@ -11,8 +11,12 @@ import {
   compiledCheck,
   compiledDecode,
 } from '@core/utils/typeboxCompiler'
-import { ALLOWED_API_TARGETS, isAllowedApiTarget } from './targets'
-import { ApiCallSchemas, type ValidatedApiCall } from './apiCallSchema'
+import {
+  ALLOWED_API_TARGETS,
+  ApiCallSchemas,
+  isAllowedApiTarget,
+  type ValidatedApiCall,
+} from './apiCallSchema'
 
 export class ApiCallValidationError extends Error {
   constructor(message: string) {
