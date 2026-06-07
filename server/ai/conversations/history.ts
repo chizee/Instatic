@@ -18,7 +18,7 @@
  * instead of the whole conversation becoming permanently un-sendable.
  */
 
-import type { AiContentBlock, AiMessage } from '../runtime/types'
+import type { AiMessage, AiToolOutput } from '../runtime/types'
 import type { MessageRecord } from './types'
 
 /**
@@ -63,22 +63,28 @@ export function buildMessageHistory(records: MessageRecord[]): AiMessage[] {
       // unanswered tool_use. Synthetic results are emitted as a `tool` run that
       // the Anthropic driver then merges into this user turn.
       flushSyntheticResults()
-      out.push({ role: 'user', content: rec.content as AiContentBlock[] })
+      // `rec.content` is already validated `AiContentBlock[]` at the store read
+      // boundary (`parseContentBlocks`), so no cast is needed here.
+      out.push({ role: 'user', content: rec.content })
     } else if (rec.role === 'assistant') {
-      const content = rec.content as AiContentBlock[]
+      const content = rec.content
       out.push({ role: 'assistant', content })
       for (const block of content) {
         if (block.kind === 'toolCall') unanswered.set(block.toolCallId, block.toolName)
       }
     } else if (rec.role === 'tool' && rec.toolCallId) {
       unanswered.delete(rec.toolCallId)
-      const textBlock = rec.content.find((b) => b.kind === 'text')
-      const text = textBlock?.kind === 'text' ? textBlock.text : ''
-      out.push({
-        role: 'tool',
-        toolCallId: rec.toolCallId,
-        output: { ok: text === '', data: undefined, error: text || undefined },
-      })
+      // The outcome lives in a first-class `toolResult` block (validated at the
+      // store boundary), so `ok`/`error` are read directly — never inferred from
+      // an empty text block. A `role:'tool'` row with no `toolResult` block is a
+      // malformed/legacy row; treat it as a failure so the model never sees a
+      // silently-"succeeded" call with no data behind it.
+      const resultBlock = rec.content.find((b) => b.kind === 'toolResult')
+      const output: AiToolOutput =
+        resultBlock?.kind === 'toolResult'
+          ? { ok: resultBlock.ok, error: resultBlock.ok ? undefined : resultBlock.error }
+          : { ok: false, error: INTERRUPTED_TOOL_RESULT_ERROR }
+      out.push({ role: 'tool', toolCallId: rec.toolCallId, output })
     }
   }
 

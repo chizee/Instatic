@@ -38,7 +38,11 @@ function assistantToolCall(id: string, name: string, input: unknown): MessageRec
   return rec('assistant', [{ kind: 'toolCall', toolCallId: id, toolName: name, input }], id, name)
 }
 function toolResult(id: string, name: string, errorText = ''): MessageRecord {
-  return rec('tool', [{ kind: 'text', text: errorText }], id, name)
+  const block: AiContentBlock =
+    errorText === ''
+      ? { kind: 'toolResult', ok: true }
+      : { kind: 'toolResult', ok: false, error: errorText }
+  return rec('tool', [block], id, name)
 }
 
 describe('buildMessageHistory', () => {
@@ -55,7 +59,7 @@ describe('buildMessageHistory', () => {
       { role: 'user', content: [{ kind: 'text', text: 'hi' }] },
       { role: 'assistant', content: [{ kind: 'text', text: 'ok' }] },
       { role: 'assistant', content: [{ kind: 'toolCall', toolCallId: 't1', toolName: 'insertHtml', input: { a: 1 } }] },
-      { role: 'tool', toolCallId: 't1', output: { ok: true, data: undefined, error: undefined } },
+      { role: 'tool', toolCallId: 't1', output: { ok: true, error: undefined } },
       { role: 'assistant', content: [{ kind: 'text', text: 'done' }] },
     ])
   })
@@ -65,7 +69,7 @@ describe('buildMessageHistory', () => {
     // any result landed.
     const records = [userText('continue')]
     for (const id of ['a', 'b', 'c', 'd', 'e']) {
-      records.push(assistantToolCall(id, 'updateClassStyles', { sel: id }))
+      records.push(assistantToolCall(id, 'applyCss', { sel: id }))
     }
 
     const history = buildMessageHistory(records)
@@ -124,7 +128,7 @@ describe('buildMessageHistory', () => {
     expect(history[1]).toEqual({
       role: 'tool',
       toolCallId: 't1',
-      output: { ok: false, data: undefined, error: 'boom' },
+      output: { ok: false, error: 'boom' },
     })
   })
 })

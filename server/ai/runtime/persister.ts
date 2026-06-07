@@ -98,10 +98,17 @@ export function createConversationsPersister(
       // role='tool' messages mirror the OpenAI shape; the Anthropic driver
       // maps these to `{ role: 'user', content: [tool_result block] }`
       // when replaying history into the Messages API.
-      const blocks: AiContentBlock[] = [{
-        kind: 'text',
-        text: ok ? '' : (error ?? 'Tool call failed.'),
-      }]
+      //
+      // The outcome is a first-class `toolResult` block — `ok` is explicit, not
+      // inferred from an empty text block. We persist only `{ ok, error }`: the
+      // heavy successful `data` the tool returned is intentionally dropped (the
+      // model already consumed it in the round that produced the result;
+      // re-feeding it on every replay would bloat context for no benefit).
+      const blocks: AiContentBlock[] = [
+        ok
+          ? { kind: 'toolResult', ok: true }
+          : { kind: 'toolResult', ok: false, error: error ?? 'Tool call failed.' },
+      ]
       await appendMessage(db, conversationId, {
         role: 'tool',
         content: blocks,

@@ -103,14 +103,14 @@ describe('Anthropic mapHistory', () => {
     // user/assistant alternation with the tool_use answered.
     const history: AiMessage[] = [
       { role: 'user', content: [{ kind: 'text', text: 'continue' }] },
-      { role: 'assistant', content: [{ kind: 'toolCall', toolCallId: 't1', toolName: 'updateClassStyles', input: {} }] },
+      { role: 'assistant', content: [{ kind: 'toolCall', toolCallId: 't1', toolName: 'applyCss', input: {} }] },
       { role: 'tool', toolCallId: 't1', output: { ok: false, error: 'interrupted' } },
       { role: 'user', content: [{ kind: 'text', text: 'next prompt' }] },
     ]
     const mapped = mapHistory(history)
     expect(mapped).toEqual([
       { role: 'user', content: [{ type: 'text', text: 'continue' }] },
-      { role: 'assistant', content: [{ type: 'tool_use', id: 't1', name: 'updateClassStyles', input: {} }] },
+      { role: 'assistant', content: [{ type: 'tool_use', id: 't1', name: 'applyCss', input: {} }] },
       {
         role: 'user',
         content: [

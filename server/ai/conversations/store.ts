@@ -11,6 +11,7 @@
 
 import { nanoid } from 'nanoid'
 import { Type, safeParseValue } from '@core/utils/typeboxHelpers'
+import { AiContentBlockSchema } from '@core/ai'
 import type { DbClient } from '../../db/client'
 import { isoDateOrNull } from '@core/utils/isoDate'
 import type { AiContentBlock, ToolScope } from '../runtime/types'
@@ -25,20 +26,6 @@ import type {
   MessageView,
   UpdateConversationInput,
 } from './types'
-
-// ---------------------------------------------------------------------------
-// Errors
-// ---------------------------------------------------------------------------
-
-export class ConversationError extends Error {
-  readonly status: number
-
-  constructor(message: string, status = 400) {
-    super(message)
-    this.name = 'ConversationError'
-    this.status = status
-  }
-}
 
 // ---------------------------------------------------------------------------
 // Row shapes ↔ records
@@ -104,21 +91,20 @@ function conversationRowToRecord(row: ConversationRow): ConversationRecord {
   }
 }
 
-const ContentBlocksSchema = Type.Array(Type.Unknown())
+const ContentBlocksSchema = Type.Array(AiContentBlockSchema)
 
 function parseContentBlocks(raw: unknown): AiContentBlock[] {
-  // SQLite adapter + PG jsonb both deliver this column pre-parsed.
-  // safeParseValue guards against a row that's somehow not an array.
+  // SQLite adapter + PG jsonb both deliver this column pre-parsed. This is the
+  // read boundary: every block is validated against the canonical
+  // `AiContentBlockSchema`, so callers (e.g. `buildMessageHistory`) receive a
+  // fully-typed `AiContentBlock[]` and never re-cast.
   const parsed = safeParseValue(ContentBlocksSchema, raw)
   if (!parsed.ok) {
     // Defensive: don't crash an entire history fetch over one bad row.
     console.error('[ai/conversations] Malformed content_json row, returning empty blocks.')
     return []
   }
-  // Inner block validation lives at the boundary that produced the row
-  // (the runner persists known-good AiContentBlocks). Returning the parsed
-  // array as-is is consistent with how user_preferences.value_json works.
-  return parsed.value as AiContentBlock[]
+  return parsed.value
 }
 
 function messageRowToRecord(row: MessageRow): MessageRecord {

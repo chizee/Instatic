@@ -13,6 +13,7 @@
 
 import { Type, type Static } from '@core/utils/typeboxHelpers'
 import { apiRequest, ApiError } from '@core/http'
+import { AiContentBlockSchema } from '@core/ai'
 
 // ---------------------------------------------------------------------------
 // Wire schemas — match server projections in:
@@ -130,16 +131,10 @@ export const MessageViewSchema = Type.Object({
   id: Type.String(),
   position: Type.Number(),
   role: Type.Union([Type.Literal('user'), Type.Literal('assistant'), Type.Literal('tool')]),
-  content: Type.Array(Type.Union([
-    Type.Object({ kind: Type.Literal('text'), text: Type.String() }),
-    Type.Object({ kind: Type.Literal('image'), mimeType: Type.String(), data: Type.String() }),
-    Type.Object({
-      kind: Type.Literal('toolCall'),
-      toolCallId: Type.String(),
-      toolName: Type.String(),
-      input: Type.Unknown(),
-    }),
-  ])),
+  // The content-block shape is owned by `@core/ai` (single source of truth for
+  // text / image / toolCall / toolResult). The server persists and projects
+  // exactly these blocks; this wire schema must stay derived, not re-declared.
+  content: Type.Array(AiContentBlockSchema),
   toolCallId: Type.Union([Type.String(), Type.Null()]),
   toolName: Type.Union([Type.String(), Type.Null()]),
   createdAt: Type.String(),

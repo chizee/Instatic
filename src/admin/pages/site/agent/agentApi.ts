@@ -94,17 +94,19 @@ export function rehydrateMessages(
 
   for (const rec of records) {
     if (rec.role === 'tool' && rec.toolCallId) {
-      // Fold into the matching tool-call block.
+      // Fold the first-class `toolResult` block into the matching tool-call
+      // block. `ok` is read directly off the block — never inferred from the
+      // emptiness of a text block.
       const existing = toolCallIndex.get(rec.toolCallId)
       if (existing) {
-        const errText = rec.content
-          .filter((b): b is { kind: 'text'; text: string } => b.kind === 'text')
-          .map((b) => b.text)
-          .join(' ')
-          .trim()
-        const ok = errText === ''
-        existing.status = ok ? 'success' : 'error'
-        existing.result = { ok, error: ok ? undefined : errText }
+        const resultBlock = rec.content.find((b) => b.kind === 'toolResult')
+        if (resultBlock?.kind === 'toolResult') {
+          existing.status = resultBlock.ok ? 'success' : 'error'
+          existing.result = {
+            ok: resultBlock.ok,
+            error: resultBlock.ok ? undefined : resultBlock.error,
+          }
+        }
       }
       continue
     }

@@ -39,14 +39,6 @@ export function startConversationPurgeTick(db: DbClient): void {
   purgeTimer = setInterval(runOnce, ONE_HOUR_MS)
 }
 
-/** Test-only. */
-export function __stopConversationPurgeTickForTesting(): void {
-  if (purgeTimer) {
-    clearInterval(purgeTimer)
-    purgeTimer = null
-  }
-}
-
 async function runPurgeOnce(db: DbClient): Promise<void> {
   const cutoff = new Date(Date.now() - THIRTY_DAYS_MS).toISOString()
   const count = await purgeSoftDeletedOlderThan(db, cutoff)
