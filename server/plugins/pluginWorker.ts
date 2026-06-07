@@ -49,75 +49,7 @@ import type {
   WorkerToMainMessage,
 } from './protocol/messages'
 import { createPluginVm, type PluginVm } from './quickjs/vm'
-
-// ---------------------------------------------------------------------------
-// Source shim — convert raw ESM `export function name(...)` declarations
-// into a single IIFE that attaches the named hooks to
-// `globalThis.__plugin_exports`. The QuickJS bridge expects this exact
-// shape; the SDK build pipeline emits it natively, but plugin source can
-// also be raw ESM (test fixtures, hand-authored single-file plugins).
-//
-// The transform is intentionally limited — it covers the public lifecycle
-// patterns plugin authors actually use (`export function activate(api)`,
-// `export const activate = ...`, `export default {...}`). Anything more
-// elaborate (top-level `import` statements, dynamic require, side-effect
-// modules) needs the SDK bundler.
-// ---------------------------------------------------------------------------
-
-function ensureIifeForm(source: string): string {
-  // If the source already targets the bridge's globals, pass through.
-  if (source.includes('__plugin_exports')) return source
-
-  // Strip line/block comments only when computing the rewrite — we keep the
-  // original characters for error messages. The rewriter uses anchored
-  // regexes that match `export` at the start of a (possibly indented) line.
-  let transformed = source
-    .replace(
-      /^([ \t]*)export\s+(async\s+)?function\s+([A-Za-z_$][\w$]*)/gm,
-      '$1__plugin_exports.$3 = $2function $3',
-    )
-    .replace(
-      /^([ \t]*)export\s+const\s+([A-Za-z_$][\w$]*)\s*=/gm,
-      '$1__plugin_exports.$2 =',
-    )
-    .replace(
-      /^([ \t]*)export\s+let\s+([A-Za-z_$][\w$]*)\s*=/gm,
-      '$1__plugin_exports.$2 =',
-    )
-    .replace(
-      /^([ \t]*)export\s+default\s+/gm,
-      '$1__plugin_exports.default = ',
-    )
-
-  // Bun's bundler emits `export { foo as default[, bar, …] }` for any
-  // re-export and for mixed default+named export blocks. Rewrite the whole
-  // block into one `__plugin_exports.default = <ident>` assignment plus
-  // one `__plugin_exports.<name> = <name>` line per sibling named export.
-  // Anything we can't parse falls through to the next pass — the QuickJS
-  // eval will then surface a clear SyntaxError to the caller.
-  transformed = transformed.replace(
-    /^([ \t]*)export\s*\{([^}]*)\}\s*;?/gm,
-    (_match, indent: string, body: string) => {
-      const assigns: string[] = []
-      for (const rawEntry of body.split(',')) {
-        const entry = rawEntry.trim()
-        if (!entry) continue
-        const asMatch = entry.match(/^([A-Za-z_$][\w$]*)\s+as\s+([A-Za-z_$][\w$]*)$/)
-        if (asMatch) {
-          assigns.push(`${indent}__plugin_exports.${asMatch[2]} = ${asMatch[1]};`)
-          continue
-        }
-        const bareMatch = entry.match(/^([A-Za-z_$][\w$]*)$/)
-        if (bareMatch) {
-          assigns.push(`${indent}__plugin_exports.${bareMatch[1]} = ${bareMatch[1]};`)
-        }
-      }
-      return assigns.join('\n')
-    },
-  )
-
-  return `;(function () {\n  const __plugin_exports = (globalThis.__plugin_exports = {});\n${transformed}\n})();\n`
-}
+import { wrapEsmAsGlobal } from './quickjs/esmShim'
 
 // ---------------------------------------------------------------------------
 // Per-plugin in-worker registry — just the VM handle.
@@ -176,7 +108,7 @@ async function handleLoadPlugin(msg: LoadPluginRequest): Promise<void> {
     // hand it to the QuickJS bridge. The worker (not the VM) is what does
     // the file read — fs access stays outside the security boundary.
     const rawSource = await readFile(msg.entryFileUrl, 'utf-8')
-    const pluginSource = ensureIifeForm(rawSource)
+    const pluginSource = wrapEsmAsGlobal(rawSource, '__plugin_exports')
 
     const vm = await createPluginVm({
       pluginSource,

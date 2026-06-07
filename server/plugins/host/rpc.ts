@@ -17,16 +17,11 @@ import { mediaVariantDelegateRegistry } from '@core/plugins/mediaVariantDelegate
 import type { LoopFetchResult, LoopItem } from '@core/loops/types'
 import type { SerializedRequest, SerializedResponse, SerializedUser } from '../protocol/messages'
 import type { LoadPluginResult } from '../protocol/messages'
+import { normalizeRoutePath } from '../protocol/parser'
 import { hostPlugins } from './registry'
 import { requestFromWorker } from './workerPool'
 import { workers } from './workerState'
 import type { HostRouteAccess } from './types'
-
-export function normalizeRoutePath(path: string): string {
-  const trimmed = path.trim()
-  if (!trimmed || trimmed === '/') return '/'
-  return `/${trimmed.replace(/^\/+|\/+$/g, '')}`
-}
 
 export async function loadPluginInWorker(args: {
   manifest: PluginManifest

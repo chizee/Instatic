@@ -30,3 +30,12 @@ export const DEFAULT_STACK_SIZE_BYTES = 1 * 1024 * 1024
  * progress events) rather than block in a tight loop.
  */
 export const DEFAULT_EVAL_TIMEOUT_MS = 5_000
+
+/**
+ * 2 second wall-clock deadline per module-pack eval call. Shorter than the
+ * full-plugin budget because canvas `render()` / `preview()` functions are
+ * simple synchronous transforms with no host I/O — 2 s is still generous.
+ * Passed as the per-call deadline argument to the shared interrupt guard;
+ * the memory and stack ceilings above are identical for both VMs.
+ */
+export const MODULE_PACK_EVAL_TIMEOUT_MS = 2_000

@@ -38,12 +38,15 @@ import type { PluginVm, PluginVmEnv } from './types'
 export type { PluginVm, PluginVmEnv } from './types'
 
 // ---------------------------------------------------------------------------
-// Singleton WASM module — one per worker, shared across plugin contexts.
+// Singleton WASM module — one per worker, shared across every QuickJS context
+// (full-plugin VMs here and module-pack VMs in `modulePackVm.ts`). The
+// quickjs-emscripten library caches the compiled module internally, so this
+// accessor just memoizes the in-flight load promise.
 // ---------------------------------------------------------------------------
 
 let wasmModulePromise: Promise<QuickJSWASMModule> | null = null
 
-function getWasmModule(): Promise<QuickJSWASMModule> {
+export function getWasmModule(): Promise<QuickJSWASMModule> {
   if (!wasmModulePromise) wasmModulePromise = getQuickJS()
   return wasmModulePromise
 }

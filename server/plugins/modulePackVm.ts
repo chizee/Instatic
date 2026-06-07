@@ -28,26 +28,15 @@
  * Publishes are background jobs; the cost is acceptable.
  */
 
-import { getQuickJS, shouldInterruptAfterDeadline, type QuickJSContext, type QuickJSWASMModule } from 'quickjs-emscripten'
 import { MODULE_PACK_BOOTSTRAP_SOURCE } from './quickjs/bootstrap/generated/modulePackBootstrap'
-
-// ---------------------------------------------------------------------------
-// Resource limits — defense against runaway module-pack code.
-//
-// Mirrors the limits applied to full plugin VMs in quickjsHost.ts. The eval
-// deadline is shorter (2 s vs 5 s) because render() functions are simple
-// synchronous transforms with no host I/O — 2 s is still generous.
-// ---------------------------------------------------------------------------
-
-/** 64 MB max heap per module-pack VM. */
-const DEFAULT_MEMORY_LIMIT_BYTES = 64 * 1024 * 1024
-/** 1 MB max stack — plenty for render(), fatal for runaway recursion. */
-const DEFAULT_STACK_SIZE_BYTES = 1 * 1024 * 1024
-/**
- * 2 second wall-clock deadline per eval call. Set BEFORE each evalCode /
- * evalString invocation and cleared in a finally block after it returns.
- */
-const DEFAULT_EVAL_TIMEOUT_MS = 2_000
+import { getWasmModule } from './quickjs/vm'
+import {
+  DEFAULT_MEMORY_LIMIT_BYTES,
+  DEFAULT_STACK_SIZE_BYTES,
+  MODULE_PACK_EVAL_TIMEOUT_MS,
+} from './quickjs/limits'
+import { evalStringSync, withSyncDeadline } from './quickjs/eval'
+import { wrapEsmAsGlobal } from './quickjs/esmShim'
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -98,49 +87,6 @@ export interface ModulePackVm {
 }
 
 // ---------------------------------------------------------------------------
-// Singleton WASM module — shared with quickjsHost.ts's singleton via the
-// quickjs-emscripten library's own module cache (`getQuickJS()` returns the
-// shared instance). Each ModulePackVm gets its own context.
-// ---------------------------------------------------------------------------
-
-let wasmModulePromise: Promise<QuickJSWASMModule> | null = null
-
-function getWasmModule(): Promise<QuickJSWASMModule> {
-  if (!wasmModulePromise) wasmModulePromise = getQuickJS()
-  return wasmModulePromise
-}
-
-// ---------------------------------------------------------------------------
-// Source shim — convert raw ESM exports (any of the forms Bun's bundler
-// emits) into a `globalThis.__module_pack = ...` assignment that the
-// bootstrap can read. Matches the shim in `pluginWorker.ts`.
-//
-// Two forms cover everything the SDK build pipeline produces today:
-//
-//   1. `export default <expr>`              — direct default export
-//   2. `export { <ident> as default[, …] }` — Bun bundles default RE-exports
-//      this way when the facade does `import __default from …; export
-//      default __default`. The named-export block is dropped wholesale —
-//      QuickJS has no module loader, so no one imports those names.
-// ---------------------------------------------------------------------------
-
-function ensureModulePackIifeForm(source: string): string {
-  if (source.includes('__module_pack')) return source
-
-  let transformed = source.replace(
-    /^([ \t]*)export\s+default\s+/gm,
-    '$1globalThis.__module_pack = ',
-  )
-
-  transformed = transformed.replace(
-    /^([ \t]*)export\s*\{[^}]*?([A-Za-z_$][\w$]*)\s+as\s+default[^}]*\}\s*;?/gm,
-    '$1globalThis.__module_pack = $2;',
-  )
-
-  return `;(function () {\n${transformed}\n})();\n`
-}
-
-// ---------------------------------------------------------------------------
 // Bootstrap source — initializes the pack and exposes invocation entries
 // (__initPack, __renderModule, __previewModule + a silent console stub).
 //
@@ -181,22 +127,24 @@ export async function createModulePackVm(args: {
   ctx.runtime.setMaxStackSize(DEFAULT_STACK_SIZE_BYTES)
 
   try {
-    // Evaluate the pack — IIFE wrap maps `export default ...` to a
+    // Evaluate the pack — the shared ESM shim maps its default export to a
     // `globalThis.__module_pack = ...` assignment.
-    const wrappedSource = ensureModulePackIifeForm(args.packSource)
-    withSyncDeadline(ctx, DEFAULT_EVAL_TIMEOUT_MS, () => {
+    const wrappedSource = wrapEsmAsGlobal(args.packSource, '__module_pack', { unwrapDefault: true })
+    withSyncDeadline(ctx, MODULE_PACK_EVAL_TIMEOUT_MS, () => {
       ctx.unwrapResult(ctx.evalCode(wrappedSource, `module-pack:${args.pluginId}`)).dispose()
     })
 
     // Then the bootstrap (defines __initPack, __renderModule, __previewModule).
-    withSyncDeadline(ctx, DEFAULT_EVAL_TIMEOUT_MS, () => {
+    withSyncDeadline(ctx, MODULE_PACK_EVAL_TIMEOUT_MS, () => {
       ctx.unwrapResult(ctx.evalCode(BOOTSTRAP_SOURCE, 'modulepack-bootstrap.js')).dispose()
     })
 
     // Initialize the pack — pulls metadata out, builds the id-keyed lookup.
-    const modulesJson = evalString(
+    const modulesJson = evalStringSync(
       ctx,
       `JSON.stringify(__initPack(${JSON.stringify(args.pluginId)}))`,
+      MODULE_PACK_EVAL_TIMEOUT_MS,
+      'modulepack-eval.js',
     )
     const modules = JSON.parse(modulesJson) as SerializedModuleDefinition[]
 
@@ -210,7 +158,7 @@ export async function createModulePackVm(args: {
         const propsJson = JSON.stringify(props)
         const childrenJson = JSON.stringify(children)
         const code = `__renderModule(${JSON.stringify(moduleId)}, ${JSON.stringify(propsJson)}, ${JSON.stringify(childrenJson)})`
-        const result = evalString(ctx, code)
+        const result = evalStringSync(ctx, code, MODULE_PACK_EVAL_TIMEOUT_MS, 'modulepack-eval.js')
         return JSON.parse(result) as ModulePackRenderOutput
       },
 
@@ -218,7 +166,7 @@ export async function createModulePackVm(args: {
         const propsJson = JSON.stringify(props)
         const childrenJson = JSON.stringify(children)
         const code = `__previewModule(${JSON.stringify(moduleId)}, ${JSON.stringify(propsJson)}, ${JSON.stringify(childrenJson)})`
-        const result = evalString(ctx, code)
+        const result = evalStringSync(ctx, code, MODULE_PACK_EVAL_TIMEOUT_MS, 'modulepack-eval.js')
         return JSON.parse(result) as ModulePackRenderOutput
       },
 
@@ -230,42 +178,4 @@ export async function createModulePackVm(args: {
     try { ctx.dispose() } catch {/* ignore */}
     throw err
   }
-}
-
-// ---------------------------------------------------------------------------
-// Deadline guard — installs a wall-clock interrupt handler on the runtime
-// for the duration of one synchronous eval, then removes it. The QuickJS VM
-// cooperatively polls the interrupt flag during execution; plugin code stuck
-// in a tight loop is aborted within the deadline.
-//
-// Sync variant of quickjsHost.ts's `withDeadline` — no async pump needed
-// because module-pack render() functions are fully synchronous.
-// ---------------------------------------------------------------------------
-
-function withSyncDeadline<T>(ctx: QuickJSContext, timeoutMs: number, body: () => T): T {
-  const deadline = Date.now() + timeoutMs
-  ctx.runtime.setInterruptHandler(shouldInterruptAfterDeadline(deadline))
-  try {
-    return body()
-  } finally {
-    try { ctx.runtime.removeInterruptHandler() } catch { /* runtime may already be disposed */ }
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Sync eval helper — module pack code is fully synchronous (no host calls,
-// no Promises). One-shot evalCode + getString is enough. Each call is wrapped
-// in a wall-clock deadline so a runaway render() is aborted cleanly.
-// ---------------------------------------------------------------------------
-
-function evalString(ctx: QuickJSContext, code: string): string {
-  return withSyncDeadline(ctx, DEFAULT_EVAL_TIMEOUT_MS, () => {
-    const result = ctx.evalCode(code, 'modulepack-eval.js')
-    const handle = ctx.unwrapResult(result)
-    try {
-      return ctx.getString(handle)
-    } finally {
-      handle.dispose()
-    }
-  })
 }

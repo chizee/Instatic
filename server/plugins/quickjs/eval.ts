@@ -18,11 +18,60 @@
 import { shouldInterruptAfterDeadline, type QuickJSContext, type QuickJSHandle } from 'quickjs-emscripten'
 import { DEFAULT_EVAL_TIMEOUT_MS } from './limits'
 
-function withDeadline<T>(ctx: QuickJSContext, timeoutMs: number, body: () => Promise<T>): Promise<T> {
+/**
+ * Install a wall-clock interrupt on the runtime and return a disposer that
+ * removes it. The QuickJS VM cooperatively polls the interrupt flag during
+ * execution, so a plugin stuck in a tight loop is aborted within the
+ * deadline. This is the single setInterruptHandler/removeInterruptHandler
+ * core shared by the async (`withDeadline`) and sync (`withSyncDeadline`)
+ * guards below.
+ */
+function installDeadline(ctx: QuickJSContext, timeoutMs: number): () => void {
   const deadline = Date.now() + timeoutMs
   ctx.runtime.setInterruptHandler(shouldInterruptAfterDeadline(deadline))
-  return body().finally(() => {
+  return () => {
     try { ctx.runtime.removeInterruptHandler() } catch { /* runtime may already be disposed */ }
+  }
+}
+
+function withDeadline<T>(ctx: QuickJSContext, timeoutMs: number, body: () => Promise<T>): Promise<T> {
+  const clearDeadline = installDeadline(ctx, timeoutMs)
+  return body().finally(clearDeadline)
+}
+
+/**
+ * Synchronous sibling of `withDeadline` — guards a fully-synchronous eval
+ * (no Promise pumping) with the same interrupt deadline. The module-pack VM
+ * uses this because canvas render() functions never call into the host.
+ */
+export function withSyncDeadline<T>(ctx: QuickJSContext, timeoutMs: number, body: () => T): T {
+  const clearDeadline = installDeadline(ctx, timeoutMs)
+  try {
+    return body()
+  } finally {
+    clearDeadline()
+  }
+}
+
+/**
+ * Synchronous string eval — module-pack code is fully synchronous (no host
+ * calls, no Promises), so a one-shot evalCode + getString under a deadline is
+ * enough. Throws via `unwrapResult` if the eval errors; a runaway eval is
+ * aborted by the interrupt deadline.
+ */
+export function evalStringSync(
+  ctx: QuickJSContext,
+  code: string,
+  timeoutMs: number,
+  sourceName = 'instatic-eval.js',
+): string {
+  return withSyncDeadline(ctx, timeoutMs, () => {
+    const handle = ctx.unwrapResult(ctx.evalCode(code, sourceName))
+    try {
+      return ctx.getString(handle)
+    } finally {
+      handle.dispose()
+    }
   })
 }
 
