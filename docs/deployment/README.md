@@ -106,4 +106,4 @@ SQLite installs also need the SQLite database file on persistent storage. On pla
 - `server/db/index.ts` — database URL detection
 - `server/index.ts` — migrations, media storage, and server boot
 - `Dockerfile` — production image contract
-- `compose.prod.yml`, `compose.sqlite.yml`, `compose.tls.yml` — VPS Compose files
+- `compose.prod.yml`, `compose.sqlite.yml`, `compose.tls.yml`, `compose.build.yml` — VPS Compose files

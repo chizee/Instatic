@@ -93,7 +93,7 @@ The release workflow should:
 
 - run tests and build checks
 - log in to GitHub Container Registry with `GITHUB_TOKEN`
-- build `Dockerfile`
+- build `Dockerfile` for `linux/amd64` and `linux/arm64` (multi-arch via QEMU + Buildx)
 - push a semver tag for `v*` tags
 - push `latest` for tagged releases
 - create a release bundle with the Compose files and deployment docs

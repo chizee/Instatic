@@ -194,6 +194,12 @@ See [docs/features/media.md](../features/media.md).
 | `publish-bumps-cache-version.test.ts`         | Every publish / unpublish entry point (`publishDraftSite`, `publishDataRow`, `updateDataRowStatus`) calls `bumpPublishVersion()` imported from `publishState.ts` so Layer B evicts on every state change visitors can see. |
 | `hole-runtime-asset-route.test.ts`            | The router registers `tryServeHoleRuntimeAsset` and `tryServeHole` BEFORE `tryServePublicRoute`. The `/_instatic/hole/*` namespace can never fall through to slug resolution. |
 
+The following test lives in `src/__tests__/server/` (not `architecture/`) but enforces a load-bearing publisher performance invariant:
+
+| Test (server/)                                | What it enforces                                                                 |
+|-----------------------------------------------|----------------------------------------------------------------------------------|
+| `siteCssBundleMemo.test.ts`                   | `buildPublishedSiteCssBundle` memoises the three page-invariant CSS bundles (reset/framework/style) by `publishVersion + site object`: the O(all-pages) walk runs once per publish snapshot, not once per render; `bumpPublishVersion()` invalidates the memo; memoized output is byte-identical to `buildSiteCssBundle`; `userStyles` is rebuilt per call (page-scoped, never memoized). |
+
 See [docs/features/publisher.md](../features/publisher.md).
 
 ### Site import
@@ -238,6 +244,16 @@ See [docs/features/site-transfer.md](../features/site-transfer.md).
 | `codemirror-lazy-only.test.ts`                | CodeMirror is loaded only via `lazy()` — it's heavy and shouldn't be in the entry bundle. |
 | `site-editor-shell-lazy-body.test.ts`         | Enforces that `SitePage` renders the real shell via `AdminCanvasLayout` (no bespoke startup skeleton), that the heavy editor body (DnD, canvas, panels, first-party modules) stays behind a post-paint lazy boundary, that `ImportHtmlModal` stays behind its open-state lazy boundary, and that `CanvasFrameSkeletonFrame` from `@admin/shared/CanvasFrameSkeleton` is used for startup and no-site states. |
 | `singleInstallManagedHosting.test.ts`         | Single-install assumptions hold across the codebase (no multi-tenant leakage).   |
+
+### Docker / deployment
+
+The following test lives in `src/__tests__/server/` (not `architecture/`) but enforces load-bearing structural invariants for the Docker image and Compose configuration:
+
+| Test (server/)                                | What it enforces                                                                 |
+|-----------------------------------------------|----------------------------------------------------------------------------------|
+| `dockerConfig.test.ts`                        | Dockerfile uses a multi-stage build (build → production-deps → runtime), `ARG INSTATIC_VERSION` and OCI version label are present, TypeScript path aliases (`tsconfig*.json`) are copied into the runtime stage, `esbuild` is in `dependencies` (not `devDependencies`) so the runtime script bundler is available in production. `compose.prod.yml` uses the GHCR image, has healthchecks, persistent volumes, and `depends_on: condition: service_healthy`. `POSTGRES_PASSWORD` carries a `CHANGEME` placeholder default (no `:?` guard) so the file loads in SQLite mode without a `.env`. `INSTATIC_SECRET_KEY` is documented in `.env.production.example` and referenced in `compose.prod.yml`. |
+
+See [docs/deployment/](../deployment/).
 
 ## Anatomy of an architecture test
 

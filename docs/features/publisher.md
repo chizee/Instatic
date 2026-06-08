@@ -512,3 +512,4 @@ This is rare and requires architectural review — most "new behavior" fits with
   - `src/__tests__/publisher/cspPlan.test.ts` — CSP determinism (byte-identical output for the same inputs)
   - `src/__tests__/server/dynamicDetection.test.ts` — Rules 1–4 (module flag, bindings, tokens, loop source, VC ref)
   - `src/__tests__/server/dynamicDetectionLoop.test.ts` — Rule 3.5 static loop body promotion
+  - `src/__tests__/server/siteCssBundleMemo.test.ts` — `buildPublishedSiteCssBundle` memo: the O(all-pages) walk runs once per publish snapshot, `bumpPublishVersion()` invalidates the memo, memoized output is byte-identical to the un-memoized builder, and `userStyles` is never memoized (page-scoped)
