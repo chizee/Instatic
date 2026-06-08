@@ -41,19 +41,15 @@ import {
   TreeRow,
   treeDropStyles,
 } from '@admin/pages/site/ui/Tree'
-import { flattenFolderTree, isFolderDescendant, type MediaFolderNode } from '../../utils/folderTree'
-import {
-  hasMediaDropData,
-  readMediaDropPayload,
-  writeMediaFolderDragData,
-  type MediaDropPayload,
-} from '../../utils/mediaDragDrop'
+import { flattenFolderTree, type MediaFolderNode } from '../../utils/folderTree'
+import { writeMediaFolderDragData } from '../../utils/mediaDragDrop'
 import {
   FOLDER_ALL,
   FOLDER_TRASH,
   type FolderSelection,
   type UseMediaWorkspaceResult,
 } from '../../hooks/useMediaWorkspace'
+import { useMediaDnd } from '../../hooks/useMediaDnd'
 import {
   SMART_LARGE_FILES,
   SMART_MISSING_ALT,
@@ -120,20 +116,14 @@ interface RenameState {
   initialValue: string
 }
 
-const ROOT_FOLDER_DROP_KEY = '__media-root__'
-
-function folderDropKey(folderId: string | null): string {
-  return folderId ?? ROOT_FOLDER_DROP_KEY
-}
-
 export function MediaFolderPanel({ workspace }: MediaFolderPanelProps) {
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set())
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
   const [renameState, setRenameState] = useState<RenameState | null>(null)
   const [createUnder, setCreateUnder] = useState<string | null | undefined>(undefined)
   const [createName, setCreateName] = useState('')
-  const [dropTargetKey, setDropTargetKey] = useState<string | null>(null)
   const [draggingFolderId, setDraggingFolderId] = useState<string | null>(null)
+  const dnd = useMediaDnd(workspace)
 
   function toggleExpanded(folderId: string) {
     setExpanded((prev) => {
@@ -193,31 +183,6 @@ export function MediaFolderPanel({ workspace }: MediaFolderPanelProps) {
     })
   }
 
-  function canMoveFolderTo(folderId: string, targetFolderId: string | null): boolean {
-    const folder = workspace.folderById.get(folderId)
-    if (!folder) return false
-    if (folderId === targetFolderId) return false
-    if (folder.parentId === targetFolderId) return false
-    if (targetFolderId && isFolderDescendant(workspace.folders, folderId, targetFolderId)) return false
-    return true
-  }
-
-  function canAcceptDrop(payload: MediaDropPayload | null, targetFolderId: string | null): boolean {
-    if (!payload) return true
-    if (payload.kind === 'assets') return true
-    return canMoveFolderTo(payload.folderId, targetFolderId)
-  }
-
-  async function commitDropPayload(payload: MediaDropPayload, targetFolderId: string | null) {
-    if (payload.kind === 'assets') {
-      await workspace.moveAssetsToFolder(payload.assetIds, targetFolderId)
-      return
-    }
-    if (canMoveFolderTo(payload.folderId, targetFolderId)) {
-      await workspace.moveFolder(payload.folderId, targetFolderId)
-    }
-  }
-
   function handleFolderDragStart(folderId: string, event: DragEvent<HTMLDivElement>) {
     writeMediaFolderDragData(event.dataTransfer, folderId)
     setDraggingFolderId(folderId)
@@ -225,39 +190,7 @@ export function MediaFolderPanel({ workspace }: MediaFolderPanelProps) {
 
   function handleFolderDragEnd() {
     setDraggingFolderId(null)
-    setDropTargetKey(null)
-  }
-
-  function handleDropTargetDragOver(
-    event: DragEvent<HTMLDivElement>,
-    targetFolderId: string | null,
-  ) {
-    if (!hasMediaDropData(event.dataTransfer)) return
-    const payload = readMediaDropPayload(event.dataTransfer)
-    if (!canAcceptDrop(payload, targetFolderId)) return
-    event.preventDefault()
-    event.stopPropagation()
-    event.dataTransfer.dropEffect = 'move'
-    setDropTargetKey(folderDropKey(targetFolderId))
-  }
-
-  function handleDropTargetDragLeave(event: DragEvent<HTMLDivElement>) {
-    const nextTarget = event.relatedTarget
-    if (nextTarget instanceof Node && event.currentTarget.contains(nextTarget)) return
-    setDropTargetKey(null)
-  }
-
-  async function handleDropTargetDrop(
-    event: DragEvent<HTMLDivElement>,
-    targetFolderId: string | null,
-  ) {
-    if (!hasMediaDropData(event.dataTransfer)) return
-    event.preventDefault()
-    event.stopPropagation()
-    setDropTargetKey(null)
-    const payload = readMediaDropPayload(event.dataTransfer)
-    if (!payload || !canAcceptDrop(payload, targetFolderId)) return
-    await commitDropPayload(payload, targetFolderId)
+    dnd.clearDropTarget()
   }
 
   const rows = flattenFolderTree(workspace.folderTree, expanded)
@@ -276,10 +209,10 @@ export function MediaFolderPanel({ workspace }: MediaFolderPanelProps) {
           selected={isSelected(FOLDER_ALL)}
           onSelect={() => workspace.setFolderSelection(FOLDER_ALL)}
           meta={allAssetCount}
-          dropActive={dropTargetKey === folderDropKey(null)}
-          onDragOver={(event) => handleDropTargetDragOver(event, null)}
-          onDragLeave={handleDropTargetDragLeave}
-          onDrop={(event) => void handleDropTargetDrop(event, null)}
+          dropActive={dnd.isDropTarget(null)}
+          onDragOver={(event) => dnd.handleDragOver(event, null)}
+          onDragLeave={dnd.handleDragLeave}
+          onDrop={(event) => void dnd.handleDrop(event, null)}
         />
         {SMART_FOLDERS.map((descriptor) => {
           const count = workspace.assets.filter(smartFolderPredicate(descriptor.id)).length
@@ -338,16 +271,16 @@ export function MediaFolderPanel({ workspace }: MediaFolderPanelProps) {
               hasChildren={node.children.length > 0}
               selected={workspace.folderSelection === node.folder.id}
               dragging={draggingFolderId === node.folder.id}
-              dropActive={dropTargetKey === folderDropKey(node.folder.id)}
+              dropActive={dnd.isDropTarget(node.folder.id)}
               onSelect={() => workspace.setFolderSelection(node.folder.id)}
               onToggle={() => toggleExpanded(node.folder.id)}
               onContextMenu={openContextMenu}
               onKeyDown={handleKeyboardMenu}
               onDragStart={handleFolderDragStart}
               onDragEnd={handleFolderDragEnd}
-              onDragOver={handleDropTargetDragOver}
-              onDragLeave={handleDropTargetDragLeave}
-              onDrop={(event) => void handleDropTargetDrop(event, node.folder.id)}
+              onDragOver={dnd.handleDragOver}
+              onDragLeave={dnd.handleDragLeave}
+              onDrop={(event) => void dnd.handleDrop(event, node.folder.id)}
               showCreateChild={createUnder === node.folder.id}
               createValue={createName}
               onCreateValueChange={setCreateName}

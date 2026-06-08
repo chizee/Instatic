@@ -40,14 +40,12 @@ import {
   FOLDER_TRASH,
   type UseMediaWorkspaceResult,
 } from '../../hooks/useMediaWorkspace'
-import { childFoldersForParent, isFolderDescendant } from '../../utils/folderTree'
+import { childFoldersForParent } from '../../utils/folderTree'
 import {
-  hasMediaDropData,
-  readMediaDropPayload,
   writeMediaAssetDragData,
   writeMediaFolderDragData,
-  type MediaDropPayload,
 } from '../../utils/mediaDragDrop'
+import { useMediaDnd } from '../../hooks/useMediaDnd'
 import styles from './MediaCanvas.module.css'
 import {
   AssetRow,
@@ -115,14 +113,8 @@ interface ContextMenuState {
   asset: CmsMediaAsset
 }
 
-const ROOT_FOLDER_DROP_KEY = '__media-root__'
-
 function isMacLike(): boolean {
   return typeof navigator !== 'undefined' && /mac/i.test(navigator.platform)
-}
-
-function folderDropKey(folderId: string | null): string {
-  return folderId ?? ROOT_FOLDER_DROP_KEY
 }
 
 function folderAssetCount(assets: CmsMediaAsset[], folderId: string): number {
@@ -145,7 +137,7 @@ export function MediaCanvas({ workspace }: MediaCanvasProps) {
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
   const [renameTarget, setRenameTarget] = useState<CmsMediaAsset | null>(null)
   const [dragActive, setDragActive] = useState(false)
-  const [dropTargetKey, setDropTargetKey] = useState<string | null>(null)
+  const dnd = useMediaDnd(workspace)
 
   function setViewMode(mode: ViewMode) {
     setViewModeState(mode)
@@ -196,31 +188,6 @@ export function MediaCanvas({ workspace }: MediaCanvasProps) {
     workspace.setSelectedAssetId(asset.id)
   }
 
-  function canMoveFolderTo(folderId: string, targetFolderId: string | null): boolean {
-    const folder = workspace.folderById.get(folderId)
-    if (!folder) return false
-    if (folderId === targetFolderId) return false
-    if (folder.parentId === targetFolderId) return false
-    if (targetFolderId && isFolderDescendant(workspace.folders, folderId, targetFolderId)) return false
-    return true
-  }
-
-  function canAcceptDrop(payload: MediaDropPayload | null, targetFolderId: string | null): boolean {
-    if (!payload) return true
-    if (payload.kind === 'assets') return true
-    return canMoveFolderTo(payload.folderId, targetFolderId)
-  }
-
-  async function commitDropPayload(payload: MediaDropPayload, targetFolderId: string | null) {
-    if (payload.kind === 'assets') {
-      await workspace.moveAssetsToFolder(payload.assetIds, targetFolderId)
-      return
-    }
-    if (canMoveFolderTo(payload.folderId, targetFolderId)) {
-      await workspace.moveFolder(payload.folderId, targetFolderId)
-    }
-  }
-
   function handleAssetDragStart(asset: CmsMediaAsset, event: DragEvent<HTMLButtonElement>) {
     const selectedIds = Array.from(workspace.selectedAssetIds)
     const dragIds = workspace.selectedAssetIds.has(asset.id) && selectedIds.length > 0
@@ -231,38 +198,6 @@ export function MediaCanvas({ workspace }: MediaCanvasProps) {
 
   function handleFolderDragStart(folder: CmsMediaFolder, event: DragEvent<HTMLButtonElement>) {
     writeMediaFolderDragData(event.dataTransfer, folder.id)
-  }
-
-  function handleFolderDragOver(
-    event: DragEvent<HTMLButtonElement>,
-    targetFolderId: string | null,
-  ) {
-    if (!hasMediaDropData(event.dataTransfer)) return
-    const payload = readMediaDropPayload(event.dataTransfer)
-    if (!canAcceptDrop(payload, targetFolderId)) return
-    event.preventDefault()
-    event.stopPropagation()
-    event.dataTransfer.dropEffect = 'move'
-    setDropTargetKey(folderDropKey(targetFolderId))
-  }
-
-  function handleFolderDragLeave(event: DragEvent<HTMLButtonElement>) {
-    const nextTarget = event.relatedTarget
-    if (nextTarget instanceof Node && event.currentTarget.contains(nextTarget)) return
-    setDropTargetKey(null)
-  }
-
-  async function handleFolderDrop(
-    event: DragEvent<HTMLButtonElement>,
-    targetFolderId: string | null,
-  ) {
-    if (!hasMediaDropData(event.dataTransfer)) return
-    event.preventDefault()
-    event.stopPropagation()
-    setDropTargetKey(null)
-    const payload = readMediaDropPayload(event.dataTransfer)
-    if (!payload || !canAcceptDrop(payload, targetFolderId)) return
-    await commitDropPayload(payload, targetFolderId)
   }
 
   async function handleUpload(event: ChangeEvent<HTMLInputElement>) {
@@ -360,6 +295,13 @@ export function MediaCanvas({ workspace }: MediaCanvasProps) {
     return `${contentMatching} ${contentMatching === 1 ? 'item' : 'items'}`
   })()
 
+  // Grid and list views render the same folders/assets with the same handlers —
+  // only the tile-vs-row component set differs. Pick it once, render one block.
+  const isGrid = viewMode === 'grid'
+  const { Parent, Folder, Asset } = isGrid
+    ? { Parent: ParentFolderTile, Folder: FolderTile, Asset: AssetTile }
+    : { Parent: ParentFolderRow, Folder: FolderRow, Asset: AssetRow }
+
   return (
     <section
       className={cn(canvasStyles.canvas, styles.canvas, dragActive && styles.canvasDropping)}
@@ -445,7 +387,7 @@ export function MediaCanvas({ workspace }: MediaCanvasProps) {
           // Each skeleton wraps in the same `.tileItem` / `.rowItem`
           // chrome so the grid track / row spacing matches the
           // populated state.
-          viewMode === 'grid' ? (
+          isGrid ? (
             <ul
               className={styles.grid}
               role="list"
@@ -521,77 +463,43 @@ export function MediaCanvas({ workspace }: MediaCanvasProps) {
                   : 'Drag files into this window or click Upload.'
             }
           />
-        ) : viewMode === 'grid' ? (
-          <ul className={styles.grid} role="list" data-testid="media-grid">
-            {parentEntry && (
-              <ParentFolderTile
-                entry={parentEntry}
-                dropActive={dropTargetKey === folderDropKey(parentEntry.targetFolderId)}
-                onOpen={() => workspace.setFolderSelection(parentEntry.selection)}
-                onDragOver={handleFolderDragOver}
-                onDragLeave={handleFolderDragLeave}
-                onDrop={(event) => void handleFolderDrop(event, parentEntry.targetFolderId)}
-              />
-            )}
-            {childFolders.map((folder) => (
-              <FolderTile
-                key={folder.id}
-                folder={folder}
-                meta={folderItemMeta(folder, workspace.folders, workspace.assets)}
-                dropActive={dropTargetKey === folderDropKey(folder.id)}
-                onOpen={() => workspace.setFolderSelection(folder.id)}
-                onDragStart={handleFolderDragStart}
-                onDragOver={handleFolderDragOver}
-                onDragLeave={handleFolderDragLeave}
-                onDrop={(event) => void handleFolderDrop(event, folder.id)}
-              />
-            ))}
-            {visibleAssets.map((asset) => (
-              <AssetTile
-                key={asset.id}
-                asset={asset}
-                selected={workspace.selectedAssetIds.has(asset.id)}
-                onSelect={(event) => handleAssetClick(asset, event)}
-                onDragStart={handleAssetDragStart}
-                onDragEnd={() => setDropTargetKey(null)}
-                onContextMenu={openContextMenu}
-                onKeyboardMenu={openKeyboardContextMenu}
-              />
-            ))}
-          </ul>
         ) : (
-          <ul className={styles.list} role="list" data-testid="media-list">
+          <ul
+            className={isGrid ? styles.grid : styles.list}
+            role="list"
+            data-testid={isGrid ? 'media-grid' : 'media-list'}
+          >
             {parentEntry && (
-              <ParentFolderRow
+              <Parent
                 entry={parentEntry}
-                dropActive={dropTargetKey === folderDropKey(parentEntry.targetFolderId)}
+                dropActive={dnd.isDropTarget(parentEntry.targetFolderId)}
                 onOpen={() => workspace.setFolderSelection(parentEntry.selection)}
-                onDragOver={handleFolderDragOver}
-                onDragLeave={handleFolderDragLeave}
-                onDrop={(event) => void handleFolderDrop(event, parentEntry.targetFolderId)}
+                onDragOver={dnd.handleDragOver}
+                onDragLeave={dnd.handleDragLeave}
+                onDrop={(event) => void dnd.handleDrop(event, parentEntry.targetFolderId)}
               />
             )}
             {childFolders.map((folder) => (
-              <FolderRow
+              <Folder
                 key={folder.id}
                 folder={folder}
                 meta={folderItemMeta(folder, workspace.folders, workspace.assets)}
-                dropActive={dropTargetKey === folderDropKey(folder.id)}
+                dropActive={dnd.isDropTarget(folder.id)}
                 onOpen={() => workspace.setFolderSelection(folder.id)}
                 onDragStart={handleFolderDragStart}
-                onDragOver={handleFolderDragOver}
-                onDragLeave={handleFolderDragLeave}
-                onDrop={(event) => void handleFolderDrop(event, folder.id)}
+                onDragOver={dnd.handleDragOver}
+                onDragLeave={dnd.handleDragLeave}
+                onDrop={(event) => void dnd.handleDrop(event, folder.id)}
               />
             ))}
             {visibleAssets.map((asset) => (
-              <AssetRow
+              <Asset
                 key={asset.id}
                 asset={asset}
                 selected={workspace.selectedAssetIds.has(asset.id)}
                 onSelect={(event) => handleAssetClick(asset, event)}
                 onDragStart={handleAssetDragStart}
-                onDragEnd={() => setDropTargetKey(null)}
+                onDragEnd={dnd.clearDropTarget}
                 onContextMenu={openContextMenu}
                 onKeyboardMenu={openKeyboardContextMenu}
               />
