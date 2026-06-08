@@ -69,6 +69,12 @@ export interface SuperImportHelpers {
   addConditions(conditions: ConditionDef[]): void
 
   /**
+   * Set the site-level external font stylesheet URL extracted from imported
+   * CSS @import rules.
+   */
+  setFontImportUrl(url: string): void
+
+  /**
    * Add custom font families (from imported `@font-face` blocks) to
    * `site.settings.fonts`. Each file's `src` is already a final media URL.
    * @returns The committed `{ id, family }` for each added font.
@@ -110,8 +116,9 @@ export interface SuperImportHelpers {
   ): { slug: string; value: string }[]
 
   /**
-   * Add imported JS files as `SiteFile`s (`type: 'script'`) plus an all-pages
-   * `site.runtime.scripts` entry each, so they run on every published page.
+   * Add imported JS files as `SiteFile`s (`type: 'script'`) plus page-scoped
+   * `site.runtime.scripts` entries, so they run where the source HTML linked
+   * them.
    * @returns The committed `{ id, path }` for each added script.
    */
   addScripts(scripts: ImportScript[]): { id: string; path: string }[]

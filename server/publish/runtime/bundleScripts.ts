@@ -8,10 +8,11 @@ import {
 } from '@core/site-runtime'
 import type {
   PublishedPageRuntimeAssets,
+  PublishedRuntimeScriptAsset,
   RuntimeScriptEntry,
   SiteRuntimeDiagnostic,
   SiteRuntimeTarget,
-} from '@core/site-runtime/schemas'
+} from '@core/site-runtime'
 import {
   clonePackageJson,
   DEFAULT_SITE_PACKAGE_JSON,
@@ -50,6 +51,7 @@ export interface BuildSiteRuntimeScriptsInput {
  * than tying up server capacity indefinitely.
  */
 const DEFAULT_BUNDLE_TIMEOUT_MS = 30_000
+const textEncoder = new TextEncoder()
 
 function toPosixPath(path: string): string {
   return path.split(sep).join('/')
@@ -65,6 +67,65 @@ function contentTypeForPath(path: string): string {
   if (path.endsWith('.css')) return 'text/css; charset=utf-8'
   if (path.endsWith('.map')) return 'application/json; charset=utf-8'
   return 'application/octet-stream'
+}
+
+function scriptFormat(entry: RuntimeScriptEntry): 'module' | 'classic' {
+  return entry.config.format === 'classic' ? 'classic' : 'module'
+}
+
+function safeOutputFileName(path: string): string {
+  const base = path.split('/').pop() ?? 'script.js'
+  const safe = base.replace(/[^a-zA-Z0-9._-]+/g, '-').replace(/^-+|-+$/g, '')
+  if (!safe) return 'script.js'
+  return safe.endsWith('.js') ? safe : `${safe}.js`
+}
+
+function uniqueClassicOutputPath(
+  entry: RuntimeScriptEntry,
+  index: number,
+  usedPaths: Set<string>,
+): string {
+  const base = `${String(index + 1).padStart(3, '0')}-${safeOutputFileName(entry.file.path)}`
+  let path = `classic/${base}`
+  let suffix = 2
+  while (usedPaths.has(path)) {
+    path = `classic/${base.replace(/\.js$/, '')}-${suffix}.js`
+    suffix += 1
+  }
+  usedPaths.add(path)
+  return path
+}
+
+function buildClassicRuntimeFiles(
+  scripts: RuntimeScriptEntry[],
+  assetBasePath: string,
+): { files: BuiltRuntimeAssetFile[]; assets: PublishedRuntimeScriptAsset[] } {
+  const usedPaths = new Set<string>()
+  const files: BuiltRuntimeAssetFile[] = []
+  const assets: PublishedRuntimeScriptAsset[] = []
+
+  for (const [index, script] of scripts.entries()) {
+    const content = script.file.content ?? ''
+    const path = uniqueClassicOutputPath(script, index, usedPaths)
+    const publicPath = joinPublicPath(assetBasePath, path)
+    files.push({
+      path,
+      publicPath,
+      content,
+      bytes: textEncoder.encode(content),
+      contentType: contentTypeForPath(path),
+    })
+    assets.push({
+      fileId: script.file.id,
+      src: publicPath,
+      format: 'classic',
+      placement: script.config.placement,
+      timing: script.config.timing,
+      priority: script.config.priority,
+    })
+  }
+
+  return { files, assets }
 }
 
 function emptyRuntimeBuild(diagnostics: SiteRuntimeDiagnostic[] = []): SiteRuntimeBuildResult {
@@ -127,21 +188,39 @@ export async function buildSiteRuntimeScripts(
 
   if (selectedScripts.length === 0) return emptyRuntimeBuild()
 
+  const moduleScripts = selectedScripts.filter((entry) => scriptFormat(entry) === 'module')
+  const classicScripts = selectedScripts.filter((entry) => scriptFormat(entry) === 'classic')
+  const classicBuild = buildClassicRuntimeFiles(classicScripts, input.assetBasePath)
+
   const packageJson = clonePackageJson(input.site.packageJson ?? DEFAULT_SITE_PACKAGE_JSON)
   const importAnalysis = analyzeRuntimeScriptImports(
-    selectedScripts.map((entry) => entry.file),
+    moduleScripts.map((entry) => entry.file),
     packageJson,
   )
   const blockingDiagnostics = importAnalysis.diagnostics.filter((diagnostic) => diagnostic.severity === 'error')
   if (blockingDiagnostics.length > 0) return emptyRuntimeBuild(importAnalysis.diagnostics)
 
+  if (moduleScripts.length === 0) {
+    return {
+      files: classicBuild.files,
+      runtimeAssets: { scripts: classicBuild.assets },
+      diagnostics: importAnalysis.diagnostics,
+    }
+  }
+
   const workspace = await materializeSiteScriptWorkspace(input.site)
   try {
-    const entryPoints = selectedScripts
+    const entryPoints = moduleScripts
       .map((entry) => workspace.entryPointByFileId.get(entry.file.id))
       .filter((entryPoint): entryPoint is string => Boolean(entryPoint))
 
-    if (entryPoints.length === 0) return emptyRuntimeBuild()
+    if (entryPoints.length === 0) {
+      return {
+        files: classicBuild.files,
+        runtimeAssets: { scripts: classicBuild.assets },
+        diagnostics: importAnalysis.diagnostics,
+      }
+    }
 
     const outputRoot = 'out'
     const splitRuntimeChunks = input.target === 'publish'
@@ -220,13 +299,16 @@ export async function buildSiteRuntimeScripts(
     })
     const publicPathByOutput = new Map(files.map((file) => [`${outputRoot}/${file.path}`, file.publicPath]))
     const selectedByEntryPoint = selectedScriptByEntryPoint(
-      selectedScripts,
+      moduleScripts,
       workspace.entryPointByFileId,
       workspace.rootDir,
     )
 
-    const scripts = Object.entries(build.metafile.outputs)
-      .map(([outputPath, output]) => {
+    const moduleAssetScripts = Object.entries(build.metafile.outputs)
+      .map(([
+        outputPath,
+        output,
+      ]): PublishedRuntimeScriptAsset | null => {
         if (!output.entryPoint) return null
         const script = selectedByEntryPoint.get(output.entryPoint)
         const src = publicPathByOutput.get(outputPath)
@@ -234,16 +316,18 @@ export async function buildSiteRuntimeScripts(
         return {
           fileId: script.file.id,
           src,
+          format: 'module' as const,
           placement: script.config.placement,
           timing: script.config.timing,
           priority: script.config.priority,
         }
       })
-      .filter((script): script is PublishedPageRuntimeAssets['scripts'][number] => script !== null)
+      .filter((script): script is PublishedRuntimeScriptAsset => script !== null)
+    const scripts = [...moduleAssetScripts, ...classicBuild.assets]
       .sort((a, b) => a.priority - b.priority || a.src.localeCompare(b.src))
 
     return {
-      files,
+      files: [...files, ...classicBuild.files],
       runtimeAssets: { scripts },
       diagnostics: importAnalysis.diagnostics,
     }

@@ -8,6 +8,7 @@
 import type { StyleRule, ConditionDef } from '@core/page-tree'
 import type { ImportFragment } from '@core/htmlImport'
 import type { FontFileFormat } from '@core/fonts'
+import type { SiteScriptFormat } from '@core/site-runtime'
 
 // ---------------------------------------------------------------------------
 // NewStyleRule — a StyleRule ready to insert (sans identity fields)
@@ -60,6 +61,9 @@ export type NewStyleRule = Omit<StyleRule, 'id' | 'createdAt' | 'updatedAt'>
  * - `missing-stylesheet`: a `<link rel="stylesheet">` href referenced in an
  *   HTML file was not found in the FileMap. The page is still imported; the
  *   missing CSS is noted but not fatal.
+ * - `missing-script`: a `<script src>` referenced in an HTML file was not
+ *   found in the FileMap. The page is still imported; the missing script is
+ *   noted but not fatal.
  * - `asset-upload-failed`: an individual asset upload was rejected by the
  *   media library (e.g. unsupported MIME, oversized file, server error).
  *   The remaining assets continue to upload; the failed file is left
@@ -81,6 +85,7 @@ export type ImportWarningKind =
   | 'duplicate-class'
   | 'scoped-class'
   | 'missing-stylesheet'
+  | 'missing-script'
   | 'asset-upload-failed'
   | 'external-font'
 
@@ -225,15 +230,23 @@ export interface ImportFontToken {
 }
 
 /**
- * A JavaScript file from the import bundle. Committed as a `SiteFile`
- * (`type: 'script'`) plus an all-pages `site.runtime.scripts` entry so it runs
- * on every published page. `content` is the decoded UTF-8 source.
+ * A JavaScript file linked by one or more imported HTML pages. Committed as a
+ * `SiteFile` (`type: 'script'`) plus page-scoped `site.runtime.scripts` entry.
+ * `content` is the decoded UTF-8 source.
  */
 export interface ImportScript {
   /** FileMap path of the source file (e.g. `scripts/app.js`). */
   path: string
   /** Decoded UTF-8 JavaScript source. */
   content: string
+  /** Loader semantics from the source HTML. Classic scripts bypass bundling. */
+  format: SiteScriptFormat
+  /** HTML FileMap sources that linked this script. */
+  pageSources: string[]
+  /** Final committed page IDs. Filled by `commitImportPlan` before adapter call. */
+  pageIds?: string[]
+  /** Runtime ordering; lower runs earlier. Derived from first HTML occurrence. */
+  priority: number
 }
 
 // ---------------------------------------------------------------------------
@@ -293,6 +306,12 @@ export interface PagePlan {
    * hrefs produce `missing-stylesheet` warnings instead.
    */
   linkedCssPaths: string[]
+  /**
+   * JavaScript files linked by `<script src>` tags, in source order. Only paths
+   * that exist in the FileMap are included; missing hrefs produce
+   * `missing-script` warnings instead.
+   */
+  linkedScripts: { path: string; format: SiteScriptFormat }[]
   /**
    * The body content as a flat node fragment.
    *
@@ -421,8 +440,14 @@ export interface ImportPlan {
    */
   fontTokens: ImportFontToken[]
   /**
-   * JavaScript files from the bundle, committed as all-pages site scripts.
-   * Replaces the old `droppedJs` — JS is now imported, not dropped.
+   * Safe external font stylesheet URL extracted from CSS @import, if present.
+   * Currently limited to known font providers such as Google Fonts.
+   */
+  fontImportUrl?: string
+  /**
+   * JavaScript files linked by imported pages, committed as page-scoped site
+   * scripts. Unlinked JS files stay as imported media assets instead of being
+   * executed.
    */
   scripts: ImportScript[]
   conflicts: { pages: PageConflict[]; rules: RuleConflict[]; tokens: TokenConflict[] }
@@ -452,6 +477,8 @@ export interface ImportResult {
   colors: { slug: string; value: string }[]
   /** Font tokens committed into `site.settings.fonts.tokens`. */
   fontTokens: { id: string; name: string; variable: string }[]
+  /** External font stylesheet committed into `site.settings.fontImportUrl`. */
+  fontImportUrl?: string
   /** Site scripts committed from imported JS files. */
   scripts: { id: string; path: string }[]
   /** Resolved conflicts (mirrors ImportPlan.conflicts with final actions). */

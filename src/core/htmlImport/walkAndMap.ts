@@ -22,6 +22,12 @@
  *     bare classes for unknown names) as the fragment enters the live tree.
  *   - inline `style="…"` declarations are attached to node.inlineStyles (the
  *     editor's first-class per-node style layer), harvested before stripUnsafe.
+ *   - ordinary `id="…"` attributes are preserved as `props.htmlId` on base
+ *     modules that emit matching authored elements, so imported CSS/JS that
+ *     targets IDs keeps working after publish.
+ *   - safe authored `data-*` attributes are preserved as hidden
+ *     `props.dataAttributes` on the same base modules so imported template
+ *     runtime hooks (e.g. `data-bg-src`) keep working.
  *
  * Consumers (all call importHtml(source) — the single public entry point):
  *   - Paste-HTML modal (browser-side)
@@ -32,6 +38,7 @@
 import type { PageNode } from '@core/page-tree'
 import { createNode } from '@core/page-tree'
 import { registry } from '@core/module-engine'
+import { isRenderableDataAttributeName } from '@core/htmlAttributes'
 import { HTML_TO_MODULE_RULES } from './rules'
 import type { ImportRule } from './rules'
 import { parseHtml } from './parseHtml'
@@ -75,6 +82,15 @@ export interface ImportResult extends ImportFragment {
 // global (it runs in the browser bundle and under the happy-dom test polyfill).
 const ELEMENT_NODE = 1
 const TEXT_NODE = 3
+const HTML_ID_MODULES = new Set([
+  'base.container',
+  'base.text',
+  'base.link',
+  'base.button',
+  'base.image',
+])
+
+const DATA_ATTRIBUTE_MODULES = HTML_ID_MODULES
 
 /**
  * Mutable accumulator threaded through the recursive walk.
@@ -105,6 +121,16 @@ function matchRule(el: Element): ImportRule {
   }
   // Unreachable: the catch-all '*' rule always matches every element.
   return HTML_TO_MODULE_RULES[HTML_TO_MODULE_RULES.length - 1]!
+}
+
+function collectDataAttributes(el: Element): Record<string, string> {
+  const attrs: Record<string, string> = {}
+  for (const attr of Array.from(el.attributes)) {
+    const name = attr.name.trim().toLowerCase()
+    if (!isRenderableDataAttributeName(name)) continue
+    attrs[name] = attr.value
+  }
+  return attrs
 }
 
 /**
@@ -209,11 +235,18 @@ function mapChildNodes(parent: Element, ctx: WalkContext): string[] {
 function processElement(el: Element, ctx: WalkContext): string {
   const rule = matchRule(el)
   const { moduleId, props: ruleProps } = rule.map(el)
+  const props = { ...ruleProps }
+  const htmlId = el.getAttribute('id')?.trim()
+  if (htmlId && HTML_ID_MODULES.has(moduleId)) props.htmlId = htmlId
+  if (DATA_ATTRIBUTE_MODULES.has(moduleId)) {
+    const dataAttributes = collectDataAttributes(el)
+    if (Object.keys(dataAttributes).length > 0) props.dataAttributes = dataAttributes
+  }
 
   // Merge module defaults with rule-specific props so every node starts
   // from a well-formed baseline.
   const def = registry.getOrThrow(moduleId)
-  const node = createNode(moduleId, { ...def.defaults, ...ruleProps })
+  const node = createNode(moduleId, { ...def.defaults, ...props })
 
   // Preserve element class *names* verbatim. This layer is registry-agnostic
   // (it has no SiteDocument), so it cannot mint real class ids here. The store

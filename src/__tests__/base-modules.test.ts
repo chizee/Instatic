@@ -122,9 +122,9 @@ describe('base.text — unified text module', () => {
     expect(baseIndex).not.toContain("import './paragraph'")
   })
 
-  it('has only content and tag module settings', async () => {
+  it('has only content, tag, and HTML identity module settings', async () => {
     expect(TextModule.id).toBe('base.text')
-    expect(Object.keys(TextModule.schema).sort()).toEqual(['tag', 'text'])
+    expect(Object.keys(TextModule.schema).sort()).toEqual(['dataAttributes', 'htmlId', 'tag', 'text'])
   })
 
   it('renders the selected semantic tag', async () => {
@@ -133,6 +133,21 @@ describe('base.text — unified text module', () => {
       expect(html).toContain(`<${tag}`)
       expect(html).toContain(`</${tag}>`)
     }
+  })
+
+  it('renders an authored HTML id', () => {
+    const { html } = renderModule(TextModule, { tag: 'p', text: 'Test', htmlId: 'intro-copy' })
+    expect(html).toContain('<p id="intro-copy">Test</p>')
+  })
+
+  it('renders imported data attributes', () => {
+    const { html } = renderModule(TextModule, {
+      tag: 'span',
+      text: 'Test',
+      dataAttributes: { 'data-aos': 'fade-up', 'data-instatic-node': 'skip' },
+    })
+    expect(html).toContain(' data-aos="fade-up"')
+    expect(html).not.toContain('data-instatic-node')
   })
 
   it('escapes text content through the publisher pipeline', async () => {
@@ -150,7 +165,7 @@ describe('base.text — unified text module', () => {
 
 describe('base.button — render() specifics', () => {
   it('has only content and behavior module settings', () => {
-    expect(Object.keys(ButtonModule.schema).sort()).toEqual(['disabled', 'href', 'label', 'target'])
+    expect(Object.keys(ButtonModule.schema).sort()).toEqual(['dataAttributes', 'disabled', 'href', 'htmlId', 'label', 'target'])
   })
 
   it('renders an <a> element when href is set', () => {
@@ -162,6 +177,26 @@ describe('base.button — render() specifics', () => {
   it('renders a <button> element when href is empty', () => {
     const { html } = renderModule(ButtonModule, { href: '' })
     expect(html).toMatch(/<button[\s>]/)
+  })
+
+  it('renders an authored HTML id on button and anchor output', () => {
+    expect(renderModule(ButtonModule, { href: '', htmlId: 'back-top' }).html).toContain(
+      '<button id="back-top"',
+    )
+    expect(renderModule(ButtonModule, { href: '/start', htmlId: 'cta' }).html).toContain(
+      '<a id="cta"',
+    )
+  })
+
+  it('renders imported data attributes on button and anchor output', () => {
+    expect(renderModule(ButtonModule, {
+      href: '',
+      dataAttributes: { 'data-bs-toggle': 'modal' },
+    }).html).toContain(' data-bs-toggle="modal"')
+    expect(renderModule(ButtonModule, {
+      href: '/start',
+      dataAttributes: { 'data-canvas-empty-container': 'true', 'data-track': 'cta' },
+    }).html).toContain(' data-track="cta"')
   })
 
   it('XSS: strips javascript: href', () => {
@@ -203,7 +238,7 @@ describe('base.container — render() specifics', () => {
   })
 
   it('exposes HTML tag selection (built-in tag + custom override)', () => {
-    expect(Object.keys(ContainerModule.schema).sort()).toEqual(['customTag', 'tag'])
+    expect(Object.keys(ContainerModule.schema).sort()).toEqual(['customTag', 'dataAttributes', 'htmlId', 'tag'])
   })
 
   it('renders children HTML inside the container', () => {
@@ -212,6 +247,25 @@ describe('base.container — render() specifics', () => {
     const { html } = renderModule(ContainerModule, {}, [child1, child2])
     expect(html).toContain(child1)
     expect(html).toContain(child2)
+  })
+
+  it('renders an authored HTML id', () => {
+    const { html } = renderModule(ContainerModule, { htmlId: 'smooth-wrapper' }, ['<p>child</p>'])
+    expect(html).toBe('<div id="smooth-wrapper"><p>child</p></div>')
+  })
+
+  it('renders imported data attributes and escapes their values', () => {
+    const { html } = renderModule(ContainerModule, {
+      dataAttributes: {
+        'data-bg-src': '/uploads/hero.png',
+        'data-title': 'Cats & "Dogs"',
+        'data-node-id': 'reserved',
+      },
+    }, ['<p>child</p>'])
+    expect(html).toBe(
+      '<div data-bg-src="/uploads/hero.png" data-title="Cats &amp; &quot;Dogs&quot;"><p>child</p></div>',
+    )
+    expect(html).not.toContain('data-node-id')
   })
 
   it('renders an empty container when no children are provided', () => {
@@ -226,6 +280,11 @@ describe('base.container — render() specifics', () => {
     expect(html).toBe('<br>')
     // </br> would be reparsed by the HTML tokenizer as a SECOND <br>.
     expect(html).not.toContain('</br>')
+  })
+
+  it('renders an authored HTML id on void custom tags', () => {
+    const { html } = renderModule(ContainerModule, { tag: 'custom', customTag: 'hr', htmlId: 'rule' }, [])
+    expect(html).toBe('<hr id="rule">')
   })
 
   it('renders a void custom tag (hr) with no closing tag', () => {
@@ -344,7 +403,7 @@ describe('base.image — render() specifics', () => {
     // from the library asset row (single source of truth) — no per-instance
     // `alt` prop exists on the module.
     expect(Object.keys(ImageModule.schema).sort()).toEqual(
-      ['decoding', 'fetchPriority', 'loading', 'sizes', 'src'],
+      ['dataAttributes', 'decoding', 'fetchPriority', 'htmlId', 'loading', 'sizes', 'src'],
     )
   })
 
@@ -359,6 +418,19 @@ describe('base.image — render() specifics', () => {
     const { html } = renderModule(ImageModule, { src: '/images/hero.jpg' })
     expect(html).toMatch(/<img[\s>]/)
     expect(html).toContain('src="/images/hero.jpg"')
+  })
+
+  it('renders an authored HTML id', () => {
+    const { html } = renderModule(ImageModule, { src: '/images/hero.jpg', htmlId: 'hero-image' })
+    expect(html).toContain('<img id="hero-image"')
+  })
+
+  it('renders imported data attributes', () => {
+    const { html } = renderModule(ImageModule, {
+      src: '/images/hero.jpg',
+      dataAttributes: { 'data-lazy': 'hero' },
+    })
+    expect(html).toContain(' data-lazy="hero"')
   })
 
   it('XSS: strips javascript: src — safeUrl() returns "#" → renders <img src="#">', () => {
@@ -381,6 +453,7 @@ describe('base.image — render() specifics', () => {
         _resolvedMediaByKey: {
           src: {
             publicPath: '/img.jpg',
+            mimeType: 'image/jpeg',
             width: 100,
             height: 100,
             altText: '"><script>alert(1)</script>',
@@ -404,6 +477,7 @@ describe('base.image — render() specifics', () => {
         _resolvedMediaByKey: {
           src: {
             publicPath: '/img.jpg',
+            mimeType: 'image/jpeg',
             width: 100,
             height: 100,
             altText: 'Profile photo',
@@ -426,6 +500,54 @@ describe('base.image — render() specifics', () => {
   it('includes loading="lazy" by default', () => {
     const { html } = renderModule(ImageModule, { src: '/img.jpg' })
     expect(html).toContain('loading="lazy"')
+  })
+
+  it('does not paint BlurHash placeholders behind transparent-capable image formats', () => {
+    const safeProps = escapeProps({ ...ImageModule.defaults, src: '/logo.svg' }, ImageModule.schema)
+    const html = ImageModule.render(
+      {
+        ...safeProps,
+        _resolvedMediaByKey: {
+          src: {
+            publicPath: '/logo.svg',
+            mimeType: 'image/svg+xml',
+            width: 60,
+            height: 60,
+            altText: 'Logo',
+            blurHash: 'L6PZfSi_.AyE_3t7t7R**0o#DgR4',
+            variants: [],
+            posterPath: null,
+          },
+        },
+      },
+      [],
+    ).html
+
+    expect(html).not.toContain('background-image')
+  })
+
+  it('keeps BlurHash placeholders for lazy opaque image formats', () => {
+    const safeProps = escapeProps({ ...ImageModule.defaults, src: '/hero.jpg' }, ImageModule.schema)
+    const html = ImageModule.render(
+      {
+        ...safeProps,
+        _resolvedMediaByKey: {
+          src: {
+            publicPath: '/hero.jpg',
+            mimeType: 'image/jpeg',
+            width: 1200,
+            height: 800,
+            altText: 'Hero',
+            blurHash: 'L6PZfSi_.AyE_3t7t7R**0o#DgR4',
+            variants: [],
+            posterPath: null,
+          },
+        },
+      },
+      [],
+    ).html
+
+    expect(html).toContain('background-image')
   })
 
   it('does not access DOM globals', () => {
@@ -641,7 +763,7 @@ describe('base.list — render() specifics', () => {
 
 describe('base.link — render() specifics', () => {
   it('has URL, text, and target module settings', () => {
-    expect(Object.keys(LinkModule.schema).sort()).toEqual(['href', 'target', 'text'])
+    expect(Object.keys(LinkModule.schema).sort()).toEqual(['dataAttributes', 'href', 'htmlId', 'target', 'text'])
   })
 
   it('renders target and rel for new-tab links', () => {
@@ -652,6 +774,24 @@ describe('base.link — render() specifics', () => {
     })
     expect(html).toContain('target="_blank"')
     expect(html).toContain('rel="noopener noreferrer"')
+  })
+
+  it('renders an authored HTML id', () => {
+    const { html } = renderModule(LinkModule, {
+      href: '/pricing',
+      text: 'Pricing',
+      htmlId: 'pricing-link',
+    })
+    expect(html).toContain('<a id="pricing-link"')
+  })
+
+  it('renders imported data attributes', () => {
+    const { html } = renderModule(LinkModule, {
+      href: '/about',
+      text: 'About',
+      dataAttributes: { 'data-track': 'nav-about' },
+    })
+    expect(html).toContain(' data-track="nav-about"')
   })
 
   it('can contain child modules for composed link content', () => {

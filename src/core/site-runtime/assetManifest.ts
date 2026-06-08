@@ -47,7 +47,8 @@ export function scriptTagsForRuntimeAssets(
       const integrity = asset.integrity
         ? ` integrity="${escapeAttribute(asset.integrity)}" crossorigin="anonymous"`
         : ''
-      return `  <script type="module" src="${escapeAttribute(asset.src.trim())}" data-instatic-runtime-script="${escapeAttribute(asset.fileId)}"${integrity}></script>`
+      const type = asset.format === 'classic' ? '' : ' type="module"'
+      return `  <script${type} src="${escapeAttribute(asset.src.trim())}" data-instatic-runtime-script="${escapeAttribute(asset.fileId)}"${integrity}></script>`
     })
     .join('\n')
 }

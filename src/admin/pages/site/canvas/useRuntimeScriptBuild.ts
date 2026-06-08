@@ -5,8 +5,9 @@
  * Unlike the old preview surface (which built a full static HTML document and
  * dropped it into a sandboxed `srcDoc` iframe), the editable canvas frames are
  * React-rendered, same-origin iframes. So we don't want a whole document — we
- * only want the *bundled script contents*, which we inject as inline
- * `<script type="module">` tags alongside the live node tree (see
+ * only want the runtime script contents, which we inject as inline
+ * `<script>` tags alongside the live node tree with the configured loader
+ * format (see
  * `RuntimeScriptInjector`).
  *
  * Build trigger contract:
@@ -26,24 +27,23 @@
 import { useEffect, useEffectEvent, useState } from 'react'
 import type { Page, SiteDocument } from '@core/page-tree'
 import type { TemplateRenderDataContext } from '@core/templates/dynamicBindings'
-import type { SiteScriptPlacement } from '@core/site-runtime/schemas'
 import { useEditorStore } from '@site/store/store'
 import {
   buildCmsRuntimePreview,
   type CmsRuntimePreviewResult,
 } from '@core/persistence/cmsRuntime'
-import type { SiteRuntimeDiagnostic } from '@core/site-runtime'
+import type { SiteRuntimeDiagnostic, SiteScriptFormat, SiteScriptPlacement } from '@core/site-runtime'
 import { getErrorMessage } from '@core/utils/errorMessage'
 
 export type RuntimeScriptStatus = 'idle' | 'building' | 'ready' | 'error'
 
 /**
- * One bundled, self-contained ESM entry ready to inject as an inline module
- * script. Canvas builds don't code-split, so each entry's `content` resolves
- * all its imports internally — no chunk fetches, no importmap.
+ * One runtime entry ready to inject inline. Module entries are bundled and
+ * self-contained; classic entries are raw browser-global scripts.
  */
 export interface InjectableRuntimeScript {
   id: string
+  format: SiteScriptFormat
   placement: SiteScriptPlacement
   content: string
 }
@@ -87,7 +87,12 @@ function extractInjectableScripts(result: CmsRuntimePreviewResult): InjectableRu
     .map((script) => {
       const asset = assetByPublicPath.get(script.src)
       if (!asset) return null
-      return { id: script.fileId, placement: script.placement, content: asset.content }
+      return {
+        id: script.fileId,
+        format: script.format ?? 'module',
+        placement: script.placement,
+        content: asset.content,
+      }
     })
     .filter((entry): entry is InjectableRuntimeScript => entry !== null)
 }

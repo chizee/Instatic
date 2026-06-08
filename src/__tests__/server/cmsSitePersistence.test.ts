@@ -108,6 +108,45 @@ describe('CMS draft site persistence', () => {
     expect((loaded as Record<string, unknown> | null)?.pages).toBeUndefined()
   })
 
+  it('round-trips reusable CSS conditions in the site shell', async () => {
+    const { db } = createSiteFakeDb()
+    await saveDraftSite(db, validShell({
+      conditions: [
+        {
+          id: 'media:(min-width: 1200px)',
+          label: '(min-width: 1200px)',
+          condition: { kind: 'media', query: '(min-width: 1200px)' },
+        },
+      ],
+      styleRules: {
+        class_1: {
+          id: 'class_1',
+          name: 'd-xl-block',
+          kind: 'class',
+          selector: '.d-xl-block',
+          order: 0,
+          styles: {},
+          contextStyles: {
+            'media:(min-width: 1200px)': { display: 'block' },
+          },
+          createdAt: 1,
+          updatedAt: 2,
+        },
+      },
+    }), 'user_1')
+
+    const loaded = await getDraftSite(db)
+
+    expect(loaded?.conditions).toEqual([
+      {
+        id: 'media:(min-width: 1200px)',
+        label: '(min-width: 1200px)',
+        condition: { kind: 'media', query: '(min-width: 1200px)' },
+      },
+    ])
+    expect(loaded?.styleRules.class_1.contextStyles).toHaveProperty('media:(min-width: 1200px)')
+  })
+
   it('validates the stored shell and throws SiteValidationError on corrupt data', async () => {
     const { state, db } = createSiteFakeDb()
     await saveDraftSite(db, validShell(), 'user_1')

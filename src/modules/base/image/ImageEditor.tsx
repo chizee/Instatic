@@ -23,7 +23,10 @@ import {
 import { useCmsMediaAssetByPath } from '@admin/pages/media/hooks/useCmsMediaAssetByPath'
 import { CanvasModulePlaceholder } from '@ui/components/CanvasModulePlaceholder'
 import { ImageSolidIcon } from 'pixel-art-icons/icons/image-solid'
+import { dataAttributesForReact } from '@modules/base/shared/dataAttributes'
+import { htmlIdForReact } from '@modules/base/shared/htmlId'
 import type { ImageStoredProps } from './index'
+import { shouldUseBlurPlaceholder } from './placeholder'
 
 // Best-guess CSS width for the canvas preview tile. Triggers DPR-aware
 // variant pick: 1× → w320, 2× → w640. The browser still uses srcset to
@@ -43,7 +46,9 @@ export const ImageEditor: React.FC<ModuleComponentProps<ImageStoredProps>> = ({ 
     : {
         src: pickVariantUrl(asset, CANVAS_CSS_WIDTH),
         srcset: buildVariantSrcset(asset),
-        blurUrl: blurHashToDataUrl(asset.blurHash),
+        blurUrl: shouldUseBlurPlaceholder(asset.blurHash, asset.mimeType)
+          ? blurHashToDataUrl(asset.blurHash)
+          : null,
         width: asset.width,
         height: asset.height,
         libraryAlt: asset.altText,
@@ -64,6 +69,8 @@ export const ImageEditor: React.FC<ModuleComponentProps<ImageStoredProps>> = ({ 
   // published-render behaviour so the canvas preview never disagrees
   // with the published HTML. Edit alt via the Media viewer.
   const alt = responsive?.libraryAlt ?? ''
+  const htmlId = htmlIdForReact(props.htmlId)
+  const dataAttrs = dataAttributesForReact(props.dataAttributes)
 
   // No resolved asset yet (cache loading, external URL, or row missing).
   // Render the raw src so the user never sees a flash of blank.
@@ -71,6 +78,8 @@ export const ImageEditor: React.FC<ModuleComponentProps<ImageStoredProps>> = ({ 
     return (
       <img
         {...nodeWrapperProps}
+        {...dataAttrs}
+        id={htmlId}
         src={props.src}
         alt={alt}
         className={mcClassName}
@@ -91,6 +100,8 @@ export const ImageEditor: React.FC<ModuleComponentProps<ImageStoredProps>> = ({ 
   return (
     <img
       {...nodeWrapperProps}
+      {...dataAttrs}
+      id={htmlId}
       src={responsive.src}
       srcSet={responsive.srcset ?? undefined}
       sizes={responsive.srcset ? '100vw' : undefined}

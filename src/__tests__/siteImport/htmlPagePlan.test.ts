@@ -30,12 +30,29 @@ describe('deriveSlug', () => {
     expect(deriveSlug('-odd-.html')).toBe('odd')
   })
 
-  it('uses just the filename from a nested path', () => {
-    expect(deriveSlug('pages/about.html')).toBe('about')
+  it('keeps parent path segments for nested non-index pages', () => {
+    expect(deriveSlug('pages/about.html')).toBe('pages/about')
+  })
+
+  it('maps nested index.html files to their directory path', () => {
+    expect(deriveSlug('documentation/index.html')).toBe('documentation')
+    expect(deriveSlug('docs/api/index.html')).toBe('docs/api')
   })
 
   it('index.html → "index"', () => {
     expect(deriveSlug('index.html')).toBe('index')
+  })
+
+  it('sanitises each nested path segment independently', () => {
+    expect(deriveSlug('Docs/API Reference.html')).toBe('docs/api-reference')
+  })
+
+  it('falls back to a safe segment for degenerate nested filenames', () => {
+    expect(deriveSlug('docs/----.html')).toBe('docs/page')
+  })
+
+  it('collapses unusable directory segments', () => {
+    expect(deriveSlug('---/about.html')).toBe('about')
   })
 
   it('falls back to "page" for degenerate filenames', () => {
@@ -118,10 +135,24 @@ describe('makeHtmlPagePlan', () => {
     expect(pagePlan.slug).toBe('index')
   })
 
+  it('derives nested index slugs from their directory path', () => {
+    const html = `<html><body><h1>Docs</h1></body></html>`
+    const { pagePlan } = makeHtmlPagePlan('documentation/index.html', html, fileMap)
+    expect(pagePlan.slug).toBe('documentation')
+  })
+
   it('resolves linked CSS paths to FileMap keys', () => {
     const { pagePlan } = makeHtmlPagePlan('index.html', new TextDecoder().decode(fileMap.files['index.html']!.bytes), fileMap)
     expect(pagePlan.linkedCssPaths).toContain('styles/main.css')
     expect(pagePlan.linkedCssPaths).toContain('styles/theme.css')
+  })
+
+  it('resolves linked script paths with classic/module format', () => {
+    const { pagePlan } = makeHtmlPagePlan('index.html', new TextDecoder().decode(fileMap.files['index.html']!.bytes), fileMap)
+    expect(pagePlan.linkedScripts).toEqual([
+      { path: 'scripts/vendor.js', format: 'classic' },
+      { path: 'scripts/app.js', format: 'module' },
+    ])
   })
 
   it('emits missing-stylesheet warning for unknown CSS hrefs', () => {
@@ -133,6 +164,16 @@ describe('makeHtmlPagePlan', () => {
     const warn = warnings.find((w) => w.kind === 'missing-stylesheet')
     expect(warn).toBeDefined()
     expect(warn!.path).toBe('styles/nonexistent.css')
+  })
+
+  it('emits missing-script warning for unknown script src values', () => {
+    const html = `<html>
+<body><script src="scripts/missing.js"></script></body>
+</html>`
+    const { warnings } = makeHtmlPagePlan('index.html', html, fileMap)
+    const warn = warnings.find((w) => w.kind === 'missing-script')
+    expect(warn).toBeDefined()
+    expect(warn!.path).toBe('scripts/missing.js')
   })
 
   it('falls back to prettified filename when <title> is absent', () => {

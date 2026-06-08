@@ -52,6 +52,7 @@ export { extractRootColorTokens, isCssColorValue } from './colorTokens'
 // ── Phase 2 — font-token extraction ───────────────────────────────────────────
 
 export { extractRootFontTokens } from './fontTokens'
+export { extractExternalFontImportUrls, stripExternalFontImportRules } from './fontImports'
 
 // ── Phase 2 — conflict detection + resolution ─────────────────────────────────
 

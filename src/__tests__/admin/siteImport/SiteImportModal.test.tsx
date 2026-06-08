@@ -570,6 +570,7 @@ describe('filterPlanBySelection — page filtering', () => {
     title: 'Page A',
     slug: 'a',
     linkedCssPaths: [],
+    linkedScripts: [],
     nodeFragment: { rootNodeId: 'r', nodes: {} },
   }
   const pageB = {
@@ -577,6 +578,7 @@ describe('filterPlanBySelection — page filtering', () => {
     title: 'Page B',
     slug: 'b',
     linkedCssPaths: [],
+    linkedScripts: [],
     nodeFragment: { rootNodeId: 'r', nodes: {} },
   }
   const rule0 = makeStyleRule({ name: 'rule-0' })
@@ -588,14 +590,35 @@ describe('filterPlanBySelection — page filtering', () => {
     pages: [pageA, pageB],
     styleRules: [rule0, rule1],
     assets: [assetA, assetB],
+    scripts: [
+      { path: 'scripts/a.js', content: '', format: 'classic', pageSources: ['a.html'], priority: 100 },
+      { path: 'scripts/shared.js', content: '', format: 'classic', pageSources: ['a.html', 'b.html'], priority: 101 },
+    ],
   })
 
-  function filterPlanBySelection(p: ImportPlan, sel: { pagesIncluded: Set<string>; styleRulesIncluded: Set<number>; assetsIncluded: Set<string> }): ImportPlan {
+  function filterPlanBySelection(
+    p: ImportPlan,
+    sel: {
+      pagesIncluded: Set<string>
+      styleRulesIncluded: Set<number>
+      assetsIncluded: Set<string>
+      fontsIncluded: Set<string>
+      scriptsIncluded: Set<string>
+    },
+  ): ImportPlan {
     return {
       ...p,
       pages: p.pages.filter((pg) => sel.pagesIncluded.has(pg.source)),
       styleRules: p.styleRules.filter((_, i) => sel.styleRulesIncluded.has(i)),
       assets: p.assets.filter((a) => sel.assetsIncluded.has(a.sourcePath)),
+      fonts: p.fonts.filter((f) => sel.fontsIncluded.has(f.family)),
+      scripts: p.scripts
+        .filter((script) => sel.scriptsIncluded.has(script.path))
+        .map((script) => ({
+          ...script,
+          pageSources: script.pageSources.filter((source) => sel.pagesIncluded.has(source)),
+        }))
+        .filter((script) => script.pageSources.length > 0),
     }
   }
 
@@ -604,11 +627,14 @@ describe('filterPlanBySelection — page filtering', () => {
       pagesIncluded: new Set(['a.html', 'b.html']),
       styleRulesIncluded: new Set([0, 1]),
       assetsIncluded: new Set(['img/a.png', 'img/b.png']),
+      fontsIncluded: new Set<string>(),
+      scriptsIncluded: new Set(['scripts/a.js', 'scripts/shared.js']),
     }
     const filtered = filterPlanBySelection(plan, sel)
     expect(filtered.pages).toHaveLength(2)
     expect(filtered.styleRules).toHaveLength(2)
     expect(filtered.assets).toHaveLength(2)
+    expect(filtered.scripts).toHaveLength(2)
   })
 
   it('removes deselected page', () => {
@@ -616,10 +642,16 @@ describe('filterPlanBySelection — page filtering', () => {
       pagesIncluded: new Set(['a.html']),       // b.html excluded
       styleRulesIncluded: new Set([0, 1]),
       assetsIncluded: new Set(['img/a.png', 'img/b.png']),
+      fontsIncluded: new Set<string>(),
+      scriptsIncluded: new Set(['scripts/a.js', 'scripts/shared.js']),
     }
     const filtered = filterPlanBySelection(plan, sel)
     expect(filtered.pages).toHaveLength(1)
     expect(filtered.pages[0].source).toBe('a.html')
+    expect(filtered.scripts.map((script) => ({ path: script.path, pageSources: script.pageSources }))).toEqual([
+      { path: 'scripts/a.js', pageSources: ['a.html'] },
+      { path: 'scripts/shared.js', pageSources: ['a.html'] },
+    ])
   })
 
   it('removes deselected style rule by index', () => {
@@ -627,6 +659,8 @@ describe('filterPlanBySelection — page filtering', () => {
       pagesIncluded: new Set(['a.html', 'b.html']),
       styleRulesIncluded: new Set([1]),           // rule 0 excluded
       assetsIncluded: new Set(['img/a.png', 'img/b.png']),
+      fontsIncluded: new Set<string>(),
+      scriptsIncluded: new Set(['scripts/a.js', 'scripts/shared.js']),
     }
     const filtered = filterPlanBySelection(plan, sel)
     expect(filtered.styleRules).toHaveLength(1)
@@ -638,6 +672,8 @@ describe('filterPlanBySelection — page filtering', () => {
       pagesIncluded: new Set(['a.html', 'b.html']),
       styleRulesIncluded: new Set([0, 1]),
       assetsIncluded: new Set(['img/a.png']),     // img/b.png excluded
+      fontsIncluded: new Set<string>(),
+      scriptsIncluded: new Set(['scripts/a.js', 'scripts/shared.js']),
     }
     const filtered = filterPlanBySelection(plan, sel)
     expect(filtered.assets).toHaveLength(1)
@@ -649,6 +685,8 @@ describe('filterPlanBySelection — page filtering', () => {
       pagesIncluded: new Set<string>(),
       styleRulesIncluded: new Set<number>(),
       assetsIncluded: new Set<string>(),
+      fontsIncluded: new Set<string>(),
+      scriptsIncluded: new Set<string>(),
     }
     const filtered = filterPlanBySelection(plan, sel)
     expect(filtered.pages).toHaveLength(0)
@@ -663,14 +701,16 @@ describe('makeDefaultSelection — selects all items in the plan', () => {
       pagesIncluded: new Set(plan.pages.map((p) => p.source)),
       styleRulesIncluded: new Set(plan.styleRules.map((_, i) => i)),
       assetsIncluded: new Set(plan.assets.map((a) => a.sourcePath)),
+      fontsIncluded: new Set(plan.fonts.map((f) => f.family)),
+      scriptsIncluded: new Set(plan.scripts.map((s) => s.path)),
     }
   }
 
   it('selects all pages by source path', () => {
     const plan = makeMinimalPlan({
       pages: [
-        { source: 'a.html', title: 'A', slug: 'a', linkedCssPaths: [], nodeFragment: { rootNodeId: 'r', nodes: {} } },
-        { source: 'b.html', title: 'B', slug: 'b', linkedCssPaths: [], nodeFragment: { rootNodeId: 'r', nodes: {} } },
+        { source: 'a.html', title: 'A', slug: 'a', linkedCssPaths: [], linkedScripts: [], nodeFragment: { rootNodeId: 'r', nodes: {} } },
+        { source: 'b.html', title: 'B', slug: 'b', linkedCssPaths: [], linkedScripts: [], nodeFragment: { rootNodeId: 'r', nodes: {} } },
       ],
     })
     const sel = makeDefaultSelection(plan)
@@ -705,11 +745,26 @@ describe('makeDefaultSelection — selects all items in the plan', () => {
     expect(sel.assetsIncluded.has('img/logo.svg')).toBe(true)
   })
 
+  it('selects all scripts by source path', () => {
+    const plan = makeMinimalPlan({
+      scripts: [
+        { path: 'scripts/vendor.js', content: '', format: 'classic', pageSources: ['a.html'], priority: 100 },
+        { path: 'scripts/app.js', content: '', format: 'module', pageSources: ['a.html'], priority: 101 },
+      ],
+    })
+    const sel = makeDefaultSelection(plan)
+    expect(sel.scriptsIncluded.has('scripts/vendor.js')).toBe(true)
+    expect(sel.scriptsIncluded.has('scripts/app.js')).toBe(true)
+    expect(sel.scriptsIncluded.size).toBe(2)
+  })
+
   it('produces empty sets for an empty plan', () => {
     const sel = makeDefaultSelection(makeMinimalPlan())
     expect(sel.pagesIncluded.size).toBe(0)
     expect(sel.styleRulesIncluded.size).toBe(0)
     expect(sel.assetsIncluded.size).toBe(0)
+    expect(sel.fontsIncluded.size).toBe(0)
+    expect(sel.scriptsIncluded.size).toBe(0)
   })
 })
 
@@ -1270,6 +1325,7 @@ describe('AnalyzeStep — MEDIA group renders from plan.assets only', () => {
         title: 'Home',
         slug: 'index',
         linkedCssPaths: ['styles/main.css'],
+        linkedScripts: [{ path: 'scripts/app.js', format: 'classic' }],
         nodeFragment: { nodes: {}, rootIds: [] },
       },
       {
@@ -1277,6 +1333,7 @@ describe('AnalyzeStep — MEDIA group renders from plan.assets only', () => {
         title: 'About',
         slug: 'about',
         linkedCssPaths: ['styles/main.css'],
+        linkedScripts: [],
         nodeFragment: { nodes: {}, rootIds: [] },
       },
       {
@@ -1284,6 +1341,7 @@ describe('AnalyzeStep — MEDIA group renders from plan.assets only', () => {
         title: 'Pricing',
         slug: 'pricing',
         linkedCssPaths: ['styles/main.css'],
+        linkedScripts: [],
         nodeFragment: { nodes: {}, rootIds: [] },
       },
     ],
@@ -1291,7 +1349,13 @@ describe('AnalyzeStep — MEDIA group renders from plan.assets only', () => {
       makeStyleRule({ name: `rule-${i}`, selector: `.rule-${i}`, order: i }),
     ),
     assets: [assetEntry],
-    scripts: [{ path: 'scripts/app.js', content: '' }],
+    scripts: [{
+      path: 'scripts/app.js',
+      content: '',
+      format: 'classic',
+      pageSources: ['index.html'],
+      priority: 100,
+    }],
   })
 
   const syntheticFileMap: FileMap = {
@@ -1378,7 +1442,7 @@ describe('AnalyzeStep — MEDIA group renders from plan.assets only', () => {
 // 10 — commitImportPlan: uploadAsset called only for plan.assets entries
 //
 // Regression guard: given a plan with 3 HTML pages, 17 style rules, 1 PNG
-// asset, and 1 dropped JS, the adapter's uploadAsset must be called exactly
+// asset, and 1 linked JS file, the adapter's uploadAsset must be called exactly
 // once — for the PNG — and must never receive any HTML or CSS source path.
 // ---------------------------------------------------------------------------
 
@@ -1391,6 +1455,7 @@ describe('commitImportPlan — uploadAsset called only for entries in plan.asset
           title: 'Home',
           slug: 'index',
           linkedCssPaths: [],
+          linkedScripts: [{ path: 'scripts/app.js', format: 'classic' }],
           nodeFragment: { nodes: {}, rootIds: [] },
         },
         {
@@ -1398,6 +1463,7 @@ describe('commitImportPlan — uploadAsset called only for entries in plan.asset
           title: 'About',
           slug: 'about',
           linkedCssPaths: [],
+          linkedScripts: [],
           nodeFragment: { nodes: {}, rootIds: [] },
         },
         {
@@ -1405,6 +1471,7 @@ describe('commitImportPlan — uploadAsset called only for entries in plan.asset
           title: 'Pricing',
           slug: 'pricing',
           linkedCssPaths: [],
+          linkedScripts: [],
           nodeFragment: { nodes: {}, rootIds: [] },
         },
       ],
@@ -1415,7 +1482,13 @@ describe('commitImportPlan — uploadAsset called only for entries in plan.asset
         // Exactly one uploadable asset — the PNG logo.
         { sourcePath: 'assets/logo.png', mimeType: 'image/png', bytes: new Uint8Array([0x89, 0x50]) },
       ],
-      scripts: [{ path: 'scripts/app.js', content: '' }],
+      scripts: [{
+        path: 'scripts/app.js',
+        content: '',
+        format: 'classic',
+        pageSources: ['index.html'],
+        priority: 100,
+      }],
     })
 
     const uploadedPaths: string[] = []
@@ -1502,6 +1575,7 @@ describe('commitImportPlan — overwrite with no existing target falls back to a
           title: 'Home',
           slug: 'home',
           linkedCssPaths: [],
+          linkedScripts: [],
           nodeFragment: { nodes: {}, rootIds: [] },
         },
       ],
@@ -1538,6 +1612,7 @@ describe('commitImportPlan — overwrite with no existing target falls back to a
           title: 'Home',
           slug: 'home',
           linkedCssPaths: [],
+          linkedScripts: [],
           nodeFragment: { nodes: {}, rootIds: [] },
         },
       ],

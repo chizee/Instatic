@@ -52,6 +52,7 @@ export interface ResolvedLoopRenderData extends LoopFetchResult {
  */
 export interface RenderResolvedMedia {
   publicPath: string
+  mimeType: string
   width: number | null
   height: number | null
   altText: string

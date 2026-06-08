@@ -32,6 +32,7 @@ function makePage(slug: string, source = ''): PagePlan {
     title: slug,
     slug,
     linkedCssPaths: [],
+    linkedScripts: [],
     nodeFragment: emptyFragment(),
   }
 }
@@ -218,6 +219,7 @@ describe('applyConflictResolutions', () => {
       title: 'Index',
       slug: 'index',
       linkedCssPaths: [],
+      linkedScripts: [],
       nodeFragment: {
         rootIds: ['btn-node'],
         nodes: {
@@ -266,6 +268,7 @@ describe('applyConflictResolutions', () => {
       title: 'Index',
       slug: 'index',
       linkedCssPaths: [],
+      linkedScripts: [],
       nodeFragment: {
         rootIds: ['btn-node'],
         nodes: {
@@ -462,6 +465,7 @@ describe('applyConflictResolutions — design tokens', () => {
       title: 'Index',
       slug: 'index',
       linkedCssPaths: [],
+      linkedScripts: [],
       nodeFragment: {
         rootIds: ['n'],
         nodes: {

@@ -21,8 +21,15 @@ import type { Static } from '@core/utils/typeboxHelpers'
 import { registry } from '@core/module-engine'
 import { ImageSolidIcon } from 'pixel-art-icons/icons/image-solid'
 import { escapeHtml, safeUrl } from '@modules/base/utils/escape'
+import {
+  dataAttributesAttr,
+  dataAttributesControl,
+  DataAttributesPropSchemaOptions,
+} from '@modules/base/shared/dataAttributes'
+import { htmlIdAttr, htmlIdControl, HtmlIdPropSchemaOptions } from '@modules/base/shared/htmlId'
 import { buildMediaSrcset } from '@modules/base/utils/mediaAttrs'
 import { ImageEditor } from './ImageEditor'
+import { shouldUseBlurPlaceholder } from './placeholder'
 
 // ---------------------------------------------------------------------------
 // Props schema — authored fields only. Publisher-injected fields (_resolved*)
@@ -51,6 +58,8 @@ export const ImagePropsSchema = Type.Object({
     [Type.Literal('async'), Type.Literal('sync'), Type.Literal('auto')],
     { default: 'async' },
   ),
+  htmlId: Type.String(HtmlIdPropSchemaOptions),
+  dataAttributes: Type.Record(Type.String(), Type.String(), DataAttributesPropSchemaOptions),
 })
 
 /** Authored (stored) props — shape the user edits and the database persists. */
@@ -183,6 +192,8 @@ export const ImageModule: ModuleDefinition<ImageProps> = {
         { label: 'Auto', value: 'auto' },
       ],
     },
+    htmlId: htmlIdControl(),
+    dataAttributes: dataAttributesControl(),
   },
 
   // Single source of truth: defaults are derived from the schema's `default`
@@ -196,6 +207,8 @@ export const ImageModule: ModuleDefinition<ImageProps> = {
   render: (props) => {
     const src = safeUrl(props.src)
     if (!src) return { html: '' }
+    const idAttr = htmlIdAttr(props.htmlId)
+    const dataAttrs = dataAttributesAttr(props.dataAttributes)
 
     // Alt text comes exclusively from the library asset — the library is
     // the single source of truth for accessibility metadata. Edited in
@@ -224,7 +237,9 @@ export const ImageModule: ModuleDefinition<ImageProps> = {
       : null
     const width = media?.width ?? null
     const height = media?.height ?? null
-    const blurBg = media?.blurHash ? blurHashToCssBackground(media.blurHash) : null
+    const blurBg = media?.blurHash && shouldUseBlurPlaceholder(media.blurHash, media.mimeType)
+      ? blurHashToCssBackground(media.blurHash)
+      : null
 
     // Build the attribute string. Each attribute is conditionally appended
     // so the output is clean (no `width="null"` or empty `srcset=""`).
@@ -245,7 +260,7 @@ export const ImageModule: ModuleDefinition<ImageProps> = {
       attrs.push(`style="background-image:${blurBg};background-size:cover;background-position:center"`)
     }
 
-    return { html: `<img ${attrs.join(' ')}>` }
+    return { html: `<img${idAttr}${dataAttrs} ${attrs.join(' ')}>` }
   },
 }
 

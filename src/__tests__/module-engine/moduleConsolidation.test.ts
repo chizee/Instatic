@@ -44,6 +44,7 @@ function makeModule(id: string, overrides: Partial<ModuleDefinition> = {}): Modu
 function makeMedia(overrides: Partial<RenderResolvedMedia> = {}): RenderResolvedMedia {
   return {
     publicPath: '/uploads/hero.webp',
+    mimeType: 'image/webp',
     width: 1200,
     height: 800,
     altText: '',

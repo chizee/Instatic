@@ -11,7 +11,14 @@ import type { ImportFragment } from '@core/htmlImport'
 function page(source: string, href: string): PagePlan {
   const node = createNode('base.link', { href, text: 'go' })
   const fragment: ImportFragment = { nodes: { [node.id]: node }, rootIds: [node.id] }
-  return { source, title: source, slug: source.replace('.html', ''), linkedCssPaths: [], nodeFragment: fragment }
+  return {
+    source,
+    title: source,
+    slug: source.replace('.html', ''),
+    linkedCssPaths: [],
+    linkedScripts: [],
+    nodeFragment: fragment,
+  }
 }
 
 function hrefOf(plan: PagePlan): unknown {

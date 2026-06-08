@@ -5,7 +5,8 @@
  *
  * Two sources of asset references:
  *   1. PageNode props — `src`, `href`, `srcset` values set by the HTML
- *      importer from element attributes.
+ *      importer from element attributes, plus hidden imported `data-*`
+ *      attribute bags such as `data-bg-src`.
  *   2. CSS rule styles — `url(...)` payloads recorded by Phase 1's
  *      `cssToStyleRules` in the returned `AssetRef[]`.
  *
@@ -303,6 +304,16 @@ function normalizeNodeProps(
     // If null: external URL or not in FileMap — leave original value
   }
 
+  const dataAttributes = result['dataAttributes']
+  if (isStringRecord(dataAttributes)) {
+    const normalizedAttrs: Record<string, string> = { ...dataAttributes }
+    for (const [attrName, attrValue] of Object.entries(normalizedAttrs)) {
+      const fileMapKey = resolveAndRecord(attrValue, htmlFilePath, fileMap, assetMap)
+      if (fileMapKey !== null) normalizedAttrs[attrName] = fileMapKey
+    }
+    result['dataAttributes'] = normalizedAttrs
+  }
+
   return result
 }
 
@@ -413,6 +424,11 @@ function normalizeRules(
 
 /** URLs that should always pass through unchanged (external + special schemes). */
 const EXTERNAL_URL_RE = /^https?:\/\/|^\/\/|^data:|^mailto:|^tel:|^#/
+
+function isStringRecord(value: unknown): value is Record<string, string> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false
+  return Object.values(value).every((entry) => typeof entry === 'string')
+}
 
 /**
  * MIME type prefixes that identify web document / script sources.

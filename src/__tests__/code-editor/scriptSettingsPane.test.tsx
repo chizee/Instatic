@@ -57,6 +57,11 @@ describe('Script runtime settings pane', () => {
     fireEvent.click(screen.getByRole('switch', { name: 'Run in canvas' }))
     expect(useEditorStore.getState().siteRuntime.scripts['script-1'].runInCanvas).toBe(false)
 
+    fireEvent.change(screen.getByRole('combobox', { name: 'Script format' }), {
+      target: { value: 'classic' },
+    })
+    expect(useEditorStore.getState().siteRuntime.scripts['script-1'].format).toBe('classic')
+
     fireEvent.change(screen.getByRole('combobox', { name: 'Script placement' }), {
       target: { value: 'head' },
     })
@@ -87,6 +92,25 @@ describe('Script runtime settings pane', () => {
       target: { value: '7' },
     })
     expect(useEditorStore.getState().siteRuntime.scripts['script-1'].priority).toBe(7)
+  })
+
+  it('does not run package import analysis for classic scripts', () => {
+    useEditorStore.setState((state) => ({
+      siteRuntime: {
+        ...state.siteRuntime,
+        scripts: {
+          ...state.siteRuntime.scripts,
+          'script-1': {
+            ...state.siteRuntime.scripts['script-1'],
+            format: 'classic',
+          },
+        },
+      },
+    }) as Parameters<typeof useEditorStore.setState>[0])
+
+    render(<CodeEditorPanel />)
+
+    expect(screen.queryByText('canvas-confetti')).toBeNull()
   })
 
   it('does not render for stylesheets', () => {

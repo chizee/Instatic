@@ -414,6 +414,12 @@ export function buildSiteHelpers(
           }
         },
 
+        setFontImportUrl(url): void {
+          if (site.settings.fontImportUrl === url) return
+          site.settings.fontImportUrl = url
+          didMutate = true
+        },
+
         addFonts(fonts): { id: string; family: string }[] {
           const committed = addImportedFonts(site, fonts)
           if (committed.length > 0) didMutate = true
@@ -560,10 +566,10 @@ function overwriteImportedColorTokens(
 }
 
 /**
- * Add imported JS files as `SiteFile`s (`type: 'script'`) plus an all-pages
- * `site.runtime.scripts` entry each, so they run on every published page. The
- * runtime entry is mirrored onto the live `siteRuntime` draft (the canvas reads
- * that copy) exactly as `filesSlice.deleteFile` mirrors its delete.
+ * Add imported JS files as `SiteFile`s (`type: 'script'`) plus page-scoped
+ * `site.runtime.scripts` entries, so they run where the source HTML linked
+ * them. The runtime entry is mirrored onto the live `siteRuntime` draft (the
+ * canvas reads that copy) exactly as `filesSlice.deleteFile` mirrors its delete.
  *
  * Paths are normalised + made unique within `site.files`; an unsafe source path
  * falls back to a sanitised name under `src/scripts/`.
@@ -599,7 +605,17 @@ function addImportedScripts(
     }
     site.files.push(file)
 
-    const config = { ...DEFAULT_SCRIPT_RUNTIME_CONFIG }
+    const pageIds = Array.isArray(script.pageIds)
+      ? script.pageIds.filter((pageId): pageId is string => typeof pageId === 'string' && pageId.length > 0)
+      : []
+    const config = {
+      ...DEFAULT_SCRIPT_RUNTIME_CONFIG,
+      format: script.format,
+      priority: script.priority,
+      scope: pageIds.length > 0
+        ? { type: 'pages' as const, pageIds }
+        : DEFAULT_SCRIPT_RUNTIME_CONFIG.scope,
+    }
     site.runtime.scripts[id] = config
     if (siteRuntime?.scripts) siteRuntime.scripts[id] = { ...config }
 

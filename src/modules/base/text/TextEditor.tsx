@@ -14,6 +14,8 @@
  */
 import React from 'react'
 import type { ModuleComponentProps } from '@core/module-engine'
+import { dataAttributesForReact } from '@modules/base/shared/dataAttributes'
+import { htmlIdForReact } from '@modules/base/shared/htmlId'
 import { normalizeTag } from './tags'
 import type { TextStoredProps } from './index'
 
@@ -23,5 +25,14 @@ export const TextEditor: React.FC<ModuleComponentProps<TextStoredProps>> = ({
   nodeWrapperProps,
 }) => {
   const Tag = normalizeTag(props.tag) as React.ElementType
-  return React.createElement(Tag, { ...nodeWrapperProps, className: mcClassName }, props.text || 'Text')
+  return React.createElement(
+    Tag,
+    {
+      ...nodeWrapperProps,
+      ...dataAttributesForReact(props.dataAttributes),
+      id: htmlIdForReact(props.htmlId),
+      className: mcClassName,
+    },
+    props.text || 'Text',
+  )
 }

@@ -44,6 +44,7 @@ interface MockTxOp {
     | 'addFontTokens'
     | 'overwriteFontTokens'
     | 'addConditions'
+    | 'setFontImportUrl'
     | 'addColorTokens'
     | 'overwriteColorTokens'
     | 'addScripts'
@@ -106,6 +107,9 @@ function makeMockAdapter(opts?: {
         },
         addConditions(conditions) {
           ops.push({ type: 'addConditions', args: { conditions }, id: '' })
+        },
+        setFontImportUrl(url) {
+          ops.push({ type: 'setFontImportUrl', args: { url }, id: '' })
         },
         addColorTokens(colors) {
           ops.push({ type: 'addColorTokens', args: { colors }, id: '' })
@@ -190,8 +194,12 @@ describe('buildImportPlan — structure', () => {
     }
   })
 
-  it('imports JS files as site scripts', () => {
-    expect(plan.scripts.map((s) => s.path)).toContain('scripts/app.js')
+  it('imports linked JS files as page-scoped site scripts', () => {
+    expect(plan.scripts.map((s) => s.path)).toEqual(['scripts/vendor.js', 'scripts/app.js'])
+    expect(plan.scripts.map((s) => s.format)).toEqual(['classic', 'module'])
+    expect(plan.scripts.map((s) => s.pageSources)).toEqual([['index.html'], ['index.html']])
+    expect(plan.scripts.map((s) => s.priority)).toEqual([100, 101])
+    expect(plan.scripts.map((s) => s.path)).not.toContain('scripts/unused.js')
   })
 
   it('has empty conflicts on a fresh site', () => {
@@ -236,6 +244,30 @@ describe('buildImportPlan — structure', () => {
     expect(root?.styles).toEqual({ '--font-size-base': '16px' })
     expect(p.styleRules.find((rule) => rule.selector === 'h1')?.styles.fontFamily).toBe('var(--font-display)')
   })
+
+  it('preserves external Google Fonts @import as the site font import URL', () => {
+    const html = `<!doctype html><html><head><link rel="stylesheet" href="style.css"></head><body><h1>Home</h1></body></html>`
+    const css = `
+      @import url("https://fonts.googleapis.com/css2?family=Manrope:wght@200..800&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap");
+      :root {
+        --title-font: "Plus Jakarta Sans", serif;
+        --body-font: "Manrope", sans-serif;
+      }
+      h1 { font-family: var(--title-font); }
+    `
+    const p = buildImportPlan({
+      fileMap: makeSinglePageFileMap(html, css),
+      currentSite: makeEmptySiteDocument(),
+    })
+
+    expect(p.fontImportUrl).toBe(
+      'https://fonts.googleapis.com/css2?family=Manrope:wght@200..800&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap',
+    )
+    expect(p.styleRules.find((rule) => rule.selector === ':root')?.styles).toMatchObject({
+      '--title-font': '"Plus Jakarta Sans", serif',
+      '--body-font': '"Manrope", sans-serif',
+    })
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -249,6 +281,29 @@ describe('buildImportPlan — slug derivation', () => {
     expect(slugs).toContain('index')
     expect(slugs).toContain('about')
     expect(slugs).toContain('contact')
+  })
+
+  it('preserves nested static-site paths instead of collapsing every index.html to home', () => {
+    const encoder = new TextEncoder()
+    const fileMap: FileMap = {
+      files: {
+        'index.html': { bytes: encoder.encode('<html><body>Home</body></html>'), mimeType: 'text/html' },
+        'documentation/index.html': { bytes: encoder.encode('<html><body>Docs</body></html>'), mimeType: 'text/html' },
+        'download-version/index.html': { bytes: encoder.encode('<html><body>Download</body></html>'), mimeType: 'text/html' },
+        'guides/install/quick-start.html': { bytes: encoder.encode('<html><body>Quick start</body></html>'), mimeType: 'text/html' },
+      },
+    }
+
+    const plan = buildImportPlan({ fileMap, currentSite: makeEmptySiteDocument() })
+    const slugs = plan.pages.map((p) => p.slug).sort()
+
+    expect(slugs).toEqual([
+      'documentation',
+      'download-version',
+      'guides/install/quick-start',
+      'index',
+    ])
+    expect(plan.conflicts.pages).toHaveLength(0)
   })
 })
 
@@ -332,6 +387,49 @@ describe('commitImportPlan — happy path', () => {
     await commitImportPlan(plan, adapter)
     const addRuleOps = adapter.ops.filter((o) => o.type === 'addStyleRule')
     expect(addRuleOps.length).toBeGreaterThan(0)
+  })
+
+  it('commits linked scripts with resolved page scope', async () => {
+    const plan = buildImportPlan({ fileMap: makeSampleFileMap(), currentSite: makeEmptySiteDocument() })
+    const adapter = makeMockAdapter()
+    await commitImportPlan(plan, adapter)
+
+    const addPageOps = adapter.ops.filter((o) => o.type === 'addPage')
+    const indexPageId = (addPageOps.find((op) => (op.args as { title: string }).title === 'Home Page')?.args as { id?: string } | undefined)?.id
+    const addScriptsOp = adapter.ops.find((o) => o.type === 'addScripts')
+    expect(indexPageId).toBeDefined()
+    expect(addScriptsOp).toBeDefined()
+    const scripts = (addScriptsOp!.args as { scripts: Array<{
+      path: string
+      format: string
+      pageIds?: string[]
+      priority: number
+    }> }).scripts
+    expect(scripts.map((script) => ({
+      path: script.path,
+      format: script.format,
+      pageIds: script.pageIds,
+      priority: script.priority,
+    }))).toEqual([
+      { path: 'scripts/vendor.js', format: 'classic', pageIds: [indexPageId], priority: 100 },
+      { path: 'scripts/app.js', format: 'module', pageIds: [indexPageId], priority: 101 },
+    ])
+  })
+
+  it('commits imported Google Fonts stylesheet URL into site settings', async () => {
+    const html = `<!doctype html><html><head><link rel="stylesheet" href="style.css"></head><body><h1>Home</h1></body></html>`
+    const fontUrl = 'https://fonts.googleapis.com/css2?family=Manrope:wght@200..800&display=swap'
+    const css = `@import url("${fontUrl}"); h1 { font-family: "Manrope", sans-serif; }`
+    const plan = buildImportPlan({
+      fileMap: makeSinglePageFileMap(html, css),
+      currentSite: makeEmptySiteDocument(),
+    })
+    const adapter = makeMockAdapter()
+    const result = await commitImportPlan(plan, adapter)
+
+    const op = adapter.ops.find((o) => o.type === 'setFontImportUrl')
+    expect(op?.args).toEqual({ url: fontUrl })
+    expect(result.fontImportUrl).toBe(fontUrl)
   })
 
   it('returns ImportResult with correct shape', async () => {

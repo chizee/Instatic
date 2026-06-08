@@ -15,6 +15,7 @@ import type { SiteShell } from '@core/page-tree'
 import {
   DEFAULT_BREAKPOINTS,
   DEFAULT_SITE_SETTINGS,
+  parseConditions,
   parseSiteExplorerOrganization,
 } from '@core/page-tree'
 import { validateSite } from '@core/persistence/validate'
@@ -45,6 +46,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function readStoredShell(row: SiteRow): SiteShell {
   const stored = row.settings_json
   const site: Record<string, unknown> = isRecord(stored?.site) ? stored.site as Record<string, unknown> : {}
+  const conditions = parseConditions(site.conditions)
   return {
     id: typeof site.id === 'string' ? site.id : 'default',
     name: typeof row.name === 'string' ? row.name : '',
@@ -54,6 +56,7 @@ function readStoredShell(row: SiteRow): SiteShell {
     breakpoints: Array.isArray(site.breakpoints)
       ? site.breakpoints as SiteShell['breakpoints']
       : DEFAULT_BREAKPOINTS,
+    ...(conditions.length > 0 ? { conditions } : {}),
     settings: isRecord(site.settings)
       ? site.settings as unknown as SiteShell['settings']
       : DEFAULT_SITE_SETTINGS,

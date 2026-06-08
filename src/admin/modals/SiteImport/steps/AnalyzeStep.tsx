@@ -542,7 +542,7 @@ export function AnalyzeStep({
       <>
         <DetailHead
           title="Scripts"
-          sub="Attached as all-pages site scripts"
+          sub="Attached where the source HTML linked them"
           count={selection.scriptsIncluded.size}
           total={plan.scripts.length}
           onAll={() => patch({ scriptsIncluded: new Set(plan.scripts.map((s) => s.path)) })}

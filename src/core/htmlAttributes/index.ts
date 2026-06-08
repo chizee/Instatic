@@ -1,0 +1,1 @@
+export { isRenderableDataAttributeName } from './dataAttributes'

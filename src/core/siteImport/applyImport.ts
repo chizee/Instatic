@@ -25,6 +25,7 @@
 import type { SiteDocument, ConditionDef } from '@core/page-tree'
 import { cssToStyleRules } from './cssToStyleRules'
 import { extractRootColorTokens } from './colorTokens'
+import { extractExternalFontImportUrls, stripExternalFontImportRules } from './fontImports'
 import { extractRootFontTokens } from './fontTokens'
 import { classifyFiles } from './classifyFiles'
 import { makeHtmlPagePlan } from './htmlPagePlan'
@@ -75,13 +76,7 @@ export function buildImportPlan({ fileMap, currentSite, options }: BuildImportPl
   // 1. Classify every file
   const classified = classifyFiles(fileMap)
 
-  // 2. Import every JS file as an all-pages site script (decoded UTF-8 source).
-  const scripts: ImportScript[] = []
-  for (const f of classified) {
-    if (f.role === 'js') scripts.push({ path: f.path, content: decodeUtf8(f.bytes) })
-  }
-
-  // 3. Process each HTML file into a raw PagePlan
+  // 2. Process each HTML file into a raw PagePlan
   const breakpointHints = currentSite.breakpoints.map((bp) => ({
     id: bp.id,
     width: bp.width,
@@ -92,6 +87,14 @@ export function buildImportPlan({ fileMap, currentSite, options }: BuildImportPl
   const allLinkedCssPaths = new Set<string>()
   // Per-page CSS harvested from `<style>` blocks, keyed by pagePlan.source.
   const inlineCssByPage = new Map<string, string>()
+  const scriptsByPath = new Map<string, {
+    path: string
+    content: string
+    format: ImportScript['format']
+    pageSources: Set<string>
+    priority: number
+  }>()
+  let nextScriptPriority = 100
 
   for (const f of classified) {
     if (f.role !== 'html') continue
@@ -101,9 +104,30 @@ export function buildImportPlan({ fileMap, currentSite, options }: BuildImportPl
     rawPagePlans.push(pagePlan)
     if (inlineCss.trim().length > 0) inlineCssByPage.set(pagePlan.source, inlineCss)
     for (const cssPath of pagePlan.linkedCssPaths) allLinkedCssPaths.add(cssPath)
+    for (const linkedScript of pagePlan.linkedScripts) {
+      const file = fileMap.files[linkedScript.path]
+      if (!file) continue
+      const existing = scriptsByPath.get(linkedScript.path)
+      if (existing) {
+        existing.pageSources.add(pagePlan.source)
+        continue
+      }
+      scriptsByPath.set(linkedScript.path, {
+        path: linkedScript.path,
+        content: decodeUtf8(file.bytes),
+        format: linkedScript.format,
+        pageSources: new Set([pagePlan.source]),
+        priority: nextScriptPriority,
+      })
+      nextScriptPriority += 1
+    }
   }
+  const scripts: ImportScript[] = [...scriptsByPath.values()].map((script) => ({
+    ...script,
+    pageSources: [...script.pageSources],
+  }))
 
-  // 4. Parse CSS files linked from ≥1 page; record unused CSS
+  // 3. Parse CSS files linked from ≥1 page; record unused CSS
   const unusedCss: string[] = []
   const cssFileResults: CssFileResult[] = []
   // Reusable conditions discovered across all CSS files, deduped by id.
@@ -112,6 +136,7 @@ export function buildImportPlan({ fileMap, currentSite, options }: BuildImportPl
   const colorsBySlug = new Map<string, ImportColorToken>()
   // Font tokens pulled from root-scope rules, deduped by normalized variable.
   const fontTokensByVariable = new Map<string, ImportFontToken>()
+  const fontImportUrls = new Set<string>()
 
   for (const f of classified) {
     if (f.role !== 'css') continue
@@ -120,7 +145,9 @@ export function buildImportPlan({ fileMap, currentSite, options }: BuildImportPl
       continue
     }
     const cssSource = decodeUtf8(f.bytes)
-    const { rules, warnings: cssWarnings, assetRefs, conditions: cssConditions, fontFaces } = cssToStyleRules(cssSource, {
+    for (const url of extractExternalFontImportUrls(cssSource)) fontImportUrls.add(url)
+    const cssForStyleRules = stripExternalFontImportRules(cssSource)
+    const { rules, warnings: cssWarnings, assetRefs, conditions: cssConditions, fontFaces } = cssToStyleRules(cssForStyleRules, {
       breakpoints: breakpointHints,
       mediaTolerance,
     })
@@ -159,8 +186,10 @@ export function buildImportPlan({ fileMap, currentSite, options }: BuildImportPl
     const inlineCss = inlineCssByPage.get(plan.source)
     if (!inlineCss) continue
     const syntheticPath = `${plan.source}::inline`
+    for (const url of extractExternalFontImportUrls(inlineCss)) fontImportUrls.add(url)
+    const cssForStyleRules = stripExternalFontImportRules(inlineCss)
     const { rules, warnings: cssWarnings, assetRefs, conditions: cssConditions, fontFaces } =
-      cssToStyleRules(inlineCss, { breakpoints: breakpointHints, mediaTolerance })
+      cssToStyleRules(cssForStyleRules, { breakpoints: breakpointHints, mediaTolerance })
     warnings.push(...cssWarnings)
     for (const def of cssConditions) {
       if (!conditionsById.has(def.id)) conditionsById.set(def.id, def)
@@ -215,6 +244,7 @@ export function buildImportPlan({ fileMap, currentSite, options }: BuildImportPl
     assets,
     colors: [...colorsBySlug.values()],
     fontTokens: [...fontTokensByVariable.values()],
+    ...(fontImportUrls.size > 0 ? { fontImportUrl: [...fontImportUrls][0] } : {}),
     scripts,
     conflicts,
     warnings,
@@ -226,6 +256,25 @@ export function buildImportPlan({ fileMap, currentSite, options }: BuildImportPl
 // ---------------------------------------------------------------------------
 // commitImportPlan
 // ---------------------------------------------------------------------------
+
+function resolveScriptPageScopes(
+  scripts: ImportScript[],
+  pageIdBySource: Map<string, string>,
+): ImportScript[] {
+  return scripts.flatMap((script) => {
+    if (script.pageSources.length === 0) return [script]
+    const seen = new Set<string>()
+    const pageIds: string[] = []
+    for (const source of script.pageSources) {
+      const pageId = pageIdBySource.get(source)
+      if (!pageId || seen.has(pageId)) continue
+      seen.add(pageId)
+      pageIds.push(pageId)
+    }
+    if (pageIds.length === 0) return []
+    return [{ ...script, pageIds }]
+  })
+}
 
 /**
  * Apply a `plan` to the site via the adapter, returning an `ImportResult`
@@ -337,6 +386,10 @@ export async function commitImportPlan(
   const linkedPages = rewriteInternalLinks(rewrittenPlan.pages, pageIdBySource)
 
   await adapter.commit((tx) => {
+    if (rewrittenPlan.fontImportUrl) {
+      tx.setFontImportUrl(rewrittenPlan.fontImportUrl)
+    }
+
     // Merge reusable conditions first so rule contextStyles keys resolve.
     if ((rewrittenPlan.conditions ?? []).length > 0) {
       tx.addConditions(rewrittenPlan.conditions)
@@ -359,11 +412,6 @@ export async function commitImportPlan(
       }
       if (colorAdds.length > 0) resultColors.push(...tx.addColorTokens(colorAdds))
       if (colorOverwrites.length > 0) resultColors.push(...tx.overwriteColorTokens(colorOverwrites))
-    }
-
-    // Site scripts: commit imported JS as all-pages scripts.
-    if ((rewrittenPlan.scripts ?? []).length > 0) {
-      resultScripts.push(...tx.addScripts(rewrittenPlan.scripts))
     }
 
     // Custom fonts: only commit files whose src actually became a media URL
@@ -447,6 +495,11 @@ export async function commitImportPlan(
 
       resultPages.push({ id, title: page.title, slug: page.slug, source: page.source })
     }
+
+    const scopedScripts = resolveScriptPageScopes(rewrittenPlan.scripts ?? [], pageIdBySource)
+    if (scopedScripts.length > 0) {
+      resultScripts.push(...tx.addScripts(scopedScripts))
+    }
   })
 
   // Build asset result — only include the ones that actually uploaded.
@@ -467,6 +520,7 @@ export async function commitImportPlan(
     assets: resultAssets,
     colors: resultColors,
     fontTokens: resultFontTokens,
+    ...(rewrittenPlan.fontImportUrl ? { fontImportUrl: rewrittenPlan.fontImportUrl } : {}),
     scripts: resultScripts,
     conflicts: plan.conflicts,
     // Carry forward the plan-level warnings (CSS parser / asset planner /

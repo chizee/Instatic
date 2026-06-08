@@ -325,6 +325,7 @@ describe('Publisher + real modules — quote and multi-character escaping', () =
         '/uploads/img.jpg',
         {
           publicPath: '/uploads/img.jpg',
+          mimeType: 'image/jpeg',
           width: 100,
           height: 100,
           altText: 'AT&T "Premium" Plan <Pro>',
@@ -526,6 +527,7 @@ describe('publishPage() + real modules — end-to-end document', () => {
         '/uploads/img.jpg',
         {
           publicPath: '/uploads/img.jpg',
+          mimeType: 'image/jpeg',
           width: 100,
           height: 100,
           altText: 'Cat & Dog',

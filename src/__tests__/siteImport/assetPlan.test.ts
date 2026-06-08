@@ -69,6 +69,43 @@ describe('buildAssetPlan — img src normalisation', () => {
 })
 
 // ---------------------------------------------------------------------------
+// data-* asset normalisation
+// ---------------------------------------------------------------------------
+
+describe('buildAssetPlan — data-* asset normalisation', () => {
+  it('normalises data-bg-src to a FileMap key and records the asset', () => {
+    const fileMap = makeFileMap({
+      'pricing.html': {
+        bytes: txt('<html><body><section data-bg-src="assets/images/shape/heroShape1_1.png">Pricing</section></body></html>'),
+      },
+      'assets/images/shape/heroShape1_1.png': { bytes: MINIMAL_PNG, mimeType: 'image/png' },
+    })
+    const { pagePlan } = makeHtmlPagePlan('pricing.html', new TextDecoder().decode(fileMap.files['pricing.html']!.bytes), fileMap)
+    const { normalizedPagePlans, assets } = buildAssetPlan([pagePlan], [], fileMap)
+
+    const node = normalizedPagePlans[0].nodeFragment.nodes[normalizedPagePlans[0].nodeFragment.rootIds[0]!]!
+    expect(node.props['dataAttributes']).toEqual({
+      'data-bg-src': 'assets/images/shape/heroShape1_1.png',
+    })
+    expect(assets.some((a) => a.sourcePath === 'assets/images/shape/heroShape1_1.png')).toBe(true)
+  })
+
+  it('leaves external data-* URLs unchanged and records no asset', () => {
+    const fileMap = makeFileMap({
+      'index.html': {
+        bytes: txt('<html><body><section data-bg-src="https://cdn.example.com/bg.png">Hero</section></body></html>'),
+      },
+    })
+    const { pagePlan } = makeHtmlPagePlan('index.html', new TextDecoder().decode(fileMap.files['index.html']!.bytes), fileMap)
+    const { normalizedPagePlans, assets } = buildAssetPlan([pagePlan], [], fileMap)
+
+    const node = normalizedPagePlans[0].nodeFragment.nodes[normalizedPagePlans[0].nodeFragment.rootIds[0]!]!
+    expect(node.props['dataAttributes']).toEqual({ 'data-bg-src': 'https://cdn.example.com/bg.png' })
+    expect(assets).toHaveLength(0)
+  })
+})
+
+// ---------------------------------------------------------------------------
 // Inline background-image (node.inlineStyles) normalisation
 // ---------------------------------------------------------------------------
 

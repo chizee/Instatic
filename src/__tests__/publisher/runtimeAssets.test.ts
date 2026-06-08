@@ -74,6 +74,30 @@ describe('publishPage runtime assets', () => {
     expect(html.indexOf('/_instatic/assets/runtime/a.js')).toBeLessThan(html.indexOf('/_instatic/assets/runtime/b.js'))
   })
 
+  it('emits classic runtime scripts without type=module', () => {
+    const runtimeAssets: PublishedPageRuntimeAssets = {
+      scripts: [
+        {
+          fileId: 'classic',
+          src: '/_instatic/assets/runtime/jquery.js',
+          format: 'classic',
+          placement: 'body-end',
+          timing: 'dom-ready',
+          priority: 10,
+        },
+      ],
+    }
+
+    const { html } = publishPage(page, site, registry, { runtimeAssets })
+
+    expect(html).toContain(
+      '<script src="/_instatic/assets/runtime/jquery.js" data-instatic-runtime-script="classic"></script>',
+    )
+    expect(html).not.toContain(
+      '<script type="module" src="/_instatic/assets/runtime/jquery.js"',
+    )
+  })
+
   it('does not inject external or unsafe runtime asset URLs', () => {
     const runtimeAssets: PublishedPageRuntimeAssets = {
       scripts: [

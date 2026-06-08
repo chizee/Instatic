@@ -130,6 +130,12 @@ export interface SiteImportTransaction {
   addConditions(conditions: ConditionDef[]): void
 
   /**
+   * Set the site-level external font stylesheet URL extracted from imported
+   * CSS @import rules. The publisher emits this as a head stylesheet link.
+   */
+  setFontImportUrl(url: string): void
+
+  /**
    * Add custom font families (from imported `@font-face` blocks) to
    * `site.settings.fonts`. Each file's `src` is already a final media URL.
    *
@@ -184,8 +190,8 @@ export interface SiteImportTransaction {
 
   /**
    * Add imported JavaScript files as site scripts: one `SiteFile`
-   * (`type: 'script'`) per file plus an all-pages `site.runtime.scripts` entry
-   * so each runs on every published page.
+   * (`type: 'script'`) per file plus a page-scoped `site.runtime.scripts`
+   * entry so each runs where the source HTML linked it.
    *
    * @returns The committed `{ id, path }` for each added script.
    */

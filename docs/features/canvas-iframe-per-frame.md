@@ -124,11 +124,11 @@ Unlayered rules always beat `@layer`-d rules regardless of specificity. User CSS
 
 Source: `useRuntimeScriptBuild.ts`, `RuntimeScriptInjector.tsx`
 
-When the "Run scripts" toggle (`runScripts` in `canvasSlice`) is on, `CanvasRoot` calls `useRuntimeScriptBuild` to bundle the site's script files and inject them into every editable iframe. The bundle is shared across all frames (design and live) so it isn't rebuilt per frame.
+When the "Run scripts" toggle (`runScripts` in `canvasSlice`) is on, `CanvasRoot` calls `useRuntimeScriptBuild` to build the site's runtime script files and inject them into every editable iframe. Module scripts are bundled; classic imported scripts are passed through as browser-global scripts. The result is shared across all frames (design and live) so it isn't rebuilt per frame.
 
 Rebuild triggers: script file content changes, `packageJson` changes, `site.runtime` changes, or a manual Refresh. Node-tree edits do NOT trigger a rebuild — the bundle signature keys on script inputs only, not the page tree.
 
-`RuntimeScriptInjector` appends `<script type="module">` elements imperatively (not via JSX) because browsers don't execute React-inserted `<script>` tags. Old `<script>` elements are removed before new ones are appended; removing them doesn't undo their side effects (registered listeners, injected DOM) — that's why the Refresh button re-runs them.
+`RuntimeScriptInjector` appends `<script>` elements imperatively (not via JSX) because browsers don't execute React-inserted `<script>` tags. Module entries get `type="module"`; classic entries stay plain `<script>`. Old `<script>` elements are removed before new ones are appended; removing them doesn't undo their side effects (registered listeners, injected DOM) — that's why the Refresh button re-runs them.
 
 ---
 

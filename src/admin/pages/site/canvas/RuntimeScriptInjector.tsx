@@ -4,11 +4,11 @@
  *
  * The canvas frames are same-origin, React-rendered iframes (see
  * `IframeFrameSurface`). To make authored behaviour run in-place without
- * leaving the editor, we append the bundled entry scripts (from
- * `useRuntimeScriptBuild`) as inline `<script type="module">` elements into
- * the iframe document. Module scripts appended after load execute against the
- * already-rendered DOM — exactly what we want, since React mounted the node
- * tree first.
+ * leaving the editor, we append the runtime entries (from
+ * `useRuntimeScriptBuild`) as inline script elements into the iframe document.
+ * Module scripts stay `<script type="module">`; classic imported scripts stay
+ * plain `<script>` so UMD/global vendor files keep their source-HTML loader
+ * semantics.
  *
  * Why imperative DOM, not JSX:
  * Browsers do not execute `<script>` elements that React inserts as part of
@@ -48,7 +48,7 @@ export function RuntimeScriptInjector({ targetDocument, scripts }: RuntimeScript
 
     const elements = scripts.map((script) => {
       const el = targetDocument.createElement('script')
-      el.type = 'module'
+      if (script.format !== 'classic') el.type = 'module'
       el.setAttribute(RUNTIME_SCRIPT_MARKER, script.id)
       el.textContent = script.content
       const parent = script.placement === 'head' ? head : body

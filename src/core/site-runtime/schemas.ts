@@ -66,6 +66,17 @@ const SiteScriptTimingSchema = Type.Union([
 export type SiteScriptTiming = Static<typeof SiteScriptTimingSchema>
 
 // ---------------------------------------------------------------------------
+// SiteScriptFormat
+// ---------------------------------------------------------------------------
+
+const SiteScriptFormatSchema = Type.Union([
+  Type.Literal('module'),
+  Type.Literal('classic'),
+])
+
+export type SiteScriptFormat = Static<typeof SiteScriptFormatSchema>
+
+// ---------------------------------------------------------------------------
 // SiteAssetScope — discriminated union on `type`
 //
 // Shared by scripts AND stylesheets: both can target all pages, an explicit
@@ -91,6 +102,7 @@ export type SiteAssetScope = Static<typeof SiteAssetScopeSchema>
 const SiteScriptRuntimeConfigSchema = Type.Object({
   enabled: Type.Boolean(),
   runInCanvas: Type.Boolean(),
+  format: Type.Optional(SiteScriptFormatSchema),
   placement: SiteScriptPlacementSchema,
   timing: SiteScriptTimingSchema,
   scope: SiteAssetScopeSchema,
@@ -251,6 +263,7 @@ export type RuntimePackageDependencyUsage = Static<typeof RuntimePackageDependen
 const PublishedRuntimeScriptAssetSchema = Type.Object({
   fileId: Type.String(),
   src: Type.String(),
+  format: Type.Optional(SiteScriptFormatSchema),
   placement: SiteScriptPlacementSchema,
   timing: SiteScriptTimingSchema,
   priority: Type.Number(),

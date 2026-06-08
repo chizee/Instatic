@@ -6,19 +6,22 @@ export function normalizePageSlug(value: string): string {
   return value
     .trim()
     .toLowerCase()
-    .replace(/\s+/g, '-')
-    .replace(/[^a-z0-9-]/g, '')
-    .replace(/-+/g, '-')
-    .replace(/^-+|-+$/g, '')
+    .split('/')
+    .map(normalizePageSlugSegment)
+    .filter(Boolean)
+    .join('/')
 }
 
 export function pageSlugError(slug: string): string | null {
   if (!slug) return 'Page slug is required.'
-  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) {
-    return 'Page slug must use lowercase letters, numbers, and single hyphens.'
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*(?:\/[a-z0-9]+(?:-[a-z0-9]+)*)*$/.test(slug)) {
+    return 'Page slug must use lowercase letters, numbers, single hyphens, and optional single slashes.'
   }
-  if (RESERVED_PUBLIC_SLUGS.has(slug)) {
-    return `Page slug "${slug}" is reserved.`
+  const firstSegment = slug.split('/')[0] ?? slug
+  if (RESERVED_PUBLIC_SLUGS.has(firstSegment)) {
+    return firstSegment === slug
+      ? `Page slug "${slug}" is reserved.`
+      : `Page slug path cannot start with "${firstSegment}".`
   }
   return null
 }
@@ -46,10 +49,10 @@ export function uniquePageSlug(
   pages: Page[],
   excludePageId?: string,
 ): string {
-  const base = normalizePageSlug(desired) || 'page'
+  const base = validPageSlugBase(normalizePageSlug(desired) || 'page')
   let candidate = base
   let suffix = 2
-  while (pages.some((page) => page.slug === candidate && page.id !== excludePageId)) {
+  while (pageSlugError(candidate) || pages.some((page) => page.slug === candidate && page.id !== excludePageId)) {
     candidate = `${base}-${suffix}`
     suffix += 1
   }
@@ -61,7 +64,7 @@ export function createUniquePageSlug(title: string, pages: Page[]): string {
   const base = !normalized
     ? 'page'
     : pageSlugError(normalized)
-      ? `${normalized}-page`
+      ? validPageSlugBase(normalized)
       : normalized
   let candidate = base
   let suffix = 2
@@ -88,4 +91,20 @@ export function isHomePage(page: Page): boolean {
  */
 export function findHomePage(pages: Page[]): Page | undefined {
   return pages.find(isHomePage)
+}
+
+function normalizePageSlugSegment(value: string): string {
+  return value
+    .trim()
+    .replace(/['"]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9-]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
+function validPageSlugBase(slug: string): string {
+  const [firstSegment = '', ...rest] = slug.split('/')
+  if (!RESERVED_PUBLIC_SLUGS.has(firstSegment)) return slug
+  return [`${firstSegment}-page`, ...rest].filter(Boolean).join('/')
 }

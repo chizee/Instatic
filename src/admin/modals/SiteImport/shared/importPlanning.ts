@@ -67,7 +67,13 @@ export function filterPlanBySelection(plan: ImportPlan, selection: ImportSelecti
     assets: plan.assets.filter((a) => selection.assetsIncluded.has(a.sourcePath)),
     fonts: plan.fonts.filter((f) => selection.fontsIncluded.has(f.family)),
     fontTokens,
-    scripts: plan.scripts.filter((s) => selection.scriptsIncluded.has(s.path)),
+    scripts: plan.scripts
+      .filter((s) => selection.scriptsIncluded.has(s.path))
+      .map((script) => ({
+        ...script,
+        pageSources: script.pageSources.filter((source) => selection.pagesIncluded.has(source)),
+      }))
+      .filter((script) => script.pageSources.length > 0),
     conflicts: {
       ...plan.conflicts,
       tokens: plan.conflicts.tokens.filter(

@@ -3,7 +3,8 @@
  *
  * Steps:
  *   1. Parse the full HTML with DOMParser (browser/happy-dom) to extract
- *      `<title>` text and `<link rel="stylesheet">` hrefs from `<head>`.
+ *      `<title>` text, `<link rel="stylesheet">` hrefs from `<head>`, and
+ *      `<script src>` tags from the full document.
  *      In environments without DOMParser, falls back to a minimal regex
  *      scanner so the module stays headless.
  *   2. Resolve each stylesheet href relative to the HTML file's path, then
@@ -15,7 +16,9 @@
 
 import { importHtml } from '@core/htmlImport'
 import type { ImportFragment } from '@core/htmlImport'
+import { normalizePageSlug } from '@core/page-tree'
 import type { FileMap, ImportWarning, PagePlan } from './types'
+import type { SiteScriptFormat } from '@core/site-runtime'
 
 // ---------------------------------------------------------------------------
 // Public function
@@ -47,8 +50,8 @@ export function makeHtmlPagePlan(
 ): HtmlPagePlanResult {
   const warnings: ImportWarning[] = []
 
-  // --- Step 1: extract <title> and stylesheet links ---
-  const { title: extractedTitle, linkHrefs } = extractHeadMeta(htmlSource)
+  // --- Step 1: extract <title>, stylesheet links, and script references ---
+  const { title: extractedTitle, linkHrefs, scriptRefs } = extractDocumentMeta(htmlSource)
 
   // --- Step 2: resolve stylesheet hrefs to FileMap keys ---
   const linkedCssPaths: string[] = []
@@ -65,6 +68,21 @@ export function makeHtmlPagePlan(
       })
     }
     // href that couldn't be resolved (external, absolute, etc.) is silently ignored
+  }
+
+  const linkedScripts: PagePlan['linkedScripts'] = []
+  for (const script of scriptRefs) {
+    const resolved = resolveHref(script.src, htmlPath)
+    if (resolved && fileMap.files[resolved]) {
+      linkedScripts.push({ path: resolved, format: script.format })
+    } else if (resolved) {
+      warnings.push({
+        kind: 'missing-script',
+        message: `Script "${script.src}" linked by "${htmlPath}" was not found in the import`,
+        source: htmlPath,
+        path: script.src,
+      })
+    }
   }
 
   // --- Step 3: derive title ---
@@ -84,6 +102,7 @@ export function makeHtmlPagePlan(
     title,
     slug,
     linkedCssPaths,
+    linkedScripts,
     nodeFragment,
   }
 
@@ -91,30 +110,41 @@ export function makeHtmlPagePlan(
 }
 
 // ---------------------------------------------------------------------------
-// Head metadata extraction
+// Document metadata extraction
 // ---------------------------------------------------------------------------
 
-interface HeadMeta {
+interface ScriptRef {
+  src: string
+  format: SiteScriptFormat
+}
+
+interface DocumentMeta {
   title: string | null
   linkHrefs: string[]
+  scriptRefs: ScriptRef[]
 }
 
 /**
- * Extract `<title>` text and `<link rel="stylesheet">` hrefs from HTML.
+ * Extract `<title>` text, `<link rel="stylesheet">` hrefs, and script refs
+ * from HTML.
  *
  * Uses DOMParser when available (browser + happy-dom test environment).
  * Falls back to regex for server-side or other environments without a DOM.
  */
-function extractHeadMeta(htmlSource: string): HeadMeta {
+function extractDocumentMeta(htmlSource: string): DocumentMeta {
   // Try DOMParser (browser, happy-dom)
   if (typeof DOMParser !== 'undefined') {
-    return extractHeadMetaFromDom(htmlSource)
+    return extractDocumentMetaFromDom(htmlSource)
   }
   // Fallback: lightweight regex extraction
-  return extractHeadMetaFromRegex(htmlSource)
+  return extractDocumentMetaFromRegex(htmlSource)
 }
 
-function extractHeadMetaFromDom(htmlSource: string): HeadMeta {
+function scriptFormatFromType(type: string | null): SiteScriptFormat {
+  return type?.trim().toLowerCase() === 'module' ? 'module' : 'classic'
+}
+
+function extractDocumentMetaFromDom(htmlSource: string): DocumentMeta {
   try {
     const doc = new DOMParser().parseFromString(htmlSource, 'text/html')
     const titleEl = doc.querySelector('title')
@@ -127,15 +157,26 @@ function extractHeadMetaFromDom(htmlSource: string): HeadMeta {
       if (href && href.trim().length > 0) linkHrefs.push(href.trim())
     }
 
-    return { title, linkHrefs }
+    const scriptRefs: ScriptRef[] = []
+    const scripts = doc.querySelectorAll('script[src]')
+    for (const script of Array.from(scripts)) {
+      const src = script.getAttribute('src')
+      if (!src || src.trim().length === 0) continue
+      scriptRefs.push({
+        src: src.trim(),
+        format: scriptFormatFromType(script.getAttribute('type')),
+      })
+    }
+
+    return { title, linkHrefs, scriptRefs }
   } catch {
     // DOM parse failed — fall through to regex
-    return extractHeadMetaFromRegex(htmlSource)
+    return extractDocumentMetaFromRegex(htmlSource)
   }
 }
 
 /** Minimal regex fallback for environments without DOMParser. */
-function extractHeadMetaFromRegex(htmlSource: string): HeadMeta {
+function extractDocumentMetaFromRegex(htmlSource: string): DocumentMeta {
   // Extract <title>
   const titleMatch = htmlSource.match(/<title[^>]*>([\s\S]*?)<\/title>/i)
   const title = titleMatch ? titleMatch[1].replace(/\s+/g, ' ').trim() : null
@@ -154,7 +195,21 @@ function extractHeadMetaFromRegex(htmlSource: string): HeadMeta {
     }
   }
 
-  return { title, linkHrefs }
+  const scriptRefs: ScriptRef[] = []
+  const scriptRe = /<script\s[^>]*>/gi
+  let scriptMatch: RegExpExecArray | null
+  while ((scriptMatch = scriptRe.exec(htmlSource)) !== null) {
+    const tag = scriptMatch[0]
+    const srcMatch = tag.match(/src=["']([^"']+)["']/i)
+    if (!srcMatch) continue
+    const typeMatch = tag.match(/type=["']([^"']+)["']/i)
+    scriptRefs.push({
+      src: srcMatch[1].trim(),
+      format: scriptFormatFromType(typeMatch?.[1] ?? null),
+    })
+  }
+
+  return { title, linkHrefs, scriptRefs }
 }
 
 // ---------------------------------------------------------------------------
@@ -217,20 +272,31 @@ function joinPaths(dir: string, relative: string): string {
  * Derive a URL-safe slug from an HTML file path.
  *
  * Rules:
- *   - Take the filename without extension.
- *   - Lowercase.
- *   - Replace any run of non-`[a-z0-9]` characters with a single `-`.
- *   - Strip leading and trailing `-`.
+ *   - Strip the extension from the HTML file path.
+ *   - Preserve safe nested path segments (`docs/api.html` → `docs/api`).
+ *   - Treat nested `index.html` as the directory route
+ *     (`docs/index.html` → `docs`), while root `index.html` stays `index`.
+ *   - Lowercase and sanitise each segment with page-slug rules.
  *   - If the result is empty, fall back to `'page'`.
  */
 export function deriveSlug(htmlPath: string): string {
-  const basename = htmlPath.split('/').pop() ?? htmlPath
-  const name = basename.replace(/\.[^.]+$/, '') // strip extension
-  const slug = name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-  return slug || 'page'
+  const pathWithoutExtension = htmlPath
+    .replace(/\\/g, '/')
+    .replace(/^\/+|\/+$/g, '')
+    .replace(/\.[^/.]+$/, '')
+  const rawSegments = pathWithoutExtension.split('/').filter(Boolean)
+  const lastIndex = rawSegments.length - 1
+  const slugSegments = rawSegments.flatMap((segment, index) => {
+    const normalized = normalizePageSlug(segment)
+    if (normalized) return [normalized]
+    return index === lastIndex ? ['page'] : []
+  })
+
+  if (slugSegments.length > 1 && slugSegments[slugSegments.length - 1] === 'index') {
+    slugSegments.pop()
+  }
+
+  return slugSegments.join('/') || 'page'
 }
 
 /**

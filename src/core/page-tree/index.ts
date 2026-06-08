@@ -53,7 +53,7 @@ export { DEFAULT_BREAKPOINTS, breakpointMediaQuery, defaultBreakpointMediaQuery 
 export { DEFAULT_SITE_SETTINGS } from './siteSettings'
 
 // Condition helpers
-export { conditionId, conditionLabel, makeConditionDef } from './condition'
+export { conditionId, conditionLabel, makeConditionDef, parseConditions } from './condition'
 
 // Tolerant parsers — boundary helpers for persisted data.
 export { parseBreakpoint } from './breakpoint'

@@ -241,6 +241,7 @@ export function createSiteImportAdapter(opts: AdapterCallbacks): SiteImportAdapt
           overwritePage: (id, input) => helpers.overwritePage(id, input),
           overwriteStyleRule: (id, rule) => helpers.overwriteStyleRule(id, rule),
           addConditions: (conditions) => helpers.addConditions(conditions),
+          setFontImportUrl: (url) => helpers.setFontImportUrl(url),
           addFonts: (fonts) => helpers.addFonts(fonts),
           addFontTokens: (tokens) => helpers.addFontTokens(tokens),
           overwriteFontTokens: (items) => helpers.overwriteFontTokens(items),

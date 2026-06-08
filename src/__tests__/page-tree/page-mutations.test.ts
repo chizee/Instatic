@@ -11,6 +11,9 @@ import { create } from 'mutative'
 import type { SiteDocument } from '@core/page-tree'
 import {
   addPage,
+  normalizePageSlug,
+  pagePublicPath,
+  pageSlugError,
   deletePage,
   renamePage,
   reorderPages,
@@ -47,6 +50,13 @@ describe('addPage', () => {
     expect(page.slug).toBe(page.slug.toLowerCase())
   })
 
+  it('preserves safe slash-delimited page paths', () => {
+    const site = makeSite({ pages: [] })
+    const page = addPage(site, 'Quick Start', 'Guides/Quick Start')
+    expect(page.slug).toBe('guides/quick-start')
+    expect(pagePublicPath(page.slug)).toBe('/guides/quick-start')
+  })
+
   it('creates a unique root node for each page', () => {
     const site = makeSite({ pages: [] })
     const p1 = addPage(site, 'Home', 'index')
@@ -70,6 +80,11 @@ describe('addPage', () => {
   it('generates slugs that avoid reserved public routes', () => {
     const site = makeSite({ pages: [] })
     expect(createUniquePageSlug('Admin', site.pages)).toBe('admin-page')
+  })
+
+  it('generates nested slugs from slash-delimited titles', () => {
+    const site = makeSite({ pages: [] })
+    expect(createUniquePageSlug('Docs/API Reference', site.pages)).toBe('docs/api-reference')
   })
 
   it('generates slugs that avoid existing page slugs', () => {
@@ -100,6 +115,20 @@ describe('addPage', () => {
     // No two pages share a slug — the site stays save-valid.
     const slugs = site.pages.map((p) => p.slug)
     expect(new Set(slugs).size).toBe(slugs.length)
+  })
+})
+
+describe('page slugs', () => {
+  it('normalizes each slash-delimited path segment', () => {
+    expect(normalizePageSlug(' Docs / API Reference / ')).toBe('docs/api-reference')
+  })
+
+  it('accepts safe slash-delimited public paths', () => {
+    expect(pageSlugError('docs/api-reference')).toBeNull()
+  })
+
+  it('rejects empty path segments', () => {
+    expect(pageSlugError('docs//api')).toBe('Page slug must use lowercase letters, numbers, single hyphens, and optional single slashes.')
   })
 })
 

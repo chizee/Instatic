@@ -10,6 +10,12 @@ import { LinkIcon } from 'pixel-art-icons/icons/link'
 import { safeUrl } from '@modules/base/utils/escape'
 import { Type, Value, type Static } from '@core/utils/typeboxHelpers'
 import { AnchorTargetSchema, ANCHOR_TARGET_OPTIONS, anchorRel } from '@modules/base/shared/anchorTarget'
+import {
+  dataAttributesAttr,
+  dataAttributesControl,
+  DataAttributesPropSchemaOptions,
+} from '@modules/base/shared/dataAttributes'
+import { htmlIdAttr, htmlIdControl, HtmlIdPropSchemaOptions } from '@modules/base/shared/htmlId'
 import { linkUsesChildren } from './content'
 import { LinkEditor } from './LinkEditor'
 
@@ -17,6 +23,8 @@ const LinkPropsSchema = Type.Object({
   href: Type.String({ default: '#' }),
   text: Type.String({ default: 'Click here' }),
   target: AnchorTargetSchema,
+  htmlId: Type.String(HtmlIdPropSchemaOptions),
+  dataAttributes: Type.Record(Type.String(), Type.String(), DataAttributesPropSchemaOptions),
 })
 
 export type LinkStoredProps = Static<typeof LinkPropsSchema>
@@ -39,6 +47,8 @@ export const LinkModule: ModuleDefinition<LinkStoredProps> = {
       label: 'Target',
       options: [...ANCHOR_TARGET_OPTIONS],
     },
+    htmlId: htmlIdControl(),
+    dataAttributes: dataAttributesControl(),
   },
 
   propsSchema: LinkPropsSchema,
@@ -51,6 +61,8 @@ export const LinkModule: ModuleDefinition<LinkStoredProps> = {
 
   render: (props, renderedChildren) => {
     const href = safeUrl(props.href)
+    const idAttr = htmlIdAttr(props.htmlId)
+    const dataAttrs = dataAttributesAttr(props.dataAttributes)
     const rel = anchorRel(props.target)
     const relAttr = rel ? ` rel="${rel}"` : ''
     const targetAttr = ` target="${String(props.target)}"`
@@ -58,7 +70,7 @@ export const LinkModule: ModuleDefinition<LinkStoredProps> = {
       ? renderedChildren.join('')
       : String(props.text ?? '')
     return {
-      html: `<a href="${href}"${targetAttr}${relAttr}>${content}</a>`,
+      html: `<a${idAttr}${dataAttrs} href="${href}"${targetAttr}${relAttr}>${content}</a>`,
     }
   },
 }

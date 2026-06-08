@@ -40,6 +40,7 @@ const DEFAULT_SITE_DEPENDENCY_LOCK: SiteDependencyLock = {
 export const DEFAULT_SCRIPT_RUNTIME_CONFIG: SiteScriptRuntimeConfig = {
   enabled: true,
   runInCanvas: true,
+  format: 'module',
   placement: 'body-end',
   timing: 'dom-ready',
   scope: { type: 'all-pages' },
@@ -88,6 +89,9 @@ export function normalizeScriptRuntimeConfig(raw: unknown): SiteScriptRuntimeCon
   return {
     enabled: typeof raw.enabled === 'boolean' ? raw.enabled : DEFAULT_SCRIPT_RUNTIME_CONFIG.enabled,
     runInCanvas: typeof raw.runInCanvas === 'boolean' ? raw.runInCanvas : DEFAULT_SCRIPT_RUNTIME_CONFIG.runInCanvas,
+    format: raw.format === 'classic' || raw.format === 'module'
+      ? raw.format
+      : DEFAULT_SCRIPT_RUNTIME_CONFIG.format,
     placement: raw.placement === 'head' || raw.placement === 'body-end'
       ? raw.placement
       : DEFAULT_SCRIPT_RUNTIME_CONFIG.placement,

@@ -38,6 +38,7 @@ function validSite(): SiteDocument {
     runtime: {
       dependencyLock: { version: 1, packages: {}, updatedAt: 0 },
       scripts: {},
+      styles: {},
     },
     breakpoints: [
       { id: 'desktop', label: 'Desktop', width: 1440, icon: 'monitor' },
@@ -397,12 +398,14 @@ describe('validateSite — site package manifest', () => {
           'script-1': {
             enabled: true,
             runInCanvas: false,
+            format: 'module',
             placement: 'head',
             timing: 'idle',
             scope: { type: 'pages', pageIds: ['page-1'] },
             priority: 25,
           },
         },
+        styles: {},
       },
     }
 
@@ -412,6 +415,7 @@ describe('validateSite — site package manifest', () => {
     expect(result.runtime?.scripts['script-1']).toEqual({
       enabled: true,
       runInCanvas: false,
+      format: 'module',
       placement: 'head',
       timing: 'idle',
       scope: { type: 'pages', pageIds: ['page-1'] },

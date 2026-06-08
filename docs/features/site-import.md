@@ -9,14 +9,14 @@ The static-site pipeline has two parts: a pure analysis function (`buildImportPl
 ## TL;DR
 
 - Entry: global admin-shell modal, opened from Spotlight or workspace actions. Drop files, a folder, a `.zip`, or a CMS-exported `.json` bundle. Static files use the four-stage modal (Drop → Review → Conflicts → Import, with completion shown inside the Import stage). CMS bundles use Drop → Review bundle → Import.
-- `buildImportPlan({ fileMap, currentSite })` — pure, synchronous — produces an `ImportPlan` with pages, style rules, media, color tokens, fonts, font tokens, and scripts.
+- `buildImportPlan({ fileMap, currentSite })` — pure, synchronous — produces an `ImportPlan` with pages, style rules, media, color tokens, fonts, font tokens, external font imports, and scripts.
 - `commitImportPlan(plan, adapter)` — uploads assets, then wraps all store writes in a single `adapter.commit` call → one Cmd+Z reverts the whole import.
 - Static imports load the current CMS draft into the editor store on demand when launched outside `/admin/site`; if no draft exists, the modal creates an empty site before analysis.
 - Conflict resolution: rename with a numeric suffix (default), overwrite, skip, or custom-rename — per page slug, per class name, and per design token (colour / font CSS variable), with category-level bulk actions for rename / skip / overwrite. Token renames rewrite `var(--x)` references so imports stay faithful.
-- What imports: pages, `kind:'class'` and `kind:'ambient'` style rules, images/fonts/binaries, root CSS color tokens, root CSS font tokens, `@font-face` families, JS files as site-wide scripts.
+- What imports: pages, `kind:'class'` and `kind:'ambient'` style rules, images/fonts/binaries, root CSS color tokens, root CSS font tokens, `@font-face` families, known external font stylesheet imports, ordinary HTML IDs and safe `data-*` attributes on base modules, and HTML-linked JS files as page-scoped runtime scripts.
 - CMS bundle import preserves exported tables, rows, optional site shell, and embedded media using the same merge strategies as site transfer (`replace`, `merge-add`, `merge-overwrite`).
 - HTML forms import through the shared HTML importer as first-class form primitives (`base.form`, controls, labels, submit buttons), not as custom containers.
-- What cannot be modeled: `@keyframes`, `@supports`, `@container`, `@layer`, `@import` — surfaced as warnings, never silently dropped.
+- What cannot be modeled: `@keyframes`, `@layer`, and arbitrary/local `@import` — surfaced as warnings when the CSS engine exposes them, never silently dropped.
 - Headless: `src/core/siteImport/` carries no admin, React, or server imports (gated by `siteImport-headless.test.ts`).
 
 ---
@@ -29,13 +29,14 @@ src/core/siteImport/
 ├── types.ts             — all shared types: FileMap, ImportPlan, ImportResult, ImportWarning, error classes
 ├── ingestInput.ts       — normalize input(s) → FileMap (loose files / folder / .zip)
 ├── classifyFiles.ts     — extension/MIME → FileRole: html | css | js | image | font | binary | meta
-├── htmlPagePlan.ts      — per-HTML-file plan: parse body via importHtml, derive title + slug, resolve <link>s
+├── htmlPagePlan.ts      — per-HTML-file plan: parse body via importHtml, derive title + slug, resolve <link> and <script src> references
 ├── cssToStyleRules.ts   — single-file CSS → StyleRule[] + AssetRef[] + warnings
 ├── colorTokens.ts       — extract root custom-property color tokens from :root/html/body rules
 ├── fontTokens.ts        — extract root --font-* custom properties as ImportFontToken[] from :root/html/body rules
+├── fontImports.ts       — preserve safe external font-provider @import URLs as site.settings.fontImportUrl
 ├── scopeClasses.ts      — scope colliding class names across per-page stylesheets
 ├── mimeTypes.ts         — extension → MIME fallback for FileMap entries that carry no MIME type (e.g. ZIP)
-├── assetPlan.ts         — normalise URL props in node fragments + CSS url(); resolve @font-face; collect assets
+├── assetPlan.ts         — normalise URL props/data attributes in node fragments + CSS url(); resolve @font-face; collect assets
 ├── applyAssetRewrites.ts — patch fragment props + CSS url() with new media URLs (post-upload)
 ├── linkRewrite.ts       — rewrite intra-site <a href> to cms:page:<id> refs
 ├── conflicts.ts         — detect page-slug + class-name + design-token collisions; apply resolutions (incl. var(--x) rewrites)
@@ -85,6 +86,9 @@ User drops files / folder / .zip / CMS bundle JSON
     └───────────────────────────────────────────────────────────────┘
             │
     ┌── per linked CSS file ─────────────────────────────────────────┐
+    │   extractExternalFontImportUrls(css)                            │
+    │   → site fontImportUrl when a known font provider @import exists│
+    │                                                                │
     │   cssToStyleRules(css, { breakpoints })                        │
     │   → rules[], assetRefs[], conditions[], fontFaces[]            │
     │                                                                │
@@ -99,7 +103,7 @@ User drops files / folder / .zip / CMS bundle JSON
             │  renames divergent same-named classes per stylesheet
             ▼
     buildAssetPlan(pagePlans, cssFileResults, fileMap)
-            │  normalizes url() in node props + CSS values to FileMap keys
+            │  normalizes url() in node props, data attributes, and CSS values to FileMap keys
             │  resolves @font-face → ImportFontFamily[]
             │  collects deduplicated asset list
             ▼
@@ -144,7 +148,7 @@ interface ImportPlan {
 }
 ```
 
-All URL-shaped values inside `pages[].nodeFragment` and style rule `styles`/`contextStyles` are normalised to FileMap keys before the plan is returned — `applyAssetRewrites` does exact-string replacement after upload.
+All URL-shaped values inside `pages[].nodeFragment` props, hidden imported `data-*` attribute bags, and style rule `styles`/`contextStyles` are normalised to FileMap keys before the plan is returned — `applyAssetRewrites` does exact-string replacement after upload.
 
 ---
 
@@ -152,13 +156,15 @@ All URL-shaped values inside `pages[].nodeFragment` and style rule `styles`/`con
 
 | Category | What | How |
 |---|---|---|
-| **Pages** | One `PagePlan` per `.html` file | `makeHtmlPagePlan` parses the body via `@core/htmlImport`; slug derived from filename |
+| **Pages** | One `PagePlan` per `.html` file | `makeHtmlPagePlan` parses the body via `@core/htmlImport`; slug derived from the relative file path (`documentation/index.html` → `documentation`, `guides/install.html` → `guides/install`) |
+| **HTML IDs** | `id="…"` on ordinary elements | The HTML importer stores IDs as `props.htmlId` on base container/text/link/button/image modules so imported CSS selectors, anchors, and classic scripts can target the published DOM |
+| **Data attributes** | Safe `data-*` attributes on ordinary elements | Stored as hidden `props.dataAttributes` on base container/text/link/button/image modules so template runtime hooks such as `data-bg-src`, `data-aos`, and `data-bs-*` survive import. Reserved Instatic/editor `data-*` names are not imported. Local asset URLs inside these attributes are uploaded and rewritten. |
 | **Style rules** | All rules from linked CSS files | `cssToStyleRules` maps each declaration block to a `NewStyleRule` (class or ambient kind) |
 | **Media** | Images, fonts, binaries — and any unreferenced files in the bundle | `buildAssetPlan` collects them; unreferenced files are swept up even if nothing in the HTML/CSS references them |
 | **Color tokens** | CSS custom properties on `:root` / `html` / `body` that look like colours | `extractRootColorTokens` pulls them into `ImportColorToken[]`; they become framework palette tokens. A `--<slug>` that collides with an existing colour token surfaces as a `TokenConflict` (rename / skip / overwrite) |
 | **Fonts** | Self-hosted `@font-face` families with at least one bundled file | `buildFontFamilies` in `assetPlan.ts` picks the best format (woff2 → woff → ttf → otf); committed via `tx.addFonts` |
 | **Font tokens** | Root `--font-*` variables with font-family stacks | `extractRootFontTokens` pulls them into `ImportFontToken[]`; committed via `tx.addFontTokens` after fonts so matching imported families can be assigned. A `--font-*` that collides with an existing font token surfaces as a `TokenConflict` (rename / skip / overwrite) |
-| **Scripts** | Every `.js` / `.mjs` / `.cjs` file | Decoded as UTF-8; committed via `tx.addScripts` as all-pages body-end scripts |
+| **Scripts** | JS files linked by imported HTML via `<script src>` | Decoded as UTF-8; committed via `tx.addScripts` with page scope from the source HTML. Classic scripts remain plain `<script>` assets and bypass bundling; `type="module"` scripts keep module semantics. |
 
 ---
 
@@ -171,7 +177,8 @@ All URL-shaped values inside `pages[].nodeFragment` and style rule `styles`/`con
 | `.foo { … }` (single class) | `StyleRule{ kind:'class', name:'foo', selector:'.foo' }` |
 | `h1`, `body`, `a:hover`, `.hero .title` | `StyleRule{ kind:'ambient', selector: verbatim }` |
 | `@media ... { … }` | Merged into a matching viewport context's `contextStyles` when it matches a configured media query (or an older/default max-width threshold); otherwise preserved as a reusable media condition |
-| `@keyframes`, `@supports`, `@container`, `@layer`, `@import` | Dropped; source text added to `droppedAtRules`; a `dropped-at-rule` warning emitted |
+| Known external font-provider `@import` | Captured as `fontImportUrl` and committed to `site.settings.fontImportUrl` |
+| Arbitrary/local `@import`, `@keyframes`, `@layer` | Dropped; source text added to `droppedAtRules`; a `dropped-at-rule` warning emitted when surfaced by the CSS engine |
 | `@font-face` | Captured as `ParsedFontFace`; resolved into `ImportFontFamily` by `buildAssetPlan` |
 
 ---
@@ -198,6 +205,8 @@ Pure element / attribute selectors (`body`, `h1`, `a:hover`) carry no class toke
 - **`PageConflict`** — a desired slug collides with an existing page slug or with another slug in the same import batch.
 - **`RuleConflict`** — a `kind:'class'` rule's name collides with an existing class name. Ambient rules never conflict.
 - **`TokenConflict`** — a design-token CSS custom property collides with an existing token. One type covers both colour tokens (keyed by `--<slug>`, against `framework.colors.tokens`) and font tokens (keyed by `--font-*`, against `fonts.tokens`), since both are just a `--var` contract referenced by `var(--x)` in the imported CSS. Imported tokens are deduped per kind upstream, so only site-vs-import collisions occur.
+
+Page slugs can be slash-delimited public paths. Root `index.html` stays the homepage slug `index`; nested `index.html` files use their directory route, so `documentation/index.html` imports as `/documentation` and does not collide with `download-version/index.html`.
 
 Each conflict has a `defaultResolution`:
 - `auto-rename` — append `-2` (or `-3`, `-4`, …) until unique. This is the default.
@@ -257,7 +266,7 @@ On success the same step switches to its **complete** state — a success mark, 
 
 | Kind | When emitted |
 |---|---|
-| `dropped-at-rule` | A `@keyframes`, `@supports`, `@container`, `@layer`, or `@import` was present but cannot be modelled |
+| `dropped-at-rule` | An unsupported at-rule such as `@keyframes`, `@layer`, or arbitrary/local `@import` was present but cannot be modelled |
 | `unmatched-media-query` | Legacy warning kind retained for old import reports; current imports preserve unmatched `@media` blocks as reusable conditions |
 | `invalid-rule` | A CSS rule caused `replaceSync` to throw (sheet-level parse error) |
 | `blocked-property` | A CSS property name is on the security denylist (`behavior`, `-moz-binding`, …) — declaration dropped |
@@ -293,6 +302,7 @@ On success the same step switches to its **complete** state — a success mark, 
   - `src/core/siteImport/adapter.ts` — `SiteImportAdapter`, `SiteImportTransaction` interfaces
   - `src/core/siteImport/colorTokens.ts` — `extractRootColorTokens`
   - `src/core/siteImport/fontTokens.ts` — `extractRootFontTokens`
+  - `src/core/siteImport/fontImports.ts` — `extractExternalFontImportUrls`
   - `src/core/siteImport/conflicts.ts` — `detectConflicts`, `applyConflictResolutions`
   - `src/admin/modals/SiteImport/SiteImportModal.tsx` — wizard shell
   - `src/admin/modals/SiteImport/steps/AnalyzeStep.tsx` — category navigator + detail panes

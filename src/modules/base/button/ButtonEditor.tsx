@@ -12,6 +12,8 @@
 import React from 'react'
 import type { ModuleComponentProps } from '@core/module-engine'
 import { anchorRel } from '@modules/base/shared/anchorTarget'
+import { dataAttributesForReact } from '@modules/base/shared/dataAttributes'
+import { htmlIdForReact } from '@modules/base/shared/htmlId'
 import { resolveButtonAnchor } from './anchor'
 import type { ButtonStoredProps } from './index'
 
@@ -21,11 +23,15 @@ export const ButtonEditor: React.FC<ModuleComponentProps<ButtonStoredProps>> = (
   nodeWrapperProps,
 }) => {
   const label = props.label || 'Button'
+  const htmlId = htmlIdForReact(props.htmlId)
+  const dataAttrs = dataAttributesForReact(props.dataAttributes)
   const anchor = resolveButtonAnchor(props.href)
   if (anchor) {
     return (
       <a
         {...nodeWrapperProps}
+        {...dataAttrs}
+        id={htmlId}
         href={anchor.href}
         target={props.target}
         rel={anchorRel(props.target) ?? undefined}
@@ -36,7 +42,14 @@ export const ButtonEditor: React.FC<ModuleComponentProps<ButtonStoredProps>> = (
     )
   }
   return (
-    <button {...nodeWrapperProps} type="button" className={mcClassName} disabled={props.disabled}>
+    <button
+      {...nodeWrapperProps}
+      {...dataAttrs}
+      id={htmlId}
+      type="button"
+      className={mcClassName}
+      disabled={props.disabled}
+    >
       {label}
     </button>
   )

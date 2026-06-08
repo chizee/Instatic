@@ -5,7 +5,8 @@
  *   - 3 HTML pages (index.html, about.html, contact.html)
  *   - 2 CSS files (styles/main.css, styles/theme.css)
  *   - 2 images as minimal 1×1 PNG bytes (images/hero.png, images/logo.png)
- *   - 1 JS file (scripts/app.js) — dropped during import
+ *   - 2 linked JS files (classic vendor + module app) imported as runtime
+ *   - 1 unlinked JS file that remains non-runtime
  *   - 1 hidden file (.DS_Store) — dropped during ingest
  *
  * All file bytes are synthetic ASCII / PNG stubs — not real media.
@@ -57,6 +58,8 @@ export const INDEX_HTML = `<!DOCTYPE html>
   <img src="images/hero.png" alt="Hero">
   <a href="about.html">About us</a>
   <p>Hello world</p>
+  <script src="scripts/vendor.js"></script>
+  <script type="module" src="scripts/app.js"></script>
 </body>
 </html>`
 
@@ -141,7 +144,9 @@ export function makeSampleFileMap(): FileMap {
       'styles/theme.css':  { bytes: txt(THEME_CSS),    mimeType: 'text/css' },
       'images/hero.png':   { bytes: MINIMAL_PNG,       mimeType: 'image/png' },
       'images/logo.png':   { bytes: MINIMAL_PNG,       mimeType: 'image/png' },
-      'scripts/app.js':    { bytes: txt('console.log("hello")'), mimeType: 'application/javascript' },
+      'scripts/vendor.js': { bytes: txt('window.vendorReady = true'), mimeType: 'application/javascript' },
+      'scripts/app.js':    { bytes: txt('import "./vendor.js"; console.log("hello")'), mimeType: 'application/javascript' },
+      'scripts/unused.js': { bytes: txt('console.log("unused")'), mimeType: 'application/javascript' },
       // Hidden file — should be filtered out during ingest (not normally in a FileMap,
       // but included here to test any code that receives raw FileMaps)
     },

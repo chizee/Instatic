@@ -889,6 +889,80 @@ describe('class preservation — node.classIds from el.classList', () => {
 })
 
 // ---------------------------------------------------------------------------
+// 10b. HTML id preservation: ordinary authored elements → props.htmlId
+// ---------------------------------------------------------------------------
+
+describe('HTML id preservation — props.htmlId for ordinary base modules', () => {
+  it('preserves IDs on container, text, link, button, and image nodes', () => {
+    const result = imported(`
+      <div id="preloader">
+        <p id="intro-copy">Intro</p>
+        <a id="jump-link" href="#target">Jump</a>
+        <button id="back-top">Top</button>
+        <img id="logo-image" src="/logo.png">
+      </div>
+    `)
+
+    const container = result.nodes[result.rootIds[0]!]!
+    expect(container.moduleId).toBe('base.container')
+    expect(container.props.htmlId).toBe('preloader')
+
+    const children = container.children.map((id) => result.nodes[id]!)
+    expect(children[0]!.moduleId).toBe('base.text')
+    expect(children[0]!.props.htmlId).toBe('intro-copy')
+    expect(children[1]!.moduleId).toBe('base.link')
+    expect(children[1]!.props.htmlId).toBe('jump-link')
+    expect(children[2]!.moduleId).toBe('base.button')
+    expect(children[2]!.props.htmlId).toBe('back-top')
+    expect(children[3]!.moduleId).toBe('base.image')
+    expect(children[3]!.props.htmlId).toBe('logo-image')
+  })
+
+  it('keeps form control id props on form modules instead of adding htmlId', () => {
+    const result = imported('<form><input id="email" name="email"></form>')
+    const form = result.nodes[result.rootIds[0]!]!
+    const input = result.nodes[form.children[0]!]!
+
+    expect(input.moduleId).toBe('base.input')
+    expect(input.props.id).toBe('email')
+    expect(input.props.htmlId).toBeUndefined()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// 10c. data-* preservation: ordinary authored elements → props.dataAttributes
+// ---------------------------------------------------------------------------
+
+describe('data-* preservation — props.dataAttributes for ordinary base modules', () => {
+  it('preserves template runtime hooks on ordinary base modules', () => {
+    const result = imported(`
+      <div data-bg-src="assets/images/shape/heroShape1_1.png" data-instatic-node="reserved">
+        <p data-aos="fade-up">Intro</p>
+        <a data-track="jump" href="#target">Jump</a>
+        <button data-bs-toggle="modal">Open</button>
+        <img data-lazy="logo" src="/logo.png">
+      </div>
+    `)
+
+    const container = result.nodes[result.rootIds[0]!]!
+    expect(container.moduleId).toBe('base.container')
+    expect(container.props.dataAttributes).toEqual({
+      'data-bg-src': 'assets/images/shape/heroShape1_1.png',
+    })
+
+    const children = container.children.map((id) => result.nodes[id]!)
+    expect(children[0]!.moduleId).toBe('base.text')
+    expect(children[0]!.props.dataAttributes).toEqual({ 'data-aos': 'fade-up' })
+    expect(children[1]!.moduleId).toBe('base.link')
+    expect(children[1]!.props.dataAttributes).toEqual({ 'data-track': 'jump' })
+    expect(children[2]!.moduleId).toBe('base.button')
+    expect(children[2]!.props.dataAttributes).toEqual({ 'data-bs-toggle': 'modal' })
+    expect(children[3]!.moduleId).toBe('base.image')
+    expect(children[3]!.props.dataAttributes).toEqual({ 'data-lazy': 'logo' })
+  })
+})
+
+// ---------------------------------------------------------------------------
 // 11. Nested snippets — parent / child structure
 // ---------------------------------------------------------------------------
 

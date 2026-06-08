@@ -84,6 +84,7 @@ describe('site runtime config', () => {
         'file-1': {
           enabled: false,
           runInCanvas: false,
+          format: 'classic',
           placement: 'head',
           timing: 'idle',
           scope: { type: 'pages', pageIds: ['home'] },
@@ -102,6 +103,7 @@ describe('site runtime config', () => {
     expect(runtime.scripts['file-1']).toEqual({
       enabled: false,
       runInCanvas: false,
+      format: 'classic',
       placement: 'head',
       timing: 'idle',
       scope: { type: 'pages', pageIds: ['home'] },

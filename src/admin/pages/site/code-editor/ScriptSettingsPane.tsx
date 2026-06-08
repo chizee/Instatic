@@ -5,6 +5,7 @@ import {
   analyzeRuntimeScriptImports,
   DEFAULT_SCRIPT_RUNTIME_CONFIG,
   normalizeScriptRuntimeConfig,
+  type SiteScriptFormat,
   type SiteScriptPlacement,
   type SiteScriptTiming,
 } from '@core/site-runtime'
@@ -32,7 +33,9 @@ export function ScriptSettingsPane({ file }: ScriptSettingsPaneProps) {
   const config = normalizeScriptRuntimeConfig(
     siteRuntime.scripts[file.id] ?? DEFAULT_SCRIPT_RUNTIME_CONFIG,
   )
-  const importAnalysis = analyzeRuntimeScriptImports([file], packageJson)
+  const importAnalysis = config.format === 'module'
+    ? analyzeRuntimeScriptImports([file], packageJson)
+    : { usage: new Map(), diagnostics: [] }
   const runtimePackages = [...importAnalysis.usage.values()]
   const diagnostics = importAnalysis.diagnostics
   const scopeOptions: ScopePageOption[] = pages.map((page) => ({
@@ -68,6 +71,20 @@ export function ScriptSettingsPane({ file }: ScriptSettingsPaneProps) {
           onCheckedChange={(checked) => patch({ runInCanvas: checked })}
           switchSize="sm"
           aria-label="Run in canvas"
+        />
+      </div>
+
+      <div className={styles.field}>
+        <span className={styles.label}>Format</span>
+        <Select
+          aria-label="Script format"
+          fieldSize="xs"
+          value={config.format}
+          onChange={(event) => patch({ format: event.target.value as SiteScriptFormat })}
+          options={[
+            { value: 'module', label: 'Module' },
+            { value: 'classic', label: 'Classic' },
+          ]}
         />
       </div>
 
