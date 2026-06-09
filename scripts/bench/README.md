@@ -119,7 +119,7 @@ Aggregates external static-analysis tools:
 Each tool runs in its own subprocess with a generous timeout. If a tool is missing, the row notes "unavailable" rather than crashing the suite.
 
 ### browser (opt-in)
-Boots the production server, spawns Chromium via Playwright (uses Playwright's pinned chromium-headless-shell — install once with `bun run bench:browser:install`), authenticates against the CMS API, then runs a battery of cold-load and interactive scenarios:
+Boots the production server, spawns Chromium via Playwright (uses Playwright's pinned chromium-headless-shell — install once with `bun run bench:browser:install`), then runs a battery of cold-load and interactive scenarios. Authenticated admin scenarios run only when `INSTATIC_BENCH_ADMIN_EMAIL` and `INSTATIC_BENCH_ADMIN_PASSWORD` are set; without them the bench records the login-screen load and unauthenticated idle frame stability.
 
 **Cold-load metrics** for the three key entry points:
 - `/admin` (login screen, unauthenticated)

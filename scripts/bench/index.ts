@@ -40,8 +40,9 @@ import { snapshotTokensBench } from './benches/snapshot-tokens'
 
 const REPO_ROOT = resolve(import.meta.dir, '../..')
 
-// `browser` and `snapshot-tokens` are NOT in the default run. `browser` needs a
-// system-installed Chrome and 30+ seconds; `snapshot-tokens` needs ANTHROPIC_API_KEY
+// `browser` and `snapshot-tokens` are NOT in the default run. `browser` needs
+// Chromium and optional INSTATIC_BENCH_ADMIN_EMAIL / INSTATIC_BENCH_ADMIN_PASSWORD
+// credentials for authenticated scenarios; `snapshot-tokens` needs ANTHROPIC_API_KEY
 // + a seeded .tmp/dev.db and makes network calls to count_tokens. Run them
 // explicitly, e.g. `bun run bench --only=snapshot-tokens`.
 const DEFAULT_BENCHES: readonly BenchModule[] = [

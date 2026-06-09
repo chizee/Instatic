@@ -2,8 +2,8 @@
  * Agent store slice — drives the AI Assistant panel.
  *
  * The browser opens a streaming NDJSON request against `/admin/api/ai/chat/
- * ${scope}` (the Vite proxy forwards to the local Bun agent server, which runs
- * the Claude Agent SDK with ambient Claude Code credentials — Constraint #385).
+ * ${scope}`. The Bun server selects the configured provider credential and
+ * model, then streams through the provider-agnostic direct-HTTP runtime.
  * The NDJSON wire protocol and its per-event handling live in `streamEvents.ts`;
  * the HTTP plumbing (tool-result POSTs, conversation bootstrap) lives in
  * `agentApi.ts`; the site-specific page snapshot lives in `pageContext.ts`.

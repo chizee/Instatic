@@ -62,11 +62,7 @@ docs/
 │   └── use-async-resource.md       ← canonical async load hook; when to use vs. not
 │
 ├── deployment/                 ← operator docs (running the thing)
-├── e2e/                        ← browser test protocols (agent-run + Playwright automation)
-├── plans/                      ← in-flight design plans (transient)
-└── superpowers/                ← Superpowers agent plans and specs (transient)
-    ├── plans/                      ← implementation plans authored by Superpowers agents
-    └── specs/                      ← pre-implementation design specs
+└── e2e/                        ← browser test protocols (agent-run + Playwright automation)
 ```
 
 Three categories, three voices:
@@ -74,8 +70,6 @@ Three categories, three voices:
 - **Top-level docs** are long-lived references that describe the system as it currently is.
 - **Feature docs** describe one first-class capability — its architecture, lifecycle, file layout.
 - **Reference docs** are short, focused cookbooks for primitives and patterns reused across features.
-
-Plans (`docs/plans/` and `docs/superpowers/`) describe in-flight work. Plans are deleted or converted to feature/reference docs when the work ships.
 
 ---
 
@@ -153,7 +147,7 @@ Plans (`docs/plans/` and `docs/superpowers/`) describe in-flight work. Plans are
 | [features/modules.md](features/modules.md)                       | Module engine, defining first-party blocks                          |
 | [features/dashboard.md](features/dashboard.md)                   | Dashboard workspace, widgets, grid, customize mode                  |
 | [features/spotlight.md](features/spotlight.md)                   | Cmd+K command palette                                                |
-| [features/agent.md](features/agent.md)                           | AI agent integration (Claude Agent SDK)                              |
+| [features/agent.md](features/agent.md)                           | AI agent integration and provider-agnostic runtime                   |
 | [features/templates.md](features/templates.md)                   | Entry templates + dynamic bindings + token interpolation             |
 | [features/loops.md](features/loops.md)                           | `base.loop` + loop entity sources                                    |
 | [features/cms-native-forms.md](features/cms-native-forms.md)     | Visual form primitives, presets, secure public submissions           |
@@ -192,8 +186,6 @@ Plans (`docs/plans/` and `docs/superpowers/`) describe in-flight work. Plans are
 |-------------------------------------|-------------------------------------------------------------------|
 | [deployment/](deployment/)          | Platform deploys, VPS/Docker installs, TLS, backup, releases      |
 | [e2e/](e2e/)                        | Browser E2E protocols: agent-run audits and Playwright automation docs |
-| [plans/](plans/)                    | In-flight design plans (transient — delete when shipped)          |
-| [superpowers/](superpowers/)        | Superpowers agent plans (`plans/`) and pre-implementation specs (`specs/`) — transient |
 
 ---
 

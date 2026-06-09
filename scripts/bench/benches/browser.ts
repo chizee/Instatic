@@ -46,9 +46,8 @@ import {
 
 const REPO_ROOT = resolve(import.meta.dir, '../../..')
 
-// Local-dev seeded credentials — documented in CLAUDE.md.
-const ADMIN_EMAIL = 'ai@ai.com'
-const ADMIN_PASSWORD = 'qwerty123456'
+const ADMIN_EMAIL_ENV = 'INSTATIC_BENCH_ADMIN_EMAIL'
+const ADMIN_PASSWORD_ENV = 'INSTATIC_BENCH_ADMIN_PASSWORD'
 
 // CLI flag plumbing (read directly from process.argv to keep the bench
 // module self-contained; the orchestrator just accepts unknown flags).
@@ -62,6 +61,13 @@ function readArg(name: string): string | undefined {
 function readSet(name: string): Set<string> {
   const raw = readArg(name)
   return new Set(raw ? raw.split(',').map((s) => s.trim()).filter(Boolean) : [])
+}
+
+function readBenchCredentials(): { email: string; password: string } | null {
+  const email = process.env[ADMIN_EMAIL_ENV]?.trim()
+  const password = process.env[ADMIN_PASSWORD_ENV]?.trim()
+  if (!email || !password) return null
+  return { email, password }
 }
 
 interface LoadScenario {
@@ -359,13 +365,19 @@ export const browserBench: BenchModule = {
       const loadScenarios: LoadScenario[] = []
       loadScenarios.push(await runLoadScenario(session, baseUrl, 'cold /admin (login screen)', '/admin'))
 
-      log.step('  authenticating via /admin/api/cms/login')
-      const authOk = await loginAdmin(session.page, baseUrl, ADMIN_EMAIL, ADMIN_PASSWORD)
-        .then(() => true)
-        .catch((err) => {
-          log.warn(`Login failed: ${(err as Error).message}`)
-          return false
-        })
+      const credentials = readBenchCredentials()
+      let authOk = false
+      if (credentials) {
+        log.step('  authenticating via /admin/api/cms/login')
+        authOk = await loginAdmin(session.page, baseUrl, credentials.email, credentials.password)
+          .then(() => true)
+          .catch((err) => {
+            log.warn(`Login failed: ${(err as Error).message}`)
+            return false
+          })
+      } else {
+        log.warn(`Authenticated browser scenarios skipped: set ${ADMIN_EMAIL_ENV} and ${ADMIN_PASSWORD_ENV}.`)
+      }
 
       // Capture the session cookie so we can spawn a *fresh* browser
       // context with cache disabled but already authenticated — the only
@@ -419,7 +431,7 @@ export const browserBench: BenchModule = {
       }
 
       // ── 3. Idle frame stability ─────────────────────────────────────────
-      log.step('Idle frame stability (5s on /admin/site)')
+      log.step(authOk ? 'Idle frame stability (5s on /admin/site)' : 'Idle frame stability (login screen)')
       if (authOk) await session.page.goto(`${baseUrl}/admin/site`, { waitUntil: 'load' })
       const idleFrames = await scenarioIdleFrames(session, ctx.quick ? 2000 : 5000)
 
@@ -472,7 +484,7 @@ export const browserBench: BenchModule = {
 
       const interactionRows: BenchRow[] = []
       interactionRows.push({
-        label: 'Idle frame stability on /admin/site',
+        label: authOk ? 'Idle frame stability on /admin/site' : 'Idle frame stability on login screen',
         inputs: { window_ms: ctx.quick ? 2000 : 5000 },
         metrics: {
           frames: fmtNum(idleFrames.frames),
@@ -544,7 +556,9 @@ export const browserBench: BenchModule = {
             heap: finalHeap !== null ? fmtBytes(finalHeap) : '—',
             dom_nodes: fmtNum(finalDomNodes),
           },
-          notes: 'Cumulative heap + DOM after route cycle, spotlight, panel toggles, and class creation.',
+          notes: authOk
+            ? 'Cumulative heap + DOM after route cycle, spotlight, panel toggles, and class creation.'
+            : 'Cumulative heap + DOM after unauthenticated login-screen scenarios.',
         },
       ]
 

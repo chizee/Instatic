@@ -45,7 +45,8 @@ describe('isStateChangingMethod', () => {
 })
 
 describe('expectedOrigin', () => {
-  it('uses X-Forwarded-Proto + X-Forwarded-Host when set (Caddy in front)', () => {
+  it('uses X-Forwarded-Proto + X-Forwarded-Host from a trusted proxy peer', () => {
+    configureTrustedProxyCidrs(['172.16.0.0/12'])
     const req = makeReq('http://app:3001/admin/api/cms/login', {
       method: 'POST',
       headers: {
@@ -53,19 +54,34 @@ describe('expectedOrigin', () => {
         'x-forwarded-host': 'cms.example.com',
       },
     })
+    stampSocketIp(req, '172.18.0.4')
     expect(expectedOrigin(req)).toBe('https://cms.example.com')
   })
 
-  it('falls back to Host header when no X-Forwarded-Host is present', () => {
+  it('uses trusted X-Forwarded-Proto and falls back to Host when no X-Forwarded-Host is present', () => {
+    configureTrustedProxyCidrs(['172.16.0.0/12'])
     const req = makeReq('http://internal:3001/admin/api/cms/login', {
       method: 'POST',
       headers: { host: 'cms.example.com', 'x-forwarded-proto': 'https' },
     })
+    stampSocketIp(req, '172.18.0.4')
     expect(expectedOrigin(req)).toBe('https://cms.example.com')
   })
 
   it('falls back to the request URL when no proxy headers are present', () => {
     const req = makeReq('http://localhost:3001/admin/api/cms/login', { method: 'POST' })
+    expect(expectedOrigin(req)).toBe('http://localhost:3001')
+  })
+
+  it('ignores spoofed X-Forwarded origin headers from an untrusted direct client', () => {
+    const req = makeReq('http://localhost:3001/admin/api/cms/login', {
+      method: 'POST',
+      headers: {
+        'x-forwarded-proto': 'https',
+        'x-forwarded-host': 'cms.example.com',
+      },
+    })
+    stampSocketIp(req, '198.51.100.9')
     expect(expectedOrigin(req)).toBe('http://localhost:3001')
   })
 })
@@ -113,7 +129,8 @@ describe('originAllowed', () => {
     expect(originAllowed(req)).toBe(false)
   })
 
-  it('uses X-Forwarded headers to compute expected origin behind a TLS proxy', () => {
+  it('uses X-Forwarded headers to compute expected origin behind a trusted TLS proxy', () => {
+    configureTrustedProxyCidrs(['172.16.0.0/12'])
     const req = makeReq('http://app:3001/admin/api/cms/login', {
       method: 'POST',
       headers: {
@@ -122,10 +139,12 @@ describe('originAllowed', () => {
         origin: 'https://cms.example.com',
       },
     })
+    stampSocketIp(req, '172.18.0.4')
     expect(originAllowed(req)).toBe(true)
   })
 
   it('rejects an Origin that uses HTTP when the site is HTTPS-only', () => {
+    configureTrustedProxyCidrs(['172.16.0.0/12'])
     const req = makeReq('http://app:3001/admin/api/cms/login', {
       method: 'POST',
       headers: {
@@ -134,6 +153,20 @@ describe('originAllowed', () => {
         origin: 'http://cms.example.com', // wrong scheme
       },
     })
+    stampSocketIp(req, '172.18.0.4')
+    expect(originAllowed(req)).toBe(false)
+  })
+
+  it('rejects an Origin that only matches spoofed X-Forwarded headers from an untrusted client', () => {
+    const req = makeReq('http://localhost:3001/admin/api/cms/login', {
+      method: 'POST',
+      headers: {
+        'x-forwarded-proto': 'https',
+        'x-forwarded-host': 'cms.example.com',
+        origin: 'https://cms.example.com',
+      },
+    })
+    stampSocketIp(req, '198.51.100.9')
     expect(originAllowed(req)).toBe(false)
   })
 })

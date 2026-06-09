@@ -6,10 +6,10 @@
  * in the agentSlice. Always-mounted (CSS display:none when closed) to preserve
  * Zustand conversation state across open/close cycles.
  *
- * Auth model (standalone editor):
- * - Agent calls `/admin/api/agent` which Vite proxies to the local Bun server.
- * - The Bun server runs the Claude Agent SDK with ambient Claude Code credentials.
- * - No API key, no configuration, no endpoint required (Constraint #385).
+ * Runtime model:
+ * - Agent calls stream through `/admin/api/ai/chat/site`.
+ * - The Bun server selects the configured provider credential and model.
+ * - Drivers call provider REST/SSE endpoints directly; no provider SDK runs.
  *
  * Accessibility (WCAG 2.1 AA):
  * - role="complementary" + aria-label="AI Assistant" on the panel landmark
@@ -19,7 +19,6 @@
  * - keyboard: Escape closes the panel
  *
  * @see Guideline #410 — 3 Self-Contained Independent Panels
- * @see Constraint #385 — Standalone Editor: ambient Claude Code credentials
  */
 
 import { useRef, useEffect, memo } from 'react'

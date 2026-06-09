@@ -4,8 +4,8 @@
  *
  *   - `isStateChangingMethod`  — POST/PUT/PATCH/DELETE
  *   - `expectedOrigin`         — what the request's Origin *should* be,
- *                                accounting for the X-Forwarded-* headers
- *                                that Caddy sets in compose.tls.yml.
+ *                                accounting for X-Forwarded-* only when the
+ *                                socket peer is a configured trusted proxy.
  *   - `originAllowed`          — true when the request's Origin matches the
  *                                expected origin, or is on the dev allowlist.
  *   - `clientIp`               — the nearest untrusted client IP from a
@@ -41,15 +41,17 @@ export function isStateChangingMethod(method: string): boolean {
 /**
  * The origin the client *should* be talking to, derived from request headers.
  *
- * When behind a reverse proxy (Caddy → app:3001), `req.url` reports the
- * upstream backend address. We trust `X-Forwarded-Proto` and
- * `X-Forwarded-Host` to recover the user-facing origin. Falls back to the
- * inbound `Host` header and finally to `req.url` for direct connections.
+ * When behind a configured reverse proxy (Caddy → app:3001), `req.url`
+ * reports the upstream backend address. We trust `X-Forwarded-Proto` and
+ * `X-Forwarded-Host` only when the socket peer is inside
+ * `TRUSTED_PROXY_CIDRS`; direct clients cannot spoof their way into a
+ * different CSRF origin. Falls back to the inbound `Host` header and finally
+ * to `req.url` for direct connections.
  */
 export function expectedOrigin(req: Request): string {
   const fallback = new URL(req.url)
-  const proto = (req.headers.get('x-forwarded-proto') ?? fallback.protocol.replace(':', '')).toLowerCase()
-  const host = req.headers.get('x-forwarded-host') ?? req.headers.get('host') ?? fallback.host
+  const proto = (trustedForwardedHeader(req, 'x-forwarded-proto') ?? fallback.protocol.replace(':', '')).toLowerCase()
+  const host = trustedForwardedHeader(req, 'x-forwarded-host') ?? req.headers.get('host') ?? fallback.host
   return `${proto}://${host}`
 }
 
@@ -239,6 +241,12 @@ function trustedProxyRangeContains(range: TrustedProxyRange, rawIp: string): boo
 
 function isTrustedProxyPeer(rawIp: string): boolean {
   return trustedProxyRanges.some((range) => trustedProxyRangeContains(range, rawIp))
+}
+
+function trustedForwardedHeader(req: Request, name: string): string | null {
+  const socketIp = req.headers.get(BUN_SOCKET_IP_HEADER)
+  if (!socketIp || !isTrustedProxyPeer(socketIp)) return null
+  return req.headers.get(name)
 }
 
 /**

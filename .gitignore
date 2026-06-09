@@ -70,6 +70,7 @@ docs/e2e/runs
 
 # Agent implementation plans — local planning artifacts, never source
 docs/plans/
+docs/superpowers/
 
 # Plugin build artifacts — generated from source plugin directories
 *.plugin.zip

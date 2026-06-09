@@ -2,15 +2,9 @@
 
 This file is the **agent rule book**. Read it before changing code. Detailed explanations live in `docs/` — start at [`docs/README.md`](docs/README.md) for orientation and follow the links from there.
 
-## Local admin credentials (for agent-browser smoke tests)
+## Local admin smoke tests
 
-Dev server: `http://127.0.0.1:5173/admin/site` (launches with `bun run dev`).
-
-Login:
-- email: `ai@ai.com`
-- password: `qwerty123456`
-
-Use these whenever a task asks you to smoke-test the admin UI in a browser. Do not commit them anywhere else and do not propagate them to non-local environments — they are a seeded local-dev account only.
+Use local seeded development data only when a task asks for a browser smoke test. Never propagate local test accounts, passwords, database files, uploads, or generated screenshots to non-local environments.
 
 ---
 
