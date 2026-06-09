@@ -150,16 +150,16 @@ export type AiStreamEvent =
   /**
    * Aggregated token usage for the entire stream — emitted just before `done`.
    *
-   * Cache-aware fields are Anthropic-specific (OpenAI/Ollama return 0 for now):
+   * Cache-aware fields are provider-specific:
    *   - `cacheReadTokens`     — tokens served from the prompt cache this call
-   *                              (billed at ~10% of normal input price).
+   *                              (reported by Anthropic and OpenAI Responses).
    *   - `cacheCreationTokens` — tokens written to the prompt cache this call
-   *                              (billed at ~125% of normal input price; only
-   *                              charged on the FIRST call that populates the
-   *                              cache, then amortised across subsequent hits).
-   * `promptTokens` is the BILLED non-cached input (Anthropic SDK convention —
-   * cache hits/writes are reported separately). Token counts are SUMMED across
-   * every round of the turn — correct for billing (you pay input per round).
+   *                              (Anthropic reports this separately; OpenAI
+   *                              does not expose a write bucket).
+   * `promptTokens` follows the provider's native usage convention: Anthropic
+   * excludes cache buckets, while OpenAI includes cached tokens as a subset.
+   * Token counts are SUMMED across every round of the turn — correct for
+   * billing (you pay input per round).
    * Billing only; the "context used" meter is driven by `context` (below).
    */
   | { type: 'usage'; promptTokens: number; completionTokens: number; costUsd?: number; cacheReadTokens?: number; cacheCreationTokens?: number }

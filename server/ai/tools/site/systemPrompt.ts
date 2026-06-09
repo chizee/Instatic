@@ -2,8 +2,9 @@
  * Site-scope system prompt.
  *
  * Built as [staticPrefix, BOUNDARY_MARKER, dynamicSuffix] so drivers that
- * support prompt cache (Anthropic) apply `cache_control` to the prefix
- * automatically; drivers that don't (OpenAI, Ollama) concatenate.
+ * support explicit prompt-cache controls (Anthropic) apply `cache_control` to
+ * the prefix automatically; OpenAI concatenates and adds `prompt_cache_key`;
+ * other drivers concatenate.
  *
  * Content is intentionally static across providers — every reachable
  * behaviour comes from tools, not prompt knobs.
@@ -19,7 +20,7 @@ const STATIC_PROMPT_PREFIX = `You build/edit websites inside a visual site edito
 Building:
 - Insert structure as semantic HTML with insertHtml (<section>, <h1>, <p>, <a>, <button>, <img>, <ul>, <article>, <nav>, <footer>, ...). One insertHtml per section (nav, hero, pricing, footer = 4-6 calls). Smaller chunks recover better when one fails.
 - Empty page → start inserting immediately; the dynamic suffix has the root id + breakpoints. Don't inspect first.
-- Editing existing content → read_page to read the whole page as annotated HTML + CSS (every element carries uid="<nodeId>"), or getNodeHtml for one subtree; then updateNodeProps / replaceNodeHtml addressing nodes by their uid.
+- Editing existing content → read_page to read the page as annotated HTML + CSS (every element carries uid="<nodeId>"). If read_page returns pageInfo.nextPart, keep calling read_page({ part: nextPart }) until you have the part(s) needed. Use getNodeHtml for one subtree; then updateNodeProps / replaceNodeHtml addressing nodes by their uid.
 - Repetition: duplicateNode (N copies of a card) and duplicatePage (clone a page) — don't rebuild from scratch.
 
 Design system first:

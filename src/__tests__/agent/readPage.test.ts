@@ -26,12 +26,92 @@ function snap(): SiteAgentSnapshot {
 
 describe('renderAgentPage', () => {
   it('returns an annotated body with uid attributes and a <style> css bundle', () => {
-    const { html, css } = renderAgentPage(snap())
+    const { html, css, pageInfo } = renderAgentPage(snap())
     expect(html).toContain('uid="t"') // node addressable
     expect(html).toContain('Hi') // content present
     expect(html).not.toContain('<head>') // body only, not full document
     expect(css.startsWith('<style>')).toBe(true)
     expect(css).toContain('</style>')
+    expect(pageInfo.part).toBe(1)
+    expect(pageInfo.totalParts).toBe(1)
+    expect(pageInfo.nextPart).toBeNull()
+  })
+
+  it('pages oversized read_page payloads with exact ranges for follow-up reads', () => {
+    const page = makePage({
+      root: { moduleId: 'base.body', children: ['one', 'two', 'three'] },
+      one: { moduleId: 'base.text', props: { text: 'FIRST-' + 'a'.repeat(900), tag: 'p' } },
+      two: { moduleId: 'base.text', props: { text: 'SECOND-' + 'b'.repeat(900), tag: 'p' } },
+      three: { moduleId: 'base.text', props: { text: 'THIRD-' + 'c'.repeat(900), tag: 'p' } },
+    })
+    const site = makeSite({ pages: [page] })
+
+    const first = renderAgentPage(
+      { page, site, selectedNodeId: null, activeBreakpointId: 'desktop' },
+      { maxSerializedChars: 1400 },
+    )
+    const second = renderAgentPage(
+      { page, site, selectedNodeId: null, activeBreakpointId: 'desktop' },
+      { maxSerializedChars: 1400, part: 2 },
+    )
+
+    expect(first.pageInfo.totalParts).toBeGreaterThan(1)
+    expect(first.pageInfo.nextPart).toBe(2)
+    expect(first.pageInfo.ranges[0]).toMatchObject({ field: 'html', start: 0 })
+    expect(JSON.stringify(first).length).toBeLessThanOrEqual(first.pageInfo.maxChars)
+    expect(JSON.stringify(second).length).toBeLessThanOrEqual(second.pageInfo.maxChars)
+    expect(second.pageInfo.part).toBe(2)
+    expect(second.pageInfo.ranges[0]!.start).toBe(first.pageInfo.ranges.at(-1)!.end)
+    expect([first.html, second.html].join('')).toContain('SECOND-')
+  })
+
+  it('cleans base64 data URLs and very long URLs before paging', () => {
+    const longBase64 = 'A'.repeat(1600)
+    const longUrl = `https://cdn.example.com/assets/${'path-'.repeat(180)}hero.png?signature=${'b'.repeat(500)}`
+    const page = makePage({
+      root: { moduleId: 'base.body', children: ['inlineData', 'remoteImage'] },
+      inlineData: {
+        moduleId: 'base.text',
+        props: {
+          text: 'Preview',
+          tag: 'p',
+          htmlAttributes: { 'data-preview': `data:image/png;base64,${longBase64}` },
+        },
+      },
+      remoteImage: { moduleId: 'base.image', props: { src: longUrl } },
+    })
+    const site = makeSite({
+      pages: [page],
+      styleRules: {
+        bg: {
+          id: 'bg',
+          name: 'img',
+          kind: 'ambient',
+          selector: 'img',
+          order: 0,
+          styles: { backgroundImage: `url("${longUrl}")` },
+          contextStyles: {},
+          createdAt: 0,
+          updatedAt: 0,
+        },
+      },
+    })
+
+    const { html, css, pageInfo } = renderAgentPage({
+      page,
+      site,
+      selectedNodeId: null,
+      activeBreakpointId: 'desktop',
+    })
+
+    expect(html).not.toContain(longBase64)
+    expect(html).not.toContain(longUrl)
+    expect(css).not.toContain(longUrl)
+    expect(html).toContain('data:image/png;base64,[omitted 1600 chars]')
+    expect(html).toContain('...[truncated ')
+    expect(css).toContain('...[truncated ')
+    expect(pageInfo.cleanedStrings.base64DataUrls).toBe(1)
+    expect(pageInfo.cleanedStrings.longUrls).toBeGreaterThanOrEqual(2)
   })
 
   it('omits ambient CSS selectors that cannot apply to the active page class tokens', () => {

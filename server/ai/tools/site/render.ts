@@ -44,7 +44,53 @@ export interface AgentPageRender {
   html: string
   /** The page's CSS wrapped in a <style> block; '' when the page has no CSS. */
   css: string
+  /** Paging and cleanup metadata for the returned read_page slice. */
+  pageInfo: AgentPageInfo
 }
+
+export interface AgentPageInfo {
+  part: number
+  totalParts: number
+  nextPart: number | null
+  /** Hard ceiling for JSON.stringify({ html, css, pageInfo }).length. */
+  maxChars: number
+  /** Full cleaned html+css character count before paging. */
+  totalChars: number
+  /** Character count of the returned html+css slice before JSON escaping. */
+  returnedChars: number
+  /** JSON.stringify({ html, css, pageInfo }).length for this result. */
+  serializedChars: number
+  ranges: AgentPageRange[]
+  cleanedStrings: AgentPageCleanedStrings
+  note: string
+}
+
+export interface AgentPageRange {
+  field: 'html' | 'css'
+  start: number
+  end: number
+  totalChars: number
+}
+
+export interface AgentPageCleanedStrings {
+  base64DataUrls: number
+  longUrls: number
+}
+
+export interface AgentPageRenderOptions {
+  part?: number
+  maxSerializedChars?: number
+}
+
+const DEFAULT_READ_PAGE_MAX_SERIALIZED_CHARS = 80_000
+const MIN_READ_PAGE_MAX_SERIALIZED_CHARS = 1_200
+const PLACEHOLDER_TOTAL_PARTS = 999_999
+const LONG_URL_MAX_CHARS = 240
+const LONG_URL_PREFIX_CHARS = 160
+const LONG_URL_SUFFIX_CHARS = 40
+const BASE64_DATA_URL_MAX_PAYLOAD_CHARS = 96
+const READ_PAGE_PAGING_NOTE =
+  'read_page is size-budgeted. If nextPart is not null, call read_page with that part to continue. Long base64/data URLs and very long URLs are summarized; use node uid values with getNodeHtml when exact node markup is needed.'
 
 const EMPTY_AGENT_CSS_BUNDLE: SiteCssBundle = {
   reset: { bundle: 'reset', filename: 'reset-empty.css', hash: 'empty', content: '' },
@@ -59,23 +105,27 @@ function extractBody(html: string): string {
   return m ? m[1] : html
 }
 
-export function renderAgentPage(snap: SiteAgentSnapshot): AgentPageRender {
+export function renderAgentPage(
+  snap: SiteAgentSnapshot,
+  options: AgentPageRenderOptions = {},
+): AgentPageRender {
   const { page, site } = snap
   const { html: fullDocument } = publishPage(page, site, registry, {
     annotateNodeIds: true,
     cssEmission: 'external',
     cssBundle: EMPTY_AGENT_CSS_BUNDLE,
   })
-  const html = extractBody(fullDocument)
+  const cleanedStrings: AgentPageCleanedStrings = { base64DataUrls: 0, longUrls: 0 }
+  const html = cleanAgentReadSurface(extractBody(fullDocument), cleanedStrings)
   const cssBody = [
     buildAgentFrameworkCss(site),
     collectPageModuleCss(page, site),
     collectAgentPageClassCss(page, site),
     collectUserStylesheetCss(site, page),
   ].filter(Boolean).join('\n\n')
-  const css = cssBody ? `<style>\n${cssBody}\n</style>` : ''
+  const css = cssBody ? cleanAgentReadSurface(`<style>\n${cssBody}\n</style>`, cleanedStrings) : ''
 
-  return { html, css }
+  return paginateAgentPage({ html, css, cleanedStrings }, options)
 }
 
 function buildAgentFrameworkCss(site: SiteDocument): string {
@@ -83,6 +133,171 @@ function buildAgentFrameworkCss(site: SiteDocument): string {
     generateFontTokenVariablesCss(site.settings.fonts),
     generateFrameworkCss(site),
   ].filter(Boolean).join('\n')
+}
+
+function paginateAgentPage(
+  payload: { html: string; css: string; cleanedStrings: AgentPageCleanedStrings },
+  options: AgentPageRenderOptions,
+): AgentPageRender {
+  const maxChars = normaliseMaxSerializedChars(options.maxSerializedChars)
+  const requestedPart = normalisePart(options.part)
+  const totalChars = payload.html.length + payload.css.length
+  const chunks = buildPageChunks(payload, maxChars, totalChars)
+  const totalParts = chunks.length
+  const part = Math.min(requestedPart, totalParts)
+  const chunk = chunks[part - 1]!
+  return buildAgentPagePart(payload, chunk, {
+    part,
+    totalParts,
+    nextPart: part < totalParts ? part + 1 : null,
+    maxChars,
+    totalChars,
+  })
+}
+
+function normalisePart(part: number | undefined): number {
+  return typeof part === 'number' && Number.isInteger(part) && part > 0 ? part : 1
+}
+
+function normaliseMaxSerializedChars(maxChars: number | undefined): number {
+  if (typeof maxChars !== 'number' || !Number.isInteger(maxChars) || maxChars <= 0) {
+    return DEFAULT_READ_PAGE_MAX_SERIALIZED_CHARS
+  }
+  return Math.max(maxChars, MIN_READ_PAGE_MAX_SERIALIZED_CHARS)
+}
+
+interface AgentPageChunk {
+  start: number
+  end: number
+}
+
+function buildPageChunks(
+  payload: { html: string; css: string; cleanedStrings: AgentPageCleanedStrings },
+  maxChars: number,
+  totalChars: number,
+): AgentPageChunk[] {
+  if (totalChars === 0) return [{ start: 0, end: 0 }]
+
+  const chunks: AgentPageChunk[] = []
+  let start = 0
+  while (start < totalChars) {
+    let low = 1
+    let high = totalChars - start
+    let best = 0
+
+    while (low <= high) {
+      const size = Math.floor((low + high) / 2)
+      const candidate = buildAgentPagePart(payload, { start, end: start + size }, {
+        part: PLACEHOLDER_TOTAL_PARTS,
+        totalParts: PLACEHOLDER_TOTAL_PARTS,
+        nextPart: PLACEHOLDER_TOTAL_PARTS,
+        maxChars,
+        totalChars,
+      })
+      if (candidate.pageInfo.serializedChars <= maxChars) {
+        best = size
+        low = size + 1
+      } else {
+        high = size - 1
+      }
+    }
+
+    if (best === 0) {
+      throw new Error('read_page budget is too small to return paging metadata.')
+    }
+
+    chunks.push({ start, end: start + best })
+    start += best
+  }
+  return chunks
+}
+
+function buildAgentPagePart(
+  payload: { html: string; css: string; cleanedStrings: AgentPageCleanedStrings },
+  chunk: AgentPageChunk,
+  info: {
+    part: number
+    totalParts: number
+    nextPart: number | null
+    maxChars: number
+    totalChars: number
+  },
+): AgentPageRender {
+  const { html, css, ranges } = sliceAgentPagePayload(payload.html, payload.css, chunk)
+  const result: AgentPageRender = {
+    html,
+    css,
+    pageInfo: {
+      part: info.part,
+      totalParts: info.totalParts,
+      nextPart: info.nextPart,
+      maxChars: info.maxChars,
+      totalChars: info.totalChars,
+      returnedChars: html.length + css.length,
+      serializedChars: 0,
+      ranges,
+      cleanedStrings: { ...payload.cleanedStrings },
+      note: READ_PAGE_PAGING_NOTE,
+    },
+  }
+  updateSerializedLength(result)
+  return result
+}
+
+function updateSerializedLength(result: AgentPageRender): void {
+  for (;;) {
+    const next = JSON.stringify(result).length
+    if (next === result.pageInfo.serializedChars) return
+    result.pageInfo.serializedChars = next
+  }
+}
+
+function sliceAgentPagePayload(
+  html: string,
+  css: string,
+  chunk: AgentPageChunk,
+): { html: string; css: string; ranges: AgentPageRange[] } {
+  const ranges: AgentPageRange[] = []
+  let htmlSlice = ''
+  let cssSlice = ''
+
+  const htmlEnd = Math.min(chunk.end, html.length)
+  if (chunk.start < html.length && htmlEnd > chunk.start) {
+    htmlSlice = html.slice(chunk.start, htmlEnd)
+    ranges.push({ field: 'html', start: chunk.start, end: htmlEnd, totalChars: html.length })
+  }
+
+  const cssStart = Math.max(0, chunk.start - html.length)
+  const cssEnd = Math.min(css.length, chunk.end - html.length)
+  if (cssEnd > cssStart) {
+    cssSlice = css.slice(cssStart, cssEnd)
+    ranges.push({ field: 'css', start: cssStart, end: cssEnd, totalChars: css.length })
+  }
+
+  return { html: htmlSlice, css: cssSlice, ranges }
+}
+
+const BASE64_DATA_URL_RE =
+  /\bdata:([a-zA-Z0-9.+-]+\/[a-zA-Z0-9.+-]+(?:;[a-zA-Z0-9.+-]+=[^,;\s"'()<>]+)*);base64,([a-zA-Z0-9+/=_-]+)/g
+const DATA_URL_RE = /\bdata:[^\s"'()<>]+/g
+const LONG_URL_RE = /\b(?:https?:\/\/|\/(?:uploads|media)\/)[^\s"'<>),]+/g
+
+function cleanAgentReadSurface(value: string, counts: AgentPageCleanedStrings): string {
+  return value
+    .replace(BASE64_DATA_URL_RE, (match, mime: string, payload: string) => {
+      if (payload.length <= BASE64_DATA_URL_MAX_PAYLOAD_CHARS) return match
+      counts.base64DataUrls += 1
+      return `data:${mime};base64,[omitted ${payload.length} chars]`
+    })
+    .replace(DATA_URL_RE, (match) => truncateLongUrl(match, counts))
+    .replace(LONG_URL_RE, (match) => truncateLongUrl(match, counts))
+}
+
+function truncateLongUrl(value: string, counts: AgentPageCleanedStrings): string {
+  if (value.length <= LONG_URL_MAX_CHARS) return value
+  counts.longUrls += 1
+  const omittedChars = value.length - LONG_URL_PREFIX_CHARS - LONG_URL_SUFFIX_CHARS
+  return `${value.slice(0, LONG_URL_PREFIX_CHARS)}...[truncated ${omittedChars} chars]...${value.slice(-LONG_URL_SUFFIX_CHARS)}`
 }
 
 /**

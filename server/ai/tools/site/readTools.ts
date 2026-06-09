@@ -30,18 +30,21 @@ function asSnap(snapshot: unknown): SiteAgentSnapshot {
 // read_page
 // ---------------------------------------------------------------------------
 
-const ReadPageInput = Type.Object({})
+const ReadPageInput = Type.Object({
+  part: Type.Optional(Type.Integer({ minimum: 1 })),
+})
 
 const readPageTool: AiTool = {
   name: 'read_page',
   scope: 'site',
   execution: 'server',
   description:
-    'Return the active page as the published HTML the agent edits: an annotated <body> where every element carries uid="<nodeId>" (pass that id verbatim to write tools), plus page-relevant CSS in a <style> block (design-token vars, font token vars, utility classes, active-page classes, applicable ambient selectors, user styles, and @media breakpoint rules). Browser-only @font-face blocks and unrelated cross-page selectors are omitted. One call gives the whole page + its useful styles — no per-node looping. Class handles are the class names you see in the CSS / `class=` attributes.',
+    'Return the active page as the published HTML the agent edits: an annotated <body> where every element carries uid="<nodeId>" (pass that id verbatim to write tools), plus page-relevant CSS in a <style> block. The result is size-budgeted and includes pageInfo; when pageInfo.nextPart is not null, call read_page({ part: pageInfo.nextPart }) to continue. Browser-only @font-face blocks, unrelated cross-page selectors, long base64/data URLs, and very long URLs are omitted or summarized. Class handles are the class names you see in the CSS / `class=` attributes.',
   inputSchema: ReadPageInput,
-  handler: async (_input, ctx) => {
+  handler: async (input, ctx) => {
+    const { part } = input as Static<typeof ReadPageInput>
     const snap = asSnap(ctx.snapshot)
-    return renderAgentPage(snap)
+    return renderAgentPage(snap, { part })
   },
 }
 

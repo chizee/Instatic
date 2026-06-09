@@ -1,20 +1,21 @@
 /**
- * Agent read-surface token benchmark — JSON snapshot vs annotated HTML.
+ * Agent read-surface token benchmark — JSON snapshot vs read_page.
  *
  * Before the HTML read surface landed, the site-editor agent read a page as
  * structured JSON: `inspect_page` (the full node tree) + `list_classes` (CSS
  * classes) + `list_tokens` (design tokens), each `JSON.stringify`'d verbatim
  * into a tool_result. This bench measures the exact token cost of that legacy
- * payload against the surface that replaced it — the same page rendered as
- * clean HTML annotated with `uid` on each tag, plus page-relevant CSS — and
- * stays on as a regression guard so the win can't silently erode.
+ * payload against the surface that replaced it — the first size-budgeted
+ * `read_page` result for the same page, rendered as clean HTML annotated with
+ * `uid` on each tag plus page-relevant CSS — and stays on as a regression
+ * guard so the win can't silently erode.
  *
  * Fairness guarantees:
  * - JSON side is rebuilt by a local `flattenForBench` that reproduces the old
  *   `buildPageSnapshot` mapping (the same node/class/token shapes the deleted
  *   JSON tools emitted) and assembled into the exact three tool payloads.
- * - HTML side uses `renderAgentPage(...)` — the real `read_page` path, not an
- *   estimate.
+ * - read_page side uses `renderAgentPage(...)` — the real `read_page` path,
+ *   not an estimate.
  * - Tokens are counted with Anthropic `count_tokens` (model-accurate).
  *
  * Fixtures are the real seeded pages in `.tmp/dev.db` (the `bun run dev`
@@ -206,14 +207,18 @@ interface PageSerializations {
   jsonTree: string
   jsonClasses: string
   jsonTokens: string
-  /** Annotated body HTML. */
+  /** JSON.stringify of the live read_page result, including pageInfo metadata. */
+  readPagePayload: string
+  /** Annotated body HTML from the returned read_page part. */
   htmlBody: string
   /**
    * The page-relevant CSS returned by `read_page`, wrapped in a `<style>`
-   * block. Counting the wrapper keeps the HTML side honest: it is the
+   * block. Counting the wrapper keeps the read_page side honest: it is the
    * self-contained artifact the agent sees in the tool result.
    */
   css: string
+  readPageParts: number
+  readPageSerializedChars: number
   /** Fidelity findings for the report. */
   nodeCount: number
   annotatedTags: number
@@ -245,15 +250,17 @@ function serializePage(deps: Deps, site: SiteDocument, page: Page): PageSerializ
   const jsonClasses = JSON.stringify({ classes: snapshot.classes })
   const jsonTokens = JSON.stringify({ tokens: snapshot.tokens })
 
-  // HTML side — the live read_page path. It renders the body with uid
-  // annotations and returns page-relevant CSS only, excluding browser-only
-  // font-face blocks and unrelated cross-page ambient selectors.
-  const { html: htmlBody, css } = deps.renderAgentPage({
+  // read_page side — the live read_page path. It renders the body with uid
+  // annotations, cleans pathological strings, applies the hard size budget,
+  // and returns page-relevant CSS only.
+  const readPage = deps.renderAgentPage({
     page,
     site,
     selectedNodeId: null,
     activeBreakpointId: defaultBreakpointId(site),
   })
+  const { html: htmlBody, css, pageInfo } = readPage
+  const readPagePayload = JSON.stringify(readPage)
   const cssMediaBlocks = (css.match(/@media/g) ?? []).length
 
   const annotatedTags = (htmlBody.match(/uid="/g) ?? []).length
@@ -265,8 +272,11 @@ function serializePage(deps: Deps, site: SiteDocument, page: Page): PageSerializ
     jsonTree,
     jsonClasses,
     jsonTokens,
+    readPagePayload,
     htmlBody,
     css,
+    readPageParts: pageInfo.totalParts,
+    readPageSerializedChars: pageInfo.serializedChars,
     nodeCount: snapshot.nodes.length,
     annotatedTags,
     nodesWithBreakpointOverrides,
@@ -281,8 +291,9 @@ interface PageTokenRow {
   jsonTreeTokens: number
   jsonClassesTokens: number
   jsonTokensTokens: number
-  htmlBodyTokens: number
-  cssTokens: number
+  readPageTokens: number
+  readPageParts: number
+  readPageSerializedChars: number
   annotatedTags: number
   nodesWithBreakpointOverrides: number
   cssMediaBlocks: number
@@ -302,9 +313,7 @@ async function countPage(
   await sleep(COUNT_DELAY_MS)
   const jsonTokensTokens = await counter.count(s.jsonTokens)
   await sleep(COUNT_DELAY_MS)
-  const htmlBodyTokens = await counter.count(s.htmlBody)
-  await sleep(COUNT_DELAY_MS)
-  const cssTokens = await counter.count(s.css)
+  const readPageTokens = await counter.count(s.readPagePayload)
   await sleep(COUNT_DELAY_MS)
   return {
     title,
@@ -313,8 +322,9 @@ async function countPage(
     jsonTreeTokens,
     jsonClassesTokens,
     jsonTokensTokens,
-    htmlBodyTokens,
-    cssTokens,
+    readPageTokens,
+    readPageParts: s.readPageParts,
+    readPageSerializedChars: s.readPageSerializedChars,
     annotatedTags: s.annotatedTags,
     nodesWithBreakpointOverrides: s.nodesWithBreakpointOverrides,
     cssMediaBlocks: s.cssMediaBlocks,
@@ -331,19 +341,20 @@ function buildReport(rows: PageTokenRow[], model: string): BenchResult {
     (a, r) => a + r.jsonTreeTokens + r.jsonClassesTokens + r.jsonTokensTokens,
     0,
   )
-  const totalHtml = rows.reduce((a, r) => a + r.htmlBodyTokens + r.cssTokens, 0)
+  const totalReadPage = rows.reduce((a, r) => a + r.readPageTokens, 0)
 
   const perPage: BenchRow[] = rows.map((r) => {
     const json = r.jsonTreeTokens + r.jsonClassesTokens + r.jsonTokensTokens
-    const html = r.htmlBodyTokens + r.cssTokens
+    const html = r.readPageTokens
     return {
       label: `${r.title} (/${r.slug})`,
       inputs: { nodes: r.nodeCount },
       metrics: {
         json: fmtNum(json),
         'json (tree/cls/tok)': `${fmtNum(r.jsonTreeTokens)}/${fmtNum(r.jsonClassesTokens)}/${fmtNum(r.jsonTokensTokens)}`,
-        html: fmtNum(html),
-        'html (body/css)': `${fmtNum(r.htmlBodyTokens)}/${fmtNum(r.cssTokens)}`,
+        read_page: fmtNum(html),
+        parts: fmtNum(r.readPageParts),
+        chars: fmtNum(r.readPageSerializedChars),
         delta: fmtNum(html - json),
         ratio: ratio(html, json),
       },
@@ -357,8 +368,8 @@ function buildReport(rows: PageTokenRow[], model: string): BenchResult {
   // Highlights: biggest win/loss + aggregate fidelity caveats.
   const byDelta = [...rows].sort(
     (a, b) =>
-      a.htmlBodyTokens + a.cssTokens - (a.jsonTreeTokens + a.jsonClassesTokens + a.jsonTokensTokens) -
-      (b.htmlBodyTokens + b.cssTokens - (b.jsonTreeTokens + b.jsonClassesTokens + b.jsonTokensTokens)),
+      a.readPageTokens - (a.jsonTreeTokens + a.jsonClassesTokens + a.jsonTokensTokens) -
+      (b.readPageTokens - (b.jsonTreeTokens + b.jsonClassesTokens + b.jsonTokensTokens)),
   )
   const totalOverrides = rows.reduce((a, r) => a + r.nodesWithBreakpointOverrides, 0)
   const totalNodes = rows.reduce((a, r) => a + r.nodeCount, 0)
@@ -366,7 +377,7 @@ function buildReport(rows: PageTokenRow[], model: string): BenchResult {
   const totalMediaBlocks = rows.reduce((a, r) => a + r.cssMediaBlocks, 0)
 
   const highlights: string[] = [
-    `Aggregate: HTML is ${ratio(totalHtml, totalJson)} the JSON token cost (${fmtNum(totalHtml)} vs ${fmtNum(totalJson)} across ${rows.length} page(s)).`,
+    `Aggregate: read_page part 1 is ${ratio(totalReadPage, totalJson)} the JSON token cost (${fmtNum(totalReadPage)} vs ${fmtNum(totalJson)} across ${rows.length} page(s)).`,
   ]
   if (byDelta.length > 0) {
     const best = byDelta[0]
@@ -374,30 +385,30 @@ function buildReport(rows: PageTokenRow[], model: string): BenchResult {
     const bj = best.jsonTreeTokens + best.jsonClassesTokens + best.jsonTokensTokens
     const wj = worst.jsonTreeTokens + worst.jsonClassesTokens + worst.jsonTokensTokens
     highlights.push(
-      `Biggest HTML win: ${best.title} (${ratio(best.htmlBodyTokens + best.cssTokens, bj)}).`,
-      `Smallest HTML win / biggest loss: ${worst.title} (${ratio(worst.htmlBodyTokens + worst.cssTokens, wj)}).`,
+      `Biggest read_page win: ${best.title} (${ratio(best.readPageTokens, bj)}).`,
+      `Smallest read_page win / biggest loss: ${worst.title} (${ratio(worst.readPageTokens, wj)}).`,
     )
   }
   highlights.push(
-    `Fairness — HTML CSS is counted inside a <style> block with class rules AND ${totalMediaBlocks} @media breakpoint block(s) (per-page count, the import-engine representation); both sides therefore carry breakpoint styling.`,
+    `Fairness — read_page CSS is counted inside a <style> block with class rules AND ${totalMediaBlocks} @media breakpoint block(s) (per-page count, the import-engine representation); both sides therefore carry breakpoint styling.`,
     `Fidelity caveats — ${totalAnnotated}/${totalNodes} page nodes annotated in HTML (rest are base.body / hidden / dynamic / wrapper-less); ${totalOverrides} node(s) carry per-breakpoint prop overrides that live in the JSON tree but not in the read_page CSS (responsive styling that flows through included class @media blocks is counted).`,
   )
 
   const section: BenchSection = {
-    title: 'Per-page token cost — JSON snapshot vs annotated HTML',
+    title: 'Per-page token cost — JSON snapshot vs read_page',
     intro:
-      'JSON = inspect_page + list_classes + list_tokens (exact tool_result bytes). HTML = annotated body + a <style> block of framework/class/user CSS including @media breakpoint rules (the import-engine representation). Lower HTML ratio means the HTML read surface is cheaper.',
+      'JSON = inspect_page + list_classes + list_tokens (exact tool_result bytes). read_page = the live size-budgeted part 1 tool result, including pageInfo metadata, annotated HTML, and page-relevant CSS. Lower read_page ratio means the first read is cheaper.',
     highlights,
     rows: perPage,
   }
 
   return {
     name: 'snapshot-tokens',
-    title: 'Agent read-surface tokens (JSON vs HTML)',
+    title: 'Agent read-surface tokens (JSON vs read_page)',
     headline: {
       'JSON tokens (total)': fmtNum(totalJson),
-      'HTML tokens (total)': fmtNum(totalHtml),
-      'HTML/JSON ratio': ratio(totalHtml, totalJson),
+      'read_page tokens (total)': fmtNum(totalReadPage),
+      'read_page/JSON ratio': ratio(totalReadPage, totalJson),
       model,
     },
     sections: [section],
@@ -408,7 +419,7 @@ function skippedResult(title: string, reason: string, instructions: string[]): B
   log.warn(reason)
   return {
     name: 'snapshot-tokens',
-    title: 'Agent read-surface tokens (JSON vs HTML)',
+    title: 'Agent read-surface tokens (JSON vs read_page)',
     headline: { status: 'skipped' },
     sections: [
       {
@@ -423,9 +434,9 @@ function skippedResult(title: string, reason: string, instructions: string[]): B
 
 export const snapshotTokensBench: BenchModule = {
   name: 'snapshot-tokens',
-  title: 'Agent read-surface tokens (JSON vs HTML)',
+  title: 'Agent read-surface tokens (JSON vs read_page)',
   description:
-    'Compares the token cost of the JSON page snapshot the agent reads today against the same page rendered as annotated HTML + CSS, using Anthropic count_tokens on real seeded pages.',
+    'Compares the token cost of the legacy JSON page snapshot against the live size-budgeted read_page result, using Anthropic count_tokens on real seeded pages.',
 
   async run(_ctx: BenchContext): Promise<BenchResult> {
     const counter = createTokenCounter()
@@ -468,8 +479,8 @@ export const snapshotTokensBench: BenchModule = {
       const row = await countPage(counter, page.title, page.slug, serial)
       rows.push(row)
       const json = row.jsonTreeTokens + row.jsonClassesTokens + row.jsonTokensTokens
-      const html = row.htmlBodyTokens + row.cssTokens
-      log.detail(`json ${fmtNum(json)} tok · html ${fmtNum(html)} tok · ${ratio(html, json)}`)
+      const readPage = row.readPageTokens
+      log.detail(`json ${fmtNum(json)} tok · read_page ${fmtNum(readPage)} tok · ${ratio(readPage, json)}`)
     }
 
     log.ok(`Counted ${rows.length} page(s) against ${model}`)

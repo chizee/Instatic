@@ -287,7 +287,7 @@ Resolved server-side from the posted `SiteAgentSnapshot` (or, for `list_post_typ
 
 | Tool              | What it returns                                                         |
 |-------------------|-------------------------------------------------------------------------|
-| `read_page`       | The active page as annotated HTML (`<body>` where every element carries `uid="<nodeId>"`) + page-relevant CSS in a `<style>` block: framework variables/utilities, font token variables, active-page module CSS, active-page class rules, applicable ambient rules, and page-targeted user stylesheets. Browser-only `@font-face` blocks and unrelated cross-page ambient selectors are omitted. Addresses nodes by `uid` — the same id write tools accept. Replaces the old JSON page-tree tools (`inspect_page`, `inspect_node`, `search_nodes`, `list_classes`, `inspect_class`). |
+| `read_page`       | The active page as annotated HTML (`<body>` where every element carries `uid="<nodeId>"`) + page-relevant CSS in a `<style>` block. Result is size-budgeted and carries `pageInfo`; call `read_page({ part: pageInfo.nextPart })` until `nextPart` is `null` to read the remaining cleaned slices. Browser-only `@font-face` blocks, unrelated cross-page ambient selectors, long base64/data URLs, and very long URLs are omitted or summarized. Addresses nodes by `uid` — the same id write tools accept. Replaces the old JSON page-tree tools (`inspect_page`, `inspect_node`, `search_nodes`, `list_classes`, `inspect_class`). |
 | `list_modules`    | Module registry (id, name, category, props schema, defaults); `category` filter |
 | `list_breakpoints`| Configured breakpoints + active id                                      |
 | `list_pages`      | All pages in the site (id, title, slug, active, isHomepage, and `template`: `null` or `{ target, priority }`) |
@@ -380,12 +380,13 @@ When a node-targeting write tool (`insertHtml`, `getNodeHtml`, `replaceNodeHtml`
 
 ### Heavy evidence — image channel + vision gating + elision
 
-`render_snapshot` (and `read_page` / `getNodeHtml`) return large payloads. Four rules keep them from exploding context (a screenshot inlined as base64 JSON text once pushed a single turn past 1M tokens):
+`render_snapshot` (and `read_page` / `getNodeHtml`) return large payloads. Five rules keep them from exploding context (a screenshot inlined as base64 JSON text once pushed a single turn past 1M tokens):
 
 1. **Image channel, not text.** `AiToolOutput` carries an optional `images: { mimeType, data }[]` (`src/core/ai/toolOutput.ts`). `render_snapshot` puts the PNG there — never in `data`. The Anthropic driver forwards it as a **native `image` block** inside the `tool_result` (billed at the rendered image's token cost). Text-only tool channels (Ollama / OpenAI-compatible `function_call_output`) **drop** the image and append a one-line `[N screenshot(s) omitted…]` note. The capture caps the screenshot's long edge at `MAX_IMAGE_EDGE` (1568px in `renderEvidence.ts`) — a tall landing page would otherwise exceed Anthropic's hard 8000px-per-dimension limit (400 error), and the model downsizes the long edge to ~1568px anyway.
 2. **Capture is vision-gated.** The chat handler resolves `driver.capabilities(modelId)` into `AiStreamRequest.modelCapabilities`. The shared tool loop injects `captureScreenshot: visionInput` into every `render_snapshot` call, so a non-vision model never pays the html-to-image cost — it gets the layout report only. (The model never sets `captureScreenshot` itself.)
 3. **`read_page` CSS is page-relevant, not the public full-site CSS bundle.** Public pages can share page-invariant CSS files, but `read_page` inlines CSS into model context. It keeps framework variables/utilities, font token variables, active-page module CSS, used class rules, ambient selectors whose class tokens all exist on the active page, classless/global ambient selectors, and page-targeted user stylesheets. It omits browser-only `@font-face` file declarations and ambient selectors from unrelated imported pages.
-4. **Stale evidence is elided.** Within one tool loop, only the **most recent** heavy result per tool name (`render_snapshot`, `read_page`, `getNodeHtml`, or anything with an image) is replayed at full fidelity; earlier ones are rewritten to a one-line breadcrumb (`"Earlier <tool> output removed… Call <tool> again…"`). Older snapshots describe page state the model has since mutated, so they carry no value. See `applyHeavyElision` in `server/ai/drivers/http/toolLoop.ts`.
+4. **`read_page` is cleaned and paged before it reaches the model.** `renderAgentPage` strips pathological strings from the broad read surface: long base64/data URLs become `data:<mime>;base64,[omitted N chars]`, and very long URLs are middle-truncated. The returned object always includes `pageInfo` with `part`, `totalParts`, `nextPart`, `ranges`, `serializedChars`, and cleanup counts. The hard budget is measured against `JSON.stringify({ html, css, pageInfo }).length`, because that is the text providers receive as the tool result. If `nextPart` is not `null`, the agent calls `read_page({ part: nextPart })` to continue. For exact node-level markup, use the `uid` with `getNodeHtml`.
+5. **Stale evidence is elided.** Within one tool loop, only the **most recent** heavy result per tool name (`render_snapshot`, `read_page`, `getNodeHtml`, or anything with an image) is replayed at full fidelity; earlier ones are rewritten to a one-line breadcrumb (`"Earlier <tool> output removed… Call <tool> again…"`). Older snapshots describe page state the model has since mutated, so they carry no value. See `applyHeavyElision` in `server/ai/drivers/http/toolLoop.ts`.
 
 ---
 
@@ -395,7 +396,7 @@ When a node-targeting write tool (`insertHtml`, `getNodeHtml`, `replaceNodeHtml`
 ```ts
 [staticPrefix, SYSTEM_PROMPT_DYNAMIC_BOUNDARY, dynamicSuffix]
 ```
-Drivers that support prompt caching (Anthropic) apply `cache_control` to the static prefix automatically; drivers that don't concatenate the three strings. Content is intentionally static across providers — every observable behaviour comes from the tool definitions, not prompt knobs.
+Drivers that support explicit prompt-cache controls (Anthropic) apply `cache_control` to the static prefix automatically. OpenAI concatenates the prompt parts and sends a stable `prompt_cache_key` derived from the scope + toolset so repeated prefixes route more consistently. Other drivers concatenate the three strings. Content is intentionally static across providers — every observable behaviour comes from the tool definitions, not prompt knobs.
 
 `SYSTEM_PROMPT_DYNAMIC_BOUNDARY` is the literal `'__SYSTEM_PROMPT_DYNAMIC_BOUNDARY__'`, declared **once** in `server/ai/runtime/types.ts` and imported everywhere — prompt builders and every driver. A duplicate definition would silently break prompt caching on whichever driver drifted. Gated by `ai-driver-shared-helpers.test.ts`.
 
@@ -407,7 +408,7 @@ Drivers that support prompt caching (Anthropic) apply `cache_control` to the sta
 - Per-breakpoint variation: `@media` queries — in the `<style>` block of an insert or inside `applyCss` — with min/max-width queries that line up with the breakpoint widths in the dynamic suffix. Never invent ids like `"mobile"` or `"desktop"`.
 - Page ids come from the dynamic suffix; never invent them.
 - Write-tool success data uses explicit keys: `cssRulesCreated`/`cssRulesUpdated` for `applyCss`, `pageId` for `addPage`/`duplicatePage`, `nodeId`/`nodeIds` for `duplicateNode`, `nodeIds` for HTML inserts.
-- Editing existing content: call `read_page` first — it returns the annotated page HTML where every element carries `uid="<nodeId>"`; pass that `uid` verbatim to write tools (`updateNodeProps`, `replaceNodeHtml`, etc.). For a single subtree, `getNodeHtml` is sufficient.
+- Editing existing content: call `read_page` first — it returns annotated page HTML where every element carries `uid="<nodeId>"` plus `pageInfo`; follow `pageInfo.nextPart` when more of the page is needed. Pass `uid` verbatim to write tools (`updateNodeProps`, `replaceNodeHtml`, etc.). For a single subtree, `getNodeHtml` is sufficient.
 - Reply rule: 1–2 narrating sentences only. No raw HTML/CSS/JSON in the reply.
 
 **Dynamic suffix** (built per request by `buildDynamicSuffix(snap: SiteAgentSnapshot)`):
@@ -417,7 +418,7 @@ Page: "My Site" · root: <rootNodeId> · selected: <nodeId|none>
 · Pages: [<id>=<slug> (active), <id>=<slug>, …]
 · Tokens — colors: [primary=…, ink=…]; type --text-*: [xs, s, m, …]; spacing --space-*: […]; fonts: [--font-heading→Inter]
 ```
-The static prefix is cache-friendly (unchanged across prompts for the same provider). The dynamic suffix carries per-request state and is never cached. The `Tokens —` digest is a compact, always-inlined summary of the site's design tokens (`describeAgentTokens(snap.site)`) so the agent sees the design system every turn without a `list_tokens` round-trip; when no tokens exist it reads `Tokens: (none — no design system yet; establish one first …)`. `list_tokens` remains the on-demand full-detail read (variants, utility classes).
+The static prefix is cache-friendly (unchanged across prompts for the same provider). Anthropic marks only that prefix with `cache_control`; OpenAI relies on automatic prefix caching plus `prompt_cache_key`. The dynamic suffix carries per-request state. The `Tokens —` digest is a compact, always-inlined summary of the site's design tokens (`describeAgentTokens(snap.site)`) so the agent sees the design system every turn without a `list_tokens` round-trip; when no tokens exist it reads `Tokens: (none — no design system yet; establish one first …)`. `list_tokens` remains the on-demand full-detail read (variants, utility classes).
 
 ---
 
@@ -432,7 +433,7 @@ The previous tool surface required the model to reference internal module ids (`
 
 The same importer that powers the Agent's `insertHtml` tool also powers the paste-HTML UI — see `docs/features/html-import.md`. No duplicated mapping logic.
 
-**Reads are HTML-native.** The `read_page` tool replaced the five JSON page-tree tools (`inspect_page`, `inspect_node`, `search_nodes`, `list_classes`, `inspect_class`). The `snapshot-tokens` benchmark compares that retired JSON surface with the live HTML+CSS read surface. `read_page` renders the active page via `publishPage(..., { annotateNodeIds: true })`, returning an annotated `<body>` where every element carries `uid="<nodeId>"`, plus page-relevant CSS rather than the public full-site CSS bundle. The agent reads `uid` values from the HTML and passes them verbatim to write tools — no separate node-lookup round-trip. Catalog tools (`list_modules`, `list_tokens`, `list_pages`, `list_breakpoints`) describe things not visible in the page HTML (what is insertable, design token CSS vars, page list) and remain as JSON tools.
+**Reads are HTML-native.** The `read_page` tool replaced the five JSON page-tree tools (`inspect_page`, `inspect_node`, `search_nodes`, `list_classes`, `inspect_class`). The `snapshot-tokens` benchmark compares that retired JSON surface with the live `read_page` tool result. `read_page` renders the active page via `publishPage(..., { annotateNodeIds: true })`, returning an annotated `<body>` where every element carries `uid="<nodeId>"`, plus page-relevant CSS rather than the public full-site CSS bundle. The response is cleaned and size-budgeted; if `pageInfo.nextPart` is set, subsequent `read_page({ part })` calls return the remaining cleaned ranges. The agent reads `uid` values from the HTML and passes them verbatim to write tools — no separate node-lookup round-trip. Catalog tools (`list_modules`, `list_tokens`, `list_pages`, `list_breakpoints`) describe things not visible in the page HTML (what is insertable, design token CSS vars, page list) and remain as JSON tools.
 
 ---
 

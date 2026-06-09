@@ -60,10 +60,19 @@ describe('site read tools', () => {
     expect(typeof tool.handler).toBe('function')
   })
 
-  it('read_page returns annotated HTML + a <style> css bundle', async () => {
-    const result = (await callTool('read_page')) as { html: string; css: string }
+  it('read_page returns annotated HTML + a <style> css bundle with paging metadata', async () => {
+    const result = (await callTool('read_page')) as {
+      html: string
+      css: string
+      pageInfo: { part: number; totalParts: number; nextPart: number | null }
+    }
     expect(result.html).toContain('uid="title"')
     expect(result.html).toContain('Design tools')
+    expect(result.pageInfo).toEqual(expect.objectContaining({
+      part: 1,
+      totalParts: 1,
+      nextPart: null,
+    }))
   })
 
   it('list_modules returns base.text and excludes base.body', async () => {

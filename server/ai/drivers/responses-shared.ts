@@ -69,9 +69,9 @@ export type ResponsesTurn = ResponsesInputItem[]
 /**
  * Flatten the canonical `systemPrompt` array into the single Responses
  * `instructions` string. The 3-element cached form
- * `[prefix, BOUNDARY, suffix]` is joined into one block — OpenAI's Responses
- * API exposes no prompt-cache control to set, so the boundary marker is
- * dropped and the two halves are concatenated.
+ * `[prefix, BOUNDARY, suffix]` is joined into one block. OpenAI prompt caching
+ * is automatic; callers can add `prompt_cache_key` through the adapter options
+ * to improve routing for repeated prefixes.
  */
 export function joinInstructions(systemPrompt: string[]): string {
   return systemPrompt
@@ -326,6 +326,7 @@ export interface ResponsesAdapterOptions {
   readonly label: string
   readonly endpoint: string
   buildHeaders(req: AiStreamRequest): Record<string, string>
+  promptCacheKey?: (req: AiStreamRequest) => string | null
 }
 
 /**
@@ -352,6 +353,8 @@ export function createResponsesAdapter(
         input: messages.flat(),
         stream: true,
       }
+      const promptCacheKey = opts.promptCacheKey?.(req)
+      if (promptCacheKey) body.prompt_cache_key = promptCacheKey
       if (req.tools.length > 0) body.tools = buildResponsesTools(req.tools)
       return body
     },
@@ -369,4 +372,3 @@ export function createResponsesAdapter(
     },
   }
 }
-
